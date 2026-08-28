@@ -1,0 +1,2720 @@
+// script.js — 우리동네홈트챌린지 (프론트/백엔드 경계 및 기술스택 안내는 이 파일 맨 아래 하단 요약과
+// 각 섹션의 [백엔드 연동 필요 구간] 주석을 참고하세요.
+/* ========================================================================
+   상태 (STATE)
+   ======================================================================== */
+// [프론트엔드 목업 안내] 이 파일은 정적 프로토타입이라 아래 state 객체 하나가
+// 서버·DB 역할을 전부 대신하고 있습니다. 실제 서비스 구현 시에는 이 state를
+// 화면마다 필요한 API 응답으로 대체하면 됩니다.
+//   프론트(JS/화면) 구간 > Java 서버(Spring Boot 등 API) 구간 > DB 연결 > SQL 사용
+// 아래부터는 어느 화면(함수)이 이 파이프라인의 어느 지점과 이어지는지
+// 섹션별 주석으로 표시해 두었습니다.
+const EXS = [
+  {id:'squat', name:'스쿼트', target:'하체 · 둔근', level:'초급'},
+  {id:'pushup', name:'푸시업', target:'가슴 · 삼두', level:'중급'},
+  {id:'lunge', name:'런지', target:'하체 · 코어', level:'초급'},
+  {id:'plank', name:'플랭크', target:'코어 전신', level:'초급'},
+  {id:'burpee', name:'버피', target:'전신 · 심폐', level:'고급'},
+];
+
+const MISSION_POOL = [
+  {name:'스쿼트 30회 달성', ex:'스쿼트', reward:80},
+  {name:'정확도 90% 이상 1세트', ex:'전체', reward:120},
+  {name:'런지 3세트 완료', ex:'런지', reward:90},
+  {name:'MISS 0회로 세트 마감', ex:'전체', reward:150},
+  {name:'플랭크 2분 버티기', ex:'플랭크', reward:70},
+  {name:'버피 15회 달성', ex:'버피', reward:100},
+  {name:'홈크루 팀미션 참여', ex:'크루', reward:60},
+];
+
+// 아이디·닉네임·크루명 중복확인용 목업 데이터. 실제로는 DB 조회(SQL SELECT ... WHERE)로 대체된다.
+const EXISTING_USERS = [
+  {id:'hometrainer01', nickname:'써니핏'},
+  {id:'runner99', nickname:'런닝수달'},
+  {id:'proteinman', nickname:'단백질맨'},
+];
+const state = {
+  screen: 'login', // signup | login | app
+  signup: {
+    id:'', pw:'', pw2:'', nickname:'',
+    regionCity:'서울시', regionGu:'강남구', regionDong:'역삼동', gender:'male', calibrated:false,
+    calModalOpen:false, calStage:'idle', calProfile:null, calError:'',
+  },
+  user: {nickname:'', avatar:0, gender:'male', points:1240, exp:62, level:7, region:'서울시 강남구 역삼동', retakeTickets:0, nicknameTickets:0, bio:''},
+  menu: 'exercise',
+  subtabs: {mission:0, profile:0, crew:0, ranking:0, settings:0},
+  exercise: {step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0},
+  missions: {
+    candidates: MISSION_POOL.slice(0,5),
+    picked: {daily:['스쿼트 30회 달성','정확도 90% 이상 1세트'], weekly:['MISS 0회로 세트 마감'], monthly:['홈크루 팀미션 참여']},
+    period:'daily',
+    progress: {'스쿼트 30회 달성':70,'정확도 90% 이상 1세트':40,'MISS 0회로 세트 마감':20,'홈크루 팀미션 참여':55},
+  },
+  shopItems: [
+    {name:'다시찍기 티켓', price:80, owned:false, consumable:true, effect:'재촬영 1회 추가', effectDesc:'세션당 무료 재촬영 2회를 모두 쓴 뒤, 추가로 다시 촬영할 때 1장씩 소모됩니다. 결과를 확인하며 반복 재촬영으로 정확도를 올리는 것을 막기 위한 아이템이에요.'},
+    {name:'네온 트레이닝복', price:300, owned:false, equipped:false, slot:'outfit', effect:'판정 관대도 +3%', effectDesc:'경계선 각도의 자세를 GOOD 이상으로 인정할 확률이 올라갑니다.'},
+    {name:'금빛 뱃지 프레임', price:450, owned:false, equipped:false, slot:'badge', effect:'미션 포인트 +10%', effectDesc:'모든 미션 달성 보상 포인트에 10% 추가 지급됩니다.'},
+    {name:'챔피언 왕관', price:900, owned:false, equipped:false, slot:'crown', effect:'랭킹 점수 +5%', effectDesc:'지역·종목 랭킹에 반영되는 점수가 5% 가산됩니다.'},
+    {name:'프로필 배경 - 새벽 러닝', price:250, owned:true, equipped:true, slot:'background', effect:'출석 보너스 +5P/일', effectDesc:'연속 출석일마다 기본 출석 포인트에 5P가 추가됩니다.'},
+    {name:'캐릭터 - 로봇 코치', price:600, owned:false, equipped:false, slot:'skin', effect:'스트레칭 시간 -15%', effectDesc:'운동 전 스트레칭 타이머가 15% 단축되어 표시됩니다.'},
+    {name:'닉네임 컬러 이펙트', price:180, owned:true, equipped:true, slot:'nickname', effect:'능력치 없음 · 외형 전용', effectDesc:'랭킹·게시판에서 닉네임 색상만 강조되며 점수에는 영향이 없습니다.'},
+    {name:'닉네임 변경권', price:150, owned:false, consumable:true, effect:'닉네임 변경 1회', effectDesc:'설정에서 닉네임을 한 번 변경할 수 있습니다. 무분별한 닉네임 변경으로 랭킹·게시판 혼선이 생기는 것을 막기 위한 아이템이에요.'},
+  ],
+  crew: {
+    created:false, name:'', desc:'', region:'',
+    members:[],
+    notices:[
+      {who:'써니핏', title:'우리 크루 단톡방 안내', body:"카카오톡 오픈채팅방에서 '123' 검색해서 들어와주세요!", date:'08.20'},
+    ],
+    joinRequests:[
+      {n:'배드민턴킹', level:5, score:1800, msg:'매일 저녁 운동 인증하려고 합니다. 잘 부탁드려요!'},
+      {n:'헬린이탈출', level:3, score:960, msg:'초보인데 열심히 하겠습니다!'},
+    ],
+    groupMission: {period:'daily', ex:'스쿼트', totalTarget:300},
+    teamProgress:64,
+    level:1, exp:0,
+    rankCity:null, rankGu:null, rankDong:null, mapCity:null, mapGu:null,
+  },
+  history: [
+    {date:'08.22', ex:'스쿼트', reps:32, acc:91, score:412, grade:'GREAT', gc:{PERFECT:14,GREAT:15,GOOD:3,MISS:2}},
+    {date:'08.22', ex:'런지', reps:18, acc:84, score:250, grade:'GOOD', gc:{PERFECT:2,GREAT:8,GOOD:8,MISS:1}},
+    {date:'08.20', ex:'플랭크', reps:1, acc:88, score:260, grade:'GOOD', gc:{PERFECT:0,GREAT:0,GOOD:1,MISS:0}},
+    {date:'08.18', ex:'런지', reps:24, acc:95, score:388, grade:'PERFECT', gc:{PERFECT:20,GREAT:3,GOOD:1,MISS:1}},
+  ],
+  board: [
+    {who:'써니핏', ex:'런지 3세트', text:'오늘도 정자세 유지 성공! 다음 목표는 정확도 95%.', likes:24, cmts:5},
+    {who:'단백질맨', ex:'버피 20회', text:'버피는 역시 힘들다... 그래도 MISS 1개뿐!', likes:11, cmts:2},
+    {who:'런닝수달', ex:'플랭크 3분', text:'플랭크 챌린지 신기록 갱신했습니다', likes:31, cmts:8},
+  ],
+  settings: {
+    account:{nickname:'', regionCity:'서울시', regionGu:'강남구', regionDong:'역삼동'},
+    notif:true, sound:true, camRes:'720p',
+    privacy:{profile:'전체공개', history:'크루공개'},
+  },
+  support: {
+    composerOpen:false,
+    filter:'all',
+    tickets:[
+      {id:3,type:'Error',title:'웹캠 촬영 중 화면이 멈춰요',body:'스쿼트 촬영 20초쯤 지나면 화면이 멈추고 리플레이로 넘어가지 않습니다.',status:'답변완료',date:'08.21',
+        reply:'브라우저 캐시 문제로 확인되었습니다. 카메라 권한을 껐다 켠 뒤 다시 시도해주세요. 동일 증상이 반복되면 다시 접수 부탁드립니다.'},
+      {id:2,type:'기능제안',title:'홈크루 인원을 6명까지 늘려주세요',body:'현재 4명 제한인데 동네 모임 특성상 6명까지는 열어주시면 좋겠습니다.',status:'처리중',date:'08.22', reply:''},
+      {id:1,type:'기타',title:'포인트 상점 아이템 효과가 안 보여요',body:'구매 전에 아이템 효과를 알 수 있으면 좋겠습니다.',status:'접수',date:'08.23', reply:''},
+    ],
+  },
+  confirm: null,
+  findIdModal: {open:false, result:null},
+  findPwModal: {open:false, done:false},
+  rankFilter: {city:null, gu:null, dong:null},
+  exRankFilter: {city:null, gu:null, dong:null, ex:null},
+};
+
+const AVATAR_COLORS = ['#1B3A6B','#E8532B','#C98A00','#3E8FCF','#7A5CC9','#2AA9C9'];
+function avatarColor(i){return AVATAR_COLORS[i % AVATAR_COLORS.length];}
+function avatarInitial(name){return (name||'홈').trim().charAt(0) || 'H';}
+
+/* ========================================================================
+   유틸
+   ======================================================================== */
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  clearTimeout(toast._tid);
+  toast._tid=setTimeout(()=>t.classList.remove('show'),2200);
+}
+function askConfirm(title,desc,onYes,yesLabel='확인',danger=false){
+  state.confirm={title,desc,onYes,yesLabel,danger};
+  render();
+}
+function closeConfirm(){state.confirm=null;render();}
+
+function gradeColor(g){
+  if(g==='PERFECT') return 'var(--accent)';
+  if(g==='GREAT') return 'var(--gold)';
+  if(g==='GOOD') return '#4A7CFF';
+  return 'var(--danger)';
+}
+function gradePill(g){
+  const cls = g==='PERFECT'?'pill-accent':g==='GREAT'?'pill-gold':g==='GOOD'?'pill-muted':'pill-danger';
+  return `<span class="pill ${cls}">${g}</span>`;
+}
+
+/* ========================================================================
+   렌더 엔진 : 화면 라우팅
+   ======================================================================== */
+function render(){
+  const root=document.getElementById('app');
+  if(state.screen==='signup') root.innerHTML=renderSignup();
+  else if(state.screen==='login') root.innerHTML=renderLogin();
+  else root.innerHTML=renderApp();
+
+  if(state.confirm) root.innerHTML += renderConfirm();
+  if(state.findIdModal.open) root.innerHTML += renderFindIdModal();
+  if(state.findPwModal.open) root.innerHTML += renderFindPwModal();
+  // 캘리브레이션 모달은 회원가입 화면뿐 아니라, 운동 탭에서 "캘리브레이션 필수" 조건에 걸려
+  // 열릴 수도 있으므로 화면(screen)과 무관하게 calModalOpen 플래그만 본다.
+  if(state.signup.calModalOpen) root.innerHTML += renderCalibrationModal();
+
+  if(state.signup.calModalOpen && state.signup.calStage==='done'){
+    setTimeout(calSetupEditCanvas,0);
+  }
+
+  if(state.screen==='app' && state.menu==='exercise' && state.exercise.step===1){
+    // 버튼을 눌러야 시작하던 스트레칭 타이머를, 화면에 들어오자마자 자동으로 재생한다.
+    // (추후 실제 스트레칭 안내 영상으로 교체될 자리 — 지금은 진행바로 대신 표현)
+    setTimeout(runStretch,0);
+  }
+  if(state.screen==='app' && state.menu==='exercise' && state.exercise.step===2){
+    setTimeout(setupCamera,0);
+  }
+  if(state.screen==='app' && state.menu==='profile' && state.subtabs.profile===0){
+    setTimeout(drawAvatarCanvas,0);
+  }
+  if(state.screen==='app'){
+    setTimeout(drawTopbarAvatar,0);
+    setTimeout(drawPodiumChars,0);
+  }
+}
+
+/* ---------- 회원가입 ---------- */
+// 시 -> 구 -> 동 순으로 좁혀가는 활동 지역 선택용 데이터. 랭킹 집계 단위는 기존과 동일하게
+// 동(가장 마지막 값) 기준을 유지하고, 저장 시에는 세 값을 합쳐 기존과 같은 "시 구 동" 문자열로 만든다.
+const REGION_DATA = {
+  '서울시': { '강남구':['역삼동','삼성동'], '마포구':['합정동','망원동'], '성동구':['성수동'] },
+  '부산시': { '해운대구':['우동','중동'] },
+  '대전시': { '유성구':['봉명동'] },
+  '전남광주통합특별시': { '북구':['오룡동'], '서구':['상무동'] },
+};
+// renderSignup ~ setSignupDong 구간: 화면(입력 폼) 렌더링만 담당하는 순수 프론트엔드 로직.
+// (FR-AC-001) 실제 "가입 제출" 처리는 아래 doSignup() 지점에서 이어집니다.
+function renderSignup(){
+  return `
+  <div class="center-shell">
+    <div class="auth-card">
+      <p class="auth-eyebrow">우리동네 홈트챌린지</p>
+      <h1 class="auth-title">회원가입</h1>
+      <p class="auth-sub">AI 자세 분석과 지역 랭킹으로 함께하는 홈트레이닝</p>
+
+      <div class="field">
+        <label for="su-id">아이디</label>
+        <input id="su-id" type="text" placeholder="영문/숫자 4자 이상" value="${state.signup.id||''}" oninput="state.signup.id=this.value">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="su-pw">비밀번호</label>
+          <input id="su-pw" type="password" placeholder="••••••••" value="${state.signup.pw||''}" oninput="state.signup.pw=this.value">
+        </div>
+        <div class="field">
+          <label for="su-pw2">비밀번호 확인</label>
+          <input id="su-pw2" type="password" placeholder="••••••••" value="${state.signup.pw2||''}" oninput="state.signup.pw2=this.value">
+        </div>
+      </div>
+      <div class="field">
+        <label for="su-nick">닉네임</label>
+        <input id="su-nick" type="text" placeholder="홈트에서 사용할 닉네임" value="${state.signup.nickname||''}" oninput="state.signup.nickname=this.value">
+      </div>
+      <div class="field">
+        <label for="su-ref">추천인 코드 (선택)</label>
+        <input id="su-ref" type="text" placeholder="추천인 아이디 입력 시 포인트 지급">
+        <p class="hint">가입자와 추천인 모두에게 포인트가 지급됩니다.</p>
+      </div>
+      <div class="field">
+        <label>활동 지역 (랭킹 산정 기준)</label>
+        <div class="field-row">
+          <select onchange="setSignupCity(this.value)" style="flex:1;min-width:0;">
+            ${Object.keys(REGION_DATA).map(c=>`<option ${c===state.signup.regionCity?'selected':''}>${c}</option>`).join('')}
+          </select>
+          <select onchange="setSignupGu(this.value)" style="flex:1;min-width:0;">
+            ${Object.keys(REGION_DATA[state.signup.regionCity]).map(g=>`<option ${g===state.signup.regionGu?'selected':''}>${g}</option>`).join('')}
+          </select>
+          <select onchange="setSignupDong(this.value)" style="flex:1;min-width:0;">
+            ${REGION_DATA[state.signup.regionCity][state.signup.regionGu].map(d=>`<option ${d===state.signup.regionDong?'selected':''}>${d}</option>`).join('')}
+          </select>
+        </div>
+        <p class="hint">랭킹은 동 단위로 집계됩니다.</p>
+      </div>
+      <div class="field">
+        <label>카메라 캘리브레이션</label>
+        <button class="btn btn-secondary btn-block" onclick="openCalibrationModal()">
+          ${state.signup.calibrated ? '✓ 체형 보정 완료 (다시 촬영하려면 클릭)' : '카메라로 체형 보정하기'}
+        </button>
+        <p class="hint">
+          ${state.signup.calibrated && state.signup.calProfile && state.signup.calProfile.bodyInfo && state.signup.calProfile.bodyInfo.bmi ? `BMI ${state.signup.calProfile.bodyInfo.bmi} 기준으로 저장됨 · ` : ''}실제 웹캠으로 촬영 각도·거리·신체 비율을 미리 보정해 자세 분석 정확도를 높입니다.
+        </p>
+      </div>
+
+      <button class="btn btn-primary btn-block" style="margin-top:6px;" onclick="doSignup()">가입하고 시작하기</button>
+      <p class="switch-line">이미 계정이 있으신가요? <button onclick="goto('login')">로그인</button></p>
+    </div>
+  </div>`;
+}
+function setSignupCity(v){
+  state.signup.regionCity=v;
+  const gus=Object.keys(REGION_DATA[v]);
+  state.signup.regionGu=gus[0];
+  state.signup.regionDong=REGION_DATA[v][gus[0]][0];
+  render();
+}
+function setSignupGu(v){
+  state.signup.regionGu=v;
+  state.signup.regionDong=REGION_DATA[state.signup.regionCity][v][0];
+  render();
+}
+function setSignupDong(v){ state.signup.regionDong=v; render(); }
+// [백엔드 연동 필요 구간] 여기 doSignup()부터: 지금은 state.user에 값만 옮겨 담는
+// 목업이지만, 실제 구현에서는 이 지점에서 아래 파이프라인이 필요합니다.
+//   회원가입 폼 제출(여기) > Java 서버 회원가입 API(비밀번호 해싱 포함) > DB 연결 > SQL INSERT(계정 테이블)
+function doSignup(){
+  const id=document.getElementById('su-id').value.trim();
+  const nick=document.getElementById('su-nick').value.trim() || '홈트초보';
+  // (#8) 아이디·닉네임 중복 확인 — 실제로는 SQL SELECT ... WHERE id=? / nickname=? 로 대체된다.
+  if(!id){ toast('아이디를 입력해주세요'); return; }
+  if(EXISTING_USERS.some(u=>u.id===id)){ toast('이미 사용중인 아이디입니다'); return; }
+  if(EXISTING_USERS.some(u=>u.nickname===nick)){ toast('이미 사용중인 닉네임입니다'); return; }
+  const region=`${state.signup.regionCity} ${state.signup.regionGu} ${state.signup.regionDong}`;
+  state.user.nickname = nick;
+  state.user.gender = state.signup.gender || 'male';
+  state.user.region = region;
+  state.user.calibration = state.signup.calProfile || null;
+  state.settings.account.nickname = state.user.nickname;
+  state.settings.account.regionCity = state.signup.regionCity;
+  state.settings.account.regionGu = state.signup.regionGu;
+  state.settings.account.regionDong = state.signup.regionDong;
+  EXISTING_USERS.push({id, nickname:nick});
+  toast('회원가입이 완료되었습니다');
+  goto('login');
+}
+
+/* ---------- 회원가입 : 실제 웹캠 캘리브레이션 모달 (MediaPipe Pose) ---------- */
+// (FR-AC-002) 이 구간(calStartCamera ~ calComputeProfile)은 브라우저 안에서 도는
+// MediaPipe Pose(WASM) 계산이라 그대로 프론트엔드에 남습니다 — 백엔드가 필요 없는 부분.
+//   웹캠 영상(JS) > MediaPipe Pose(WASM, 브라우저 내 실행) > 체형 프로필 계산(JS)
+// 계산된 결과를 실제로 "저장"하는 시점(아래 calApply())부터만 서버 연동이 필요합니다.
+const CAL_REQUIRED_HOLD_MS = 2000;
+const CAL_VIS_THRESHOLD = 0.55;
+const CAL_DIST_MIN = 0.45;
+const CAL_DIST_MAX = 0.85;
+const CAL_CENTER_TOL = 0.16;
+const CAL_KEYPOINT_IDX = {
+  nose:0, lsh:11, rsh:12, lelbow:13, relbow:14, lwrist:15, rwrist:16,
+  lhip:23, rhip:24, lknee:25, rknee:26, lank:27, rank:28,
+};
+const CAL_CONNECTIONS = [
+  [11,12],[11,13],[13,15],[12,14],[14,16],
+  [11,23],[12,24],[23,24],
+  [23,25],[25,27],[27,29],[27,31],
+  [24,26],[26,28],[28,30],[28,32],
+];
+
+let calMediaPipeMod = null;   // 동적 import로 로드한 MediaPipe 모듈 (한 번만 로드)
+let calPoseLandmarker = null; // PoseLandmarker 인스턴스
+let calVideoStream = null;    // getUserMedia 스트림
+let calRunning = false;       // 캘리브레이션 루프 실행 여부
+let calRAF = null;            // requestAnimationFrame id
+let calLastVideoTime = -1;
+let calHoldStart = null;      // 정렬 유지 시작 시각
+let calFrameCount = 0, calFpsTs = 0;
+
+function openCalibrationModal(){
+  state.signup.calModalOpen = true;
+  state.signup.calStage = state.signup.calProfile ? 'done' : 'idle';
+  state.signup.calError = '';
+  render();
+}
+function closeCalibrationModal(){
+  calStopCamera();
+  state.signup.calModalOpen = false;
+  render();
+}
+function calRetake(){
+  state.signup.calProfile = null;
+  state.signup.calStage = 'idle';
+  state.signup.calError = '';
+  render();
+}
+// [백엔드 연동 필요 구간] calApply() 지점: 계산된 관절 좌표·체형 프로필(JSON)을 실제로 남기려면
+//   calApply() 호출(여기) > Java 서버 캘리브레이션 저장 API > DB 연결 > SQL INSERT(캘리브레이션 테이블, 또는 JSON 컬럼)
+function calApply(){
+  state.signup.calibrated = true;
+  state.signup.calModalOpen = false;
+  toast('체형 보정이 저장되었습니다');
+  // 이미 로그인된 상태(운동 탭에서 필수 캘리브레이션으로 진입한 경우)라면 여기서 바로
+  // 계정에 보정값을 반영해서, 다시 회원가입을 거치지 않아도 곧장 튜토리얼로 넘어가게 한다.
+  if(state.screen==='app'){
+    state.user.calibration = state.signup.calProfile;
+    if(state.menu==='exercise' && state.exercise.step===0 && state.exercise.picked){
+      goExStep(1);
+      return;
+    }
+  }
+  render();
+}
+
+function calClamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+// 키/몸무게 입력값 → BMI. 가이드 실루엣 보정 및 저장되는 bodyInfo에 함께 쓰인다.
+// 성별은 캘리브레이션 화면의 남성/여성 토글(setCalGender)에서 선택한 값을 그대로 담아,
+// 이후 캐릭터 생성 시 남성/여성 캐릭터를 구분하는 기준으로 재사용한다.
+function calGetBodyInfo(){
+  const hEl = document.getElementById('cal-height-input');
+  const wEl = document.getElementById('cal-weight-input');
+  const heightCm = hEl ? (parseFloat(hEl.value) || null) : null;
+  const weightKg = wEl ? (parseFloat(wEl.value) || null) : null;
+  const bmi = heightCm && weightKg ? weightKg / ((heightCm/100) ** 2) : null;
+  return { heightCm, weightKg, bmi: bmi ? +bmi.toFixed(1) : null, gender: state.signup.gender || 'male' };
+}
+// 성별 토글은 캘리브레이션 촬영이 진행 중일 수 있어 render()로 화면 전체를 다시 그리지 않고,
+// 버튼 두 개의 active 클래스만 직접 바꾼다 (render()를 부르면 video 엘리먼트가 새로 만들어져
+// 이미 연결된 카메라 스트림이 끊긴다).
+function setCalGender(g){
+  state.signup.gender=g;
+  document.querySelectorAll('.cal-gender-tab').forEach(el=>{
+    el.classList.toggle('active', el.dataset.gender===g);
+  });
+}
+function calBmiCategory(bmi){
+  if(bmi==null) return '';
+  if(bmi<18.5) return '저체중';
+  if(bmi<23) return '표준';
+  if(bmi<25) return '과체중';
+  return '비만';
+}
+function calUpdateBmiLabel(){
+  const lbl=document.getElementById('cal-bmi-label');
+  if(!lbl) return;
+  const {heightCm,weightKg,bmi}=calGetBodyInfo();
+  if(!heightCm || !weightKg){ lbl.textContent='체형 정보를 입력하면 가이드 실루엣이 내 체형에 맞게 조정돼요.'; return; }
+  lbl.textContent = `BMI ${bmi.toFixed(1)} · ${calBmiCategory(bmi)} 기준으로 실루엣을 보정했어요.`;
+}
+// BMI가 높을수록 실루엣 폭을 넓게, 키가 클수록 하체 비중을 늘려 힙 위치를 살짝 올려준다.
+function calGetBodyShapeFactors(){
+  const {heightCm,bmi}=calGetBodyInfo();
+  const widthFactor = bmi ? calClamp(0.85 + (bmi-21)*0.012, 0.82, 1.25) : 1;
+  const legShift = heightCm ? calClamp((heightCm-165)*0.0006, -0.03, 0.03) : 0;
+  return { widthFactor, legShift };
+}
+
+async function loadMediaPipe(){
+  if(calMediaPipeMod) return calMediaPipeMod;
+  calMediaPipeMod = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14');
+  return calMediaPipeMod;
+}
+
+async function calStartCamera(){
+  const btn=document.getElementById('cal-start-btn');
+  if(btn){ btn.disabled=true; btn.textContent='준비 중...'; }
+  state.signup.calError='';
+  try{
+    const {PoseLandmarker, FilesetResolver} = await loadMediaPipe();
+    const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+    calPoseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+      baseOptions:{
+        modelAssetPath:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+        delegate:'GPU',
+      },
+      runningMode:'VIDEO', numPoses:1,
+    });
+    const stream = await navigator.mediaDevices.getUserMedia({video:{width:960,height:720,facingMode:'user'}, audio:false});
+    calVideoStream = stream;
+    const video=document.getElementById('cal-video');
+    video.srcObject=stream;
+    await new Promise(res=>{ video.onloadedmetadata=res; });
+    video.play();
+    const canvas=document.getElementById('cal-canvas');
+    canvas.width=video.videoWidth;
+    canvas.height=video.videoHeight;
+    calRunning=true;
+    calHoldStart=null;
+    state.signup.calStage='running';
+    if(btn) btn.style.display='none';
+    calLoop();
+  }catch(err){
+    console.error(err);
+    state.signup.calError = '카메라를 시작할 수 없습니다: '+err.message+' (권한 허용 여부, https 또는 localhost 환경인지 확인해주세요)';
+    state.signup.calStage='error';
+    render();
+  }
+}
+
+function calStopCamera(){
+  calRunning=false;
+  if(calRAF) cancelAnimationFrame(calRAF);
+  calRAF=null;
+  if(calVideoStream){ calVideoStream.getTracks().forEach(t=>t.stop()); calVideoStream=null; }
+}
+
+function calSetCheck(id, ok){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.classList.toggle('ok', ok===true);
+  el.classList.toggle('bad', ok===false);
+}
+
+function calEvaluate(landmarks){
+  const idx={nose:0,lsh:11,rsh:12,lhip:23,rhip:24,lank:27,rank:28};
+  const need=[idx.nose,idx.lsh,idx.rsh,idx.lhip,idx.rhip,idx.lank,idx.rank];
+  const bodyOk = need.every(i=>landmarks[i] && (landmarks[i].visibility ?? 1) >= CAL_VIS_THRESHOLD);
+  let distOk=false, centerOk=false, bodyHeightRatio=null;
+  if(bodyOk){
+    const topY=landmarks[idx.nose].y;
+    const botY=(landmarks[idx.lank].y+landmarks[idx.rank].y)/2;
+    bodyHeightRatio=botY-topY;
+    distOk = bodyHeightRatio>=CAL_DIST_MIN && bodyHeightRatio<=CAL_DIST_MAX;
+    const hipCenterX=(landmarks[idx.lhip].x+landmarks[idx.rhip].x)/2;
+    centerOk = Math.abs(hipCenterX-0.5) <= CAL_CENTER_TOL;
+  }
+  return { bodyOk, distOk, centerOk, all: bodyOk&&distOk&&centerOk, bodyHeightRatio };
+}
+
+function calDrawGuideSilhouette(ctx, w, h, aligned){
+  const totalH = ((CAL_DIST_MIN+CAL_DIST_MAX)/2) * h;
+  const topY = 0.22*h;
+  const cx = 0.5*w;
+  const {widthFactor, legShift} = calGetBodyShapeFactors();
+
+  const headR = totalH*0.075;
+  const headCY = topY+headR;
+  const shoulderY = topY+totalH*0.20;
+  const hipY = topY+totalH*(0.52-legShift);
+  const kneeY = topY+totalH*(0.76-legShift*0.6);
+  const footY = topY+totalH;
+  const handY = shoulderY+totalH*0.30;
+
+  const shoulderHalfW = totalH*0.16*widthFactor;
+  const hipHalfW = totalH*0.11*widthFactor;
+  const handHalfW = totalH*0.30;
+  const kneeHalfW = totalH*0.09*widthFactor;
+  const footHalfW = totalH*0.11*widthFactor;
+
+  ctx.save();
+  ctx.globalAlpha = aligned ? 0.85 : 0.5;
+  ctx.strokeStyle = aligned ? '#6FBBEE' : 'rgba(255,255,255,0.6)';
+  ctx.setLineDash([12,8]);
+  ctx.lineWidth = Math.max(2.5, totalH*0.014);
+  ctx.lineCap='round'; ctx.lineJoin='round';
+
+  ctx.beginPath(); ctx.arc(cx, headCY, headR, 0, Math.PI*2); ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx-shoulderHalfW, shoulderY);
+  ctx.lineTo(cx-hipHalfW, hipY);
+  ctx.lineTo(cx+hipHalfW, hipY);
+  ctx.lineTo(cx+shoulderHalfW, shoulderY);
+  ctx.closePath(); ctx.stroke();
+
+  [-1,1].forEach(side=>{
+    ctx.beginPath();
+    ctx.moveTo(cx+side*shoulderHalfW, shoulderY);
+    ctx.quadraticCurveTo(cx+side*handHalfW*0.9, (shoulderY+handY)/2, cx+side*handHalfW, handY);
+    ctx.stroke();
+  });
+  [-1,1].forEach(side=>{
+    ctx.beginPath();
+    ctx.moveTo(cx+side*hipHalfW*0.7, hipY);
+    ctx.lineTo(cx+side*kneeHalfW, kneeY);
+    ctx.lineTo(cx+side*footHalfW, footY);
+    ctx.stroke();
+  });
+
+  ctx.setLineDash([]);
+  ctx.globalAlpha=1;
+  ctx.fillStyle = aligned ? '#6FBBEE' : 'rgba(255,255,255,0.75)';
+  ctx.font = `700 ${Math.max(12, w*0.018)}px 'Pretendard', 'Malgun Gothic', sans-serif`;
+  ctx.textAlign='center';
+  // 캔버스가 CSS로 좌우 반전(셀카뷰)되어 있어 텍스트만 한 번 더 반전시켜 상쇄한다.
+  ctx.translate(w,0);
+  ctx.scale(-1,1);
+  ctx.fillText(aligned ? '정렬 완료' : '이 실루엣 안에 맞춰 서주세요', cx, Math.max(18, topY-10));
+  ctx.restore();
+}
+
+function calDraw(landmarks, checks){
+  const canvas=document.getElementById('cal-canvas');
+  if(!canvas) return;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  calDrawGuideSilhouette(ctx, canvas.width, canvas.height, !!(checks && checks.all));
+  if(!landmarks) return;
+  const w=canvas.width, h=canvas.height;
+  ctx.lineWidth=3;
+  ctx.strokeStyle = checks.all ? '#6FBBEE' : '#FF8A5E';
+  CAL_CONNECTIONS.forEach(([a,b])=>{
+    const pa=landmarks[a], pb=landmarks[b];
+    if(!pa||!pb) return;
+    ctx.beginPath(); ctx.moveTo(pa.x*w, pa.y*h); ctx.lineTo(pb.x*w, pb.y*h); ctx.stroke();
+  });
+  ctx.fillStyle = checks.all ? '#6FBBEE' : '#FF8A5E';
+  landmarks.forEach(p=>{
+    if(p.visibility!==undefined && p.visibility<CAL_VIS_THRESHOLD) return;
+    ctx.beginPath(); ctx.arc(p.x*w, p.y*h, 4, 0, Math.PI*2); ctx.fill();
+  });
+}
+
+function calSnapshotDataUrl(){
+  const video=document.getElementById('cal-video');
+  const snap=document.createElement('canvas');
+  snap.width=video.videoWidth; snap.height=video.videoHeight;
+  snap.getContext('2d').drawImage(video,0,0,snap.width,snap.height);
+  return snap.toDataURL('image/jpeg',0.7);
+}
+function calComputeMetrics(pts){
+  const shoulderWidth=Math.hypot(pts.lsh.x-pts.rsh.x, pts.lsh.y-pts.rsh.y);
+  const hipWidth=Math.hypot(pts.lhip.x-pts.rhip.x, pts.lhip.y-pts.rhip.y);
+  const torsoLen=Math.hypot(
+    (pts.lsh.x+pts.rsh.x)/2-(pts.lhip.x+pts.rhip.x)/2,
+    (pts.lsh.y+pts.rsh.y)/2-(pts.lhip.y+pts.rhip.y)/2
+  );
+  const bodyHeight=((pts.lank.y+pts.rank.y)/2)-pts.nose.y;
+  return {
+    shoulderWidth:+shoulderWidth.toFixed(4), hipWidth:+hipWidth.toFixed(4),
+    torsoLength:+torsoLen.toFixed(4), bodyHeightRatio:+bodyHeight.toFixed(4),
+  };
+}
+function calComputeProfile(landmarks){
+  const canvas=document.getElementById('cal-canvas');
+  const pts={};
+  for(const [key,idx] of Object.entries(CAL_KEYPOINT_IDX)){
+    pts[key]={x:+landmarks[idx].x.toFixed(4), y:+landmarks[idx].y.toFixed(4)};
+  }
+  return {
+    createdAt:new Date().toISOString(),
+    frameWidth:canvas.width, frameHeight:canvas.height,
+    bodyInfo:calGetBodyInfo(),
+    snapshot:calSnapshotDataUrl(),
+    landmarks:pts,
+    normalized:calComputeMetrics(pts),
+  };
+}
+
+function calLoop(){
+  if(!calRunning) return;
+  calRAF=requestAnimationFrame(calLoop);
+  const video=document.getElementById('cal-video');
+  if(!video || video.currentTime===calLastVideoTime) return;
+  calLastVideoTime=video.currentTime;
+
+  const ts=performance.now();
+  const res=calPoseLandmarker.detectForVideo(video, ts);
+
+  calFrameCount++;
+  if(ts-calFpsTs>1000){
+    const fpsEl=document.getElementById('cal-fps-badge');
+    if(fpsEl) fpsEl.textContent=`${calFrameCount} fps`;
+    calFrameCount=0; calFpsTs=ts;
+  }
+
+  if(!res.landmarks || res.landmarks.length===0){
+    calDraw(null, {all:false});
+    calSetCheck('cal-check-body', false);
+    calSetCheck('cal-check-dist', false);
+    calSetCheck('cal-check-center', false);
+    calHoldStart=null;
+    const bar=document.getElementById('cal-hold-bar'); if(bar) bar.style.width='0%';
+    const lbl=document.getElementById('cal-hold-label'); if(lbl) lbl.textContent='보정 유지 시간 (사람이 인식되지 않았습니다)';
+    return;
+  }
+
+  const landmarks=res.landmarks[0];
+  const checks=calEvaluate(landmarks);
+  calDraw(landmarks, checks);
+  calSetCheck('cal-check-body', checks.bodyOk);
+  calSetCheck('cal-check-dist', checks.bodyOk ? checks.distOk : null);
+  calSetCheck('cal-check-center', checks.bodyOk ? checks.centerOk : null);
+
+  const bar=document.getElementById('cal-hold-bar');
+  const lbl=document.getElementById('cal-hold-label');
+  if(checks.all){
+    if(!calHoldStart) calHoldStart=ts;
+    const elapsed=ts-calHoldStart;
+    const pct=Math.min(100,(elapsed/CAL_REQUIRED_HOLD_MS)*100);
+    if(bar) bar.style.width=pct+'%';
+    if(lbl) lbl.textContent=`보정 유지 시간 (${(elapsed/1000).toFixed(1)}s / ${(CAL_REQUIRED_HOLD_MS/1000).toFixed(1)}s)`;
+    if(elapsed>=CAL_REQUIRED_HOLD_MS){
+      const profile=calComputeProfile(landmarks);
+      calStopCamera();
+      state.signup.calProfile=profile;
+      state.signup.calStage='done';
+      render();
+    }
+  } else {
+    calHoldStart=null;
+    if(bar) bar.style.width='0%';
+    const reasons=[];
+    if(!checks.bodyOk) reasons.push('전신이 프레임에 보이지 않습니다');
+    else{
+      if(!checks.distOk) reasons.push(checks.bodyHeightRatio<CAL_DIST_MIN ? '카메라와 더 가까이 서주세요' : '카메라와 더 멀리 떨어져주세요');
+      if(!checks.centerOk) reasons.push('화면 중앙으로 이동해주세요');
+    }
+    if(lbl) lbl.textContent='보정 유지 시간 ('+reasons.join(' · ')+')';
+  }
+}
+
+function renderCalibrationModal(){
+  const s=state.signup;
+  const stage=s.calStage||'idle';
+  return `
+  <div class="confirm-backdrop">
+    <div class="confirm-box" style="max-width:760px;width:100%;">
+      <h3>카메라 캘리브레이션</h3>
+      <p style="color:var(--ink-dim);font-size:13px;line-height:1.55;margin:0 0 16px;">전신이 화면에 들어오도록 서서, 화면의 점선 실루엣에 맞춰 2초간 자세를 유지하면 자동으로 체형이 저장됩니다.</p>
+      ${stage==='done' ? renderCalDone(s) : renderCalLive(s)}
+    </div>
+  </div>`;
+}
+
+function renderCalLive(s){
+  return `
+  <div class="grid grid-2" style="align-items:start;">
+    <div>
+      <div class="cam-stage" style="aspect-ratio:4/3;">
+        <video id="cal-video" autoplay playsinline muted style="transform:scaleX(-1);width:100%;height:100%;object-fit:cover;"></video>
+        <canvas class="cam-overlay-canvas" id="cal-canvas" style="transform:scaleX(-1);"></canvas>
+        <div class="cam-badge"><span class="rec-dot"></span><span id="cal-fps-badge">대기중</span></div>
+      </div>
+      <button class="btn btn-primary btn-block" id="cal-start-btn" style="margin-top:12px;" onclick="calStartCamera()">카메라 시작</button>
+      ${s.calError ? `<p class="hint" style="color:var(--danger);margin-top:8px;">${s.calError}</p>` : ''}
+    </div>
+    <div>
+      <div class="check" id="cal-check-body"><span class="dot"></span>전신 인식 (머리~발목)</div>
+      <div class="check" id="cal-check-dist" style="margin-top:8px;"><span class="dot"></span>적정 거리</div>
+      <div class="check" id="cal-check-center" style="margin-top:8px;"><span class="dot"></span>중앙 정렬</div>
+      <div style="margin-top:12px;">
+        <div class="hint" id="cal-hold-label">보정 유지 시간</div>
+        <div class="progress" style="margin-top:6px;"><span id="cal-hold-bar" style="width:0%"></span></div>
+      </div>
+      <div class="field" style="margin-top:16px;">
+        <label>캐릭터 성별</label>
+        <div class="subtabs" style="margin-bottom:0;">
+          <div class="tab cal-gender-tab ${s.gender!=='female'?'active':''}" data-gender="male" onclick="setCalGender('male')">남성 캐릭터</div>
+          <div class="tab cal-gender-tab ${s.gender==='female'?'active':''}" data-gender="female" onclick="setCalGender('female')">여성 캐릭터</div>
+        </div>
+      </div>
+      <div class="field-row" style="margin-top:16px;">
+        <div class="field"><label>키 (cm)</label><input type="number" id="cal-height-input" placeholder="예: 170" oninput="calUpdateBmiLabel()"></div>
+        <div class="field"><label>몸무게 (kg)</label><input type="number" id="cal-weight-input" placeholder="예: 65" oninput="calUpdateBmiLabel()"></div>
+      </div>
+      <p class="hint" id="cal-bmi-label">체형 정보를 입력하면 가이드 실루엣이 내 체형에 맞게 조정돼요.</p>
+      <button class="btn btn-ghost btn-block" style="margin-top:14px;" onclick="closeCalibrationModal()">닫기</button>
+    </div>
+  </div>`;
+}
+
+function renderCalDone(s){
+  const p=s.calProfile;
+  const bi=p.bodyInfo||{};
+  return `
+  <div class="grid grid-2" style="align-items:start;">
+    <div>
+      <div class="cam-stage" style="aspect-ratio:4/3;">
+        <canvas id="cal-edit-canvas" style="width:100%;height:100%;display:block;cursor:grab;"></canvas>
+      </div>
+      <p class="hint" style="margin-top:8px;">보정 완료 · ${new Date(p.createdAt).toLocaleString()} · 점을 드래그하면 관절 위치를 바로 수정할 수 있어요.</p>
+      <div id="cal-edit-point-list" style="display:flex;flex-direction:column;gap:5px;margin-top:10px;max-height:210px;overflow-y:auto;"></div>
+    </div>
+    <div>
+      <div class="stat-row" style="margin:0 0 12px;">
+        <div class="stat-box"><div class="num mono" id="cal-edit-m-shoulder">${p.normalized.shoulderWidth}</div><div class="lbl">어깨너비</div></div>
+        <div class="stat-box"><div class="num mono" id="cal-edit-m-height">${p.normalized.bodyHeightRatio}</div><div class="lbl">신장비율</div></div>
+        ${bi.bmi ? `<div class="stat-box"><div class="num mono">${bi.bmi}</div><div class="lbl">BMI</div></div>` : ''}
+      </div>
+      <button class="btn btn-primary btn-block" onclick="calApply()">이 보정값 적용하기</button>
+      <button class="btn btn-secondary btn-block" style="margin-top:8px;" onclick="calRetake()">다시 촬영</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="closeCalibrationModal()">닫기</button>
+    </div>
+  </div>`;
+}
+
+/* ---------- 캘리브레이션 완료 후 관절 포인트 직접 편집 (calibrationeditor.html 로직을 모달 내로 이식) ---------- */
+// (FR-AC-003) 이 구간(calSetupEditCanvas ~ calEditEndDrag)은 캔버스 위에서 점을 드래그해
+// 좌표만 수정하는 순수 프론트엔드 로직입니다 — 별도 백엔드 호출 없이, 위 calApply()가
+// 실행될 때 수정된 좌표까지 함께 저장 API로 넘어가면 됩니다.
+const CAL_EDIT_POINTS=[
+  {key:'nose', label:'코(머리)', color:'#6FBBEE'},
+  {key:'lsh', label:'왼쪽 어깨', color:'#F0B93A'}, {key:'rsh', label:'오른쪽 어깨', color:'#F0B93A'},
+  {key:'lelbow', label:'왼쪽 팔꿈치', color:'#C88CFF'}, {key:'relbow', label:'오른쪽 팔꿈치', color:'#C88CFF'},
+  {key:'lwrist', label:'왼쪽 손목', color:'#8CD0FF'}, {key:'rwrist', label:'오른쪽 손목', color:'#8CD0FF'},
+  {key:'lhip', label:'왼쪽 골반', color:'#FF8A5E'}, {key:'rhip', label:'오른쪽 골반', color:'#FF8A5E'},
+  {key:'lknee', label:'왼쪽 무릎', color:'#4A7CFF'}, {key:'rknee', label:'오른쪽 무릎', color:'#4A7CFF'},
+  {key:'lank', label:'왼쪽 발목', color:'#E5645A'}, {key:'rank', label:'오른쪽 발목', color:'#E5645A'},
+];
+const CAL_EDIT_BONES=[
+  ['lsh','rsh'],['lsh','lhip'],['rsh','rhip'],['lhip','rhip'],
+  ['lsh','lelbow'],['lelbow','lwrist'],['rsh','relbow'],['relbow','rwrist'],
+  ['lhip','lknee'],['lknee','lank'],['rhip','rknee'],['rknee','rank'],
+];
+let calEditImg=null, calEditImgSrc=null, calEditSelectedKey=null, calEditDragKey=null;
+
+function calSetupEditCanvas(){
+  const canvas=document.getElementById('cal-edit-canvas');
+  const profile=state.signup.calProfile;
+  if(!canvas || !profile) return;
+  canvas.width=profile.frameWidth||640;
+  canvas.height=profile.frameHeight||480;
+
+  if(calEditImgSrc!==profile.snapshot){
+    calEditImg=new Image();
+    calEditImgSrc=profile.snapshot;
+    calEditImg.onload=calEditRender;
+    calEditImg.src=profile.snapshot;
+  } else {
+    calEditRender();
+  }
+
+  canvas.onmousedown=calEditStartDrag;
+  canvas.onmousemove=calEditMoveDrag;
+  window.onmouseup=calEditEndDrag;
+  canvas.ontouchstart=calEditStartDrag;
+  canvas.ontouchmove=calEditMoveDrag;
+  window.ontouchend=calEditEndDrag;
+}
+function calEditRender(){
+  const canvas=document.getElementById('cal-edit-canvas');
+  const profile=state.signup.calProfile;
+  if(!canvas || !profile) return;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(calEditImg && calEditImg.complete) ctx.drawImage(calEditImg,0,0,canvas.width,canvas.height);
+
+  const pts=profile.landmarks;
+  ctx.strokeStyle='rgba(111,187,238,0.75)'; ctx.lineWidth=3;
+  CAL_EDIT_BONES.forEach(([a,b])=>{
+    if(!pts[a]||!pts[b]) return;
+    ctx.beginPath();
+    ctx.moveTo(pts[a].x*canvas.width, pts[a].y*canvas.height);
+    ctx.lineTo(pts[b].x*canvas.width, pts[b].y*canvas.height);
+    ctx.stroke();
+  });
+  CAL_EDIT_POINTS.forEach(({key,color})=>{
+    const p=pts[key]; if(!p) return;
+    const isSel=key===calEditSelectedKey;
+    ctx.beginPath();
+    ctx.arc(p.x*canvas.width, p.y*canvas.height, isSel?10:7, 0, Math.PI*2);
+    ctx.fillStyle=color; ctx.fill();
+    if(isSel){ ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke(); }
+  });
+  calEditUpdatePointList();
+}
+function calEditUpdatePointList(){
+  const list=document.getElementById('cal-edit-point-list');
+  const profile=state.signup.calProfile;
+  if(!list || !profile) return;
+  const pts=profile.landmarks;
+  list.innerHTML=CAL_EDIT_POINTS.map(({key,label,color})=>{
+    const p=pts[key]; if(!p) return '';
+    const sel=key===calEditSelectedKey;
+    return `<div onclick="calEditSelectPoint('${key}')" style="display:flex;align-items:center;gap:8px;font-size:12px;padding:7px 10px;border-radius:8px;background:var(--surface-2);cursor:pointer;border:1px solid ${sel?'var(--accent)':'transparent'};color:${sel?'var(--accent)':'inherit'};">
+      <span style="width:9px;height:9px;border-radius:50%;background:${color};flex:none;"></span>${label}
+      <span class="mono" style="margin-left:auto;font-size:11px;color:var(--ink-faint);">${p.x.toFixed(3)}, ${p.y.toFixed(3)}</span>
+    </div>`;
+  }).join('');
+  const m=profile.normalized;
+  const shEl=document.getElementById('cal-edit-m-shoulder'); if(shEl) shEl.textContent=m.shoulderWidth;
+  const htEl=document.getElementById('cal-edit-m-height'); if(htEl) htEl.textContent=m.bodyHeightRatio;
+}
+function calEditSelectPoint(key){ calEditSelectedKey=key; calEditRender(); }
+function calEditCanvasPos(evt){
+  const canvas=document.getElementById('cal-edit-canvas');
+  const rect=canvas.getBoundingClientRect();
+  const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
+  const clientX=evt.touches?evt.touches[0].clientX:evt.clientX;
+  const clientY=evt.touches?evt.touches[0].clientY:evt.clientY;
+  return { x:(clientX-rect.left)*scaleX, y:(clientY-rect.top)*scaleY };
+}
+function calEditHitTest(mx,my){
+  const canvas=document.getElementById('cal-edit-canvas');
+  const pts=state.signup.calProfile.landmarks;
+  let best=null, bestDist=18;
+  CAL_EDIT_POINTS.forEach(({key})=>{
+    const p=pts[key]; if(!p) return;
+    const d=Math.hypot(p.x*canvas.width-mx, p.y*canvas.height-my);
+    if(d<bestDist){ bestDist=d; best=key; }
+  });
+  return best;
+}
+function calEditStartDrag(evt){
+  const {x,y}=calEditCanvasPos(evt);
+  const hit=calEditHitTest(x,y);
+  if(hit){ calEditDragKey=hit; calEditSelectedKey=hit; calEditRender(); evt.preventDefault(); }
+}
+function calEditMoveDrag(evt){
+  if(!calEditDragKey) return;
+  const canvas=document.getElementById('cal-edit-canvas');
+  const {x,y}=calEditCanvasPos(evt);
+  const nx=Math.min(1,Math.max(0,x/canvas.width));
+  const ny=Math.min(1,Math.max(0,y/canvas.height));
+  const profile=state.signup.calProfile;
+  profile.landmarks[calEditDragKey]={x:+nx.toFixed(4), y:+ny.toFixed(4)};
+  profile.normalized=calComputeMetrics(profile.landmarks);
+  calEditRender();
+  evt.preventDefault();
+}
+function calEditEndDrag(){ calEditDragKey=null; }
+
+/* ---------- 로그인 ---------- */
+// renderLogin: 입력 폼 렌더링만 담당하는 프론트엔드 로직. 실제 인증 처리는 아래 doLogin() 지점 참고.
+function renderLogin(){
+  return `
+  <div class="center-shell">
+    <div class="auth-card">
+      <p class="auth-eyebrow">우리동네홈트챌린지</p>
+      <h1 class="auth-title">로그인</h1>
+      <p class="auth-sub">${state.user.nickname ? state.user.nickname+'님, 다시 오신 것을 환영해요' : '계정 정보를 입력해 주세요'}</p>
+      <div class="field">
+        <label for="li-id">아이디</label>
+        <input id="li-id" type="text" placeholder="아이디" value="${state.user.nickname ? 'hometrainer01' : ''}">
+      </div>
+      <div class="field">
+        <label for="li-pw">비밀번호</label>
+        <input id="li-pw" type="password" placeholder="••••••••" value="${state.user.nickname ? '········' : ''}">
+      </div>
+      <div class="flex-between" style="margin:2px 0 4px;">
+        <button class="btn btn-ghost btn-sm" style="padding-left:0;" onclick="openFindIdModal()">아이디 찾기</button>
+        <button class="btn btn-ghost btn-sm" onclick="openFindPwModal()">비밀번호 찾기</button>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="doLogin()">로그인</button>
+      <div class="flex-between" style="margin:16px 0;gap:10px;">
+        <div style="flex:1;height:1px;background:var(--line);"></div>
+        <span class="hint" style="margin:0;">SNS 계정으로 로그인</span>
+        <div style="flex:1;height:1px;background:var(--line);"></div>
+      </div>
+      <button class="btn btn-block" style="background:#FEE500;border-color:var(--outline);color:#241A00;margin-bottom:8px;" onclick="doSocialLogin('카카오')">카카오로 계속하기</button>
+      <button class="btn btn-block" style="background:#03C75A;border-color:var(--outline);color:#fff;margin-bottom:8px;" onclick="doSocialLogin('네이버')">네이버로 계속하기</button>
+      <button class="btn btn-secondary btn-block" onclick="doSocialLogin('구글')">Google로 계속하기</button>
+      <p class="switch-line">아직 계정이 없으신가요? <button onclick="goto('signup')">회원가입</button></p>
+    </div>
+  </div>`;
+}
+// [백엔드 연동 필요 구간] doLogin() 지점:
+//   로그인 폼 제출(여기) > Java 서버 로그인 API(비밀번호 검증, 세션/JWT 발급) > DB 연결 > SQL SELECT(계정 조회)
+function doLogin(){
+  if(!state.user.nickname){state.user.nickname='홈트초보';}
+  state.screen='app';
+  state.menu='exercise';
+  render();
+}
+// [백엔드 연동 필요 구간] doSocialLogin() — 실제로는 각 사(카카오/네이버/구글) OAuth 인가 코드를
+// 받아 Java 서버로 넘기고 > 서버가 토큰 교환 + 사용자 조회/생성(DB 연결, SQL INSERT or SELECT)을
+// 수행한 뒤 세션을 발급하는 흐름이 필요하다. 여기서는 버튼 클릭 시 바로 로그인된 것처럼 목업 처리.
+function doSocialLogin(provider){
+  if(!state.user.nickname){state.user.nickname='홈트초보';}
+  toast(`${provider} 계정으로 로그인했습니다`);
+  state.screen='app';
+  state.menu='exercise';
+  render();
+}
+
+/* ---------- 아이디/비밀번호 찾기 모달 ---------- */
+function openFindIdModal(){ state.findIdModal={open:true, result:null}; render(); }
+function closeFindIdModal(){ state.findIdModal.open=false; render(); }
+// [백엔드 연동 필요 구간] submitFindId() — 이메일로 인증코드 발송 > 코드 검증 API 호출 > DB 연결 >
+// SQL SELECT(이메일로 계정 조회)가 필요하다. 여기서는 목업으로 등록된 첫 계정을 바로 보여준다.
+function submitFindId(){
+  const email=document.getElementById('find-id-email').value.trim();
+  if(!email){ toast('이메일을 입력해주세요'); return; }
+  state.findIdModal.result = EXISTING_USERS[0].id;
+  render();
+}
+function renderFindIdModal(){
+  const m=state.findIdModal;
+  return `
+  <div class="confirm-backdrop" onclick="if(event.target===this)closeFindIdModal()">
+    <div class="confirm-box" style="max-width:380px;">
+      <h3>아이디 찾기</h3>
+      ${m.result ? `
+        <p style="color:var(--ink-dim);font-size:13px;line-height:1.6;margin:0 0 18px;">가입하신 아이디는 <b style="color:var(--ink);">${m.result}</b> 입니다.</p>
+        <div class="confirm-actions"><button class="btn btn-primary btn-sm" onclick="closeFindIdModal()">확인</button></div>
+      ` : `
+        <p class="hint" style="margin:0 0 14px;">가입 시 등록한 이메일로 인증코드를 보내드립니다.</p>
+        <div class="field"><label for="find-id-email">이메일</label><input id="find-id-email" type="email" placeholder="example@email.com"></div>
+        <div class="confirm-actions"><button class="btn btn-ghost btn-sm" onclick="closeFindIdModal()">취소</button><button class="btn btn-primary btn-sm" onclick="submitFindId()">인증코드 받기</button></div>
+      `}
+    </div>
+  </div>`;
+}
+function openFindPwModal(){ state.findPwModal={open:true, done:false}; render(); }
+function closeFindPwModal(){ state.findPwModal.open=false; render(); }
+// [백엔드 연동 필요 구간] submitFindPw() — 회원아이디+이메일로 본인 확인 > Java 계정 API > DB 연결 >
+// SQL SELECT로 일치 여부 확인 후 임시 비밀번호 발급·이메일 발송이 필요하다. 여기서는 목업 처리.
+function submitFindPw(){
+  const id=document.getElementById('find-pw-id').value.trim();
+  const email=document.getElementById('find-pw-email').value.trim();
+  if(!id || !email){ toast('아이디와 이메일을 모두 입력해주세요'); return; }
+  state.findPwModal.done = true;
+  render();
+}
+function renderFindPwModal(){
+  const m=state.findPwModal;
+  return `
+  <div class="confirm-backdrop" onclick="if(event.target===this)closeFindPwModal()">
+    <div class="confirm-box" style="max-width:380px;">
+      <h3>비밀번호 찾기</h3>
+      ${m.done ? `
+        <p style="color:var(--ink-dim);font-size:13px;line-height:1.6;margin:0 0 18px;">입력하신 이메일로 임시 비밀번호를 보내드렸습니다.</p>
+        <div class="confirm-actions"><button class="btn btn-primary btn-sm" onclick="closeFindPwModal()">확인</button></div>
+      ` : `
+        <p class="hint" style="margin:0 0 14px;">회원아이디와 가입 시 등록한 이메일을 입력해주세요.</p>
+        <div class="field"><label for="find-pw-id">회원아이디</label><input id="find-pw-id" placeholder="아이디"></div>
+        <div class="field"><label for="find-pw-email">이메일</label><input id="find-pw-email" type="email" placeholder="example@email.com"></div>
+        <div class="confirm-actions"><button class="btn btn-ghost btn-sm" onclick="closeFindPwModal()">취소</button><button class="btn btn-primary btn-sm" onclick="submitFindPw()">임시 비밀번호 받기</button></div>
+      `}
+    </div>
+  </div>`;
+}
+
+/* ---------- 앱 셸 ---------- */
+const MENUS = [
+  {id:'exercise', label:'운동'},
+  {id:'mission', label:'미션'},
+  {id:'profile', label:'나의 프로필'},
+  {id:'shop', label:'포인트 상점'},
+  {id:'crew', label:'홈크루'},
+  {id:'ranking', label:'랭킹'},
+  {id:'board', label:'자랑 게시판'},
+  {id:'support', label:'고객센터'},
+  {id:'settings', label:'계정 및 설정'},
+];
+function renderApp(){
+  const menuLabel = MENUS.find(m=>m.id===state.menu).label;
+  return `
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">홈</div>
+        <div class="brand-name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
+      </div>
+      ${MENUS.map(m=>`
+        <div class="navitem ${state.menu===m.id?'active':''}" onclick="setMenu('${m.id}')">
+          <span class="navicon"></span>${m.label}
+        </div>`).join('')}
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div>
+          <div class="topbar-title">${menuLabel}</div>
+          <div class="topbar-sub">${state.user.region}</div>
+        </div>
+        <div class="user-chip">
+          <div class="points-pill">P <span class="mono">${state.user.points.toLocaleString()}</span></div>
+          <span class="topbar-nick">${state.user.nickname||'홈트초보'}</span>
+          <div class="topbar-avatar" onclick="setMenu('profile')" title="나의 프로필">
+            <canvas id="topbar-avatar-canvas"></canvas>
+            <span class="mono">Lv.${state.user.level}</span>
+          </div>
+        </div>
+      </div>
+      <div class="view">
+        ${state.menu==='exercise' ? renderExercise() :
+          state.menu==='mission' ? renderMission() :
+          state.menu==='profile' ? renderProfile() :
+          state.menu==='shop' ? renderShop() :
+          state.menu==='crew' ? renderCrew() :
+          state.menu==='ranking' ? renderRanking() :
+          state.menu==='board' ? renderBoardMenu() :
+          state.menu==='support' ? renderSupport() :
+          renderSettings()}
+      </div>
+    </div>
+  </div>`;
+}
+function setMenu(id){state.menu=id; render();}
+function goto(screen){state.screen=screen; render();}
+
+/* ========================================================================
+   1. 운동 (EXERCISE WIZARD)
+   ======================================================================== */
+// (FR-EX-001~004) 종목 선택 ~ 웹캠 촬영(startSkeletonLoop, toggleRecording)까지는
+// 브라우저에서 도는 촬영·자세 인식 로직이라 프론트엔드에 그대로 남습니다.
+//   웹캠 스트림(JS) > (실제 구현 시) MediaPipe Pose 실시간 분석(WASM) > 관절 각도·등급 계산(JS)
+// generateResult()는 지금 랜덤 값으로 판정을 흉내만 낸 것이고, 실제로는 위 계산 결과를
+// 그대로 써서 점수를 만들면 됩니다. 이 결과를 "저장"하는 순간(saveExerciseResult())부터
+// 아래처럼 서버 연동이 필요합니다.
+//   촬영 결과 저장(saveExerciseResult) > Java 운동기록 API > DB 연결 > SQL INSERT/UPDATE
+//   (운동 기록 테이블 INSERT, 포인트·경험치는 계정 테이블 UPDATE — 트랜잭션 처리 권장)
+const EX_STEPS=['종목 선택','튜토리얼·스트레칭','웹캠 촬영','리플레이 분석','결과 저장'];
+function exerciseStepHead(){
+  return `
+  <div class="view-head">
+    <h1>운동</h1>
+    <p>운동 종목 선택 → 튜토리얼·스트레칭 → 웹캠 촬영 → 리플레이 자세 분석 → 결과·점수 저장</p>
+  </div>
+  <div class="subtabs">
+    ${EX_STEPS.map((s,i)=>`<div class="tab ${state.exercise.step===i?'active':''}">${i+1}. ${s}</div>`).join('')}
+  </div>`;
+}
+function renderExercise(){
+  const st=state.exercise.step;
+  let body='';
+  if(st===0) body=renderExStepPick();
+  else if(st===1) body=renderExStepTutorial();
+  else if(st===2) body=renderExStepCam();
+  else if(st===3) body=renderExStepReplay();
+  else body=renderExStepSave();
+  return exerciseStepHead()+body;
+}
+
+function renderExStepPick(){
+  return `
+  <div class="grid grid-3">
+    ${EXS.map(e=>`
+      <div class="card exercise-card ${state.exercise.picked===e.id?'selected':''}" onclick="pickExercise('${e.id}')">
+        <div class="ex-badge">${e.name.charAt(0)}</div>
+        <h3>${e.name}</h3>
+        <p class="desc">타겟: ${e.target}</p>
+        <span class="pill pill-accent">${e.level}</span>
+      </div>`).join('')}
+  </div>
+  <div style="margin-top:20px;">
+    <button class="btn btn-primary" ${state.exercise.picked?'':'disabled'} style="${state.exercise.picked?'':'opacity:.4;cursor:not-allowed;'}" onclick="goToTutorial()">튜토리얼로 이동</button>
+  </div>`;
+}
+function pickExercise(id){state.exercise.picked=id; render();}
+function goExStep(n){state.exercise.step=n; render();}
+// 회원가입 시점에는 캘리브레이션이 선택사항이었지만(그냥 둘러보는 사람도 있어서), 실제로
+// 운동을 시작하려는 시점(튜토리얼 진입)부터는 필수로 막는다 — 자세 분석 정확도를 위해 체형
+// 보정값이 반드시 있어야 하기 때문. 아직 보정을 안 했다면 캘리브레이션 모달부터 띄운다.
+function goToTutorial(){
+  if(!state.user.calibration){
+    toast('운동을 시작하려면 체형 캘리브레이션이 먼저 필요해요');
+    openCalibrationModal();
+    return;
+  }
+  goExStep(1);
+}
+
+function renderExStepTutorial(){
+  const ex=EXS.find(e=>e.id===state.exercise.picked) || EXS[0];
+  return `
+  <div class="grid grid-2">
+    <div class="card">
+      <p class="section-label">${ex.name} 정자세 가이드</p>
+      <ul class="steplist">
+        <li><span class="num">1</span>발을 어깨너비로 벌리고 무게중심을 뒤꿈치에 둡니다.</li>
+        <li><span class="num">2</span>허리를 곧게 편 상태로 천천히 내려갑니다.</li>
+        <li><span class="num">3</span>무릎이 발끝을 넘지 않도록 각도를 유지합니다.</li>
+        <li><span class="num">4</span>동작 최저점에서 1초 정지 후 천천히 복귀합니다.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <p class="section-label">부상 예방 스트레칭 (30초)</p>
+      <div class="progress" style="margin:12px 0;"><span id="stretch-bar" style="width:0%"></span></div>
+      <p class="desc" id="stretch-text">화면에 들어오면 자동으로 스트레칭 안내가 재생됩니다.</p>
+      <button class="btn btn-ghost btn-sm" onclick="runStretch()">다시보기</button>
+    </div>
+  </div>
+  <div style="margin-top:20px;display:flex;gap:8px;">
+    <button class="btn btn-ghost" onclick="goExStep(0)">이전</button>
+    <button class="btn btn-primary" id="go-cam-btn" disabled style="opacity:.4;cursor:not-allowed;" onclick="goExStep(2)">웹캠 촬영 시작</button>
+  </div>`;
+}
+// 스트레칭 안내가 끝나기 전에는 웹캠 촬영으로 넘어가지 못하도록, 재생이 100%에 도달할 때만
+// 버튼을 활성화한다. (다시보기를 누르면 다시 잠긴다.)
+function runStretch(){
+  let p=0;
+  const bar=document.getElementById('stretch-bar');
+  const text=document.getElementById('stretch-text');
+  const goBtn=document.getElementById('go-cam-btn');
+  if(goBtn){ goBtn.disabled=true; goBtn.style.opacity='.4'; goBtn.style.cursor='not-allowed'; }
+  clearInterval(runStretch._id);
+  runStretch._id=setInterval(()=>{
+    p+=100/30;
+    if(bar) bar.style.width=Math.min(p,100)+'%';
+    if(p>=100){
+      clearInterval(runStretch._id);
+      if(text) text.textContent='스트레칭 완료! 부상 위험이 낮아졌습니다.';
+      const btn=document.getElementById('go-cam-btn');
+      if(btn){ btn.disabled=false; btn.style.opacity='1'; btn.style.cursor='pointer'; }
+    }
+  },1000);
+}
+
+function renderExStepCam(){
+  return `
+  <div class="grid grid-2">
+    <div>
+      <div class="cam-stage" id="cam-stage">
+        <div class="cam-placeholder" id="cam-placeholder">카메라를 확인하는 중...<br>브라우저의 카메라 권한을 허용해주세요.</div>
+        <video id="cam-video" autoplay playsinline muted style="display:none;"></video>
+        <canvas class="cam-overlay-canvas" id="cam-canvas"></canvas>
+        <div class="cam-badge"><span class="rec-dot"></span><span id="cam-status">대기중</span></div>
+        <div class="cam-timer mono" id="cam-timer">00:00</div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:8px;">
+        <button class="btn btn-primary" id="cam-toggle" onclick="toggleRecording()">촬영 시작</button>
+        <button class="btn btn-ghost" onclick="goExStep(1)">이전</button>
+      </div>
+    </div>
+    <div class="card">
+      <p class="section-label">촬영 안내</p>
+      <ul class="steplist">
+        <li><span class="num">·</span>전신이 프레임에 들어오도록 카메라와 2~3m 거리를 둡니다.</li>
+        <li><span class="num">·</span>YOLO-Pose가 관절 keypoint를 실시간 추적합니다.</li>
+        <li><span class="num">·</span>촬영 종료 시 자동으로 리플레이 분석이 시작됩니다.</li>
+      </ul>
+      <p class="section-label" style="margin-top:18px;">실시간 인식 상태</p>
+      <div class="stat-row" style="margin:0;">
+        <div class="stat-box"><div class="num mono" id="live-reps">0</div><div class="lbl">인식 횟수</div></div>
+        <div class="stat-box"><div class="num mono" id="live-acc">--%</div><div class="lbl">추정 정확도</div></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function setupCamera(){
+  const video=document.getElementById('cam-video');
+  const placeholder=document.getElementById('cam-placeholder');
+  if(!video) return;
+  if(state.exercise.camStream){video.srcObject=state.exercise.camStream; video.style.display='block'; if(placeholder)placeholder.style.display='none';}
+  if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+    navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false}).then(stream=>{
+      state.exercise.camStream=stream;
+      const v=document.getElementById('cam-video');
+      if(v){v.srcObject=stream; v.style.display='block';}
+      const ph=document.getElementById('cam-placeholder');
+      if(ph) ph.style.display='none';
+      startSkeletonLoop();
+    }).catch(()=>{
+      const ph=document.getElementById('cam-placeholder');
+      if(ph) ph.innerHTML='카메라를 사용할 수 없습니다.<br>웹캠 프리뷰 없이 모의 자세 인식으로 진행합니다.';
+      startSkeletonLoop();
+    });
+  } else {
+    const ph=document.getElementById('cam-placeholder');
+    if(ph) ph.innerHTML='이 브라우저에서는 카메라를 지원하지 않습니다.<br>모의 자세 인식으로 진행합니다.';
+    startSkeletonLoop();
+  }
+}
+function startSkeletonLoop(){
+  const canvas=document.getElementById('cam-canvas');
+  if(!canvas) return;
+  const stage=document.getElementById('cam-stage');
+  function resize(){canvas.width=stage.clientWidth; canvas.height=stage.clientHeight;}
+  resize();
+  const ctx=canvas.getContext('2d');
+  let t=0;
+  cancelAnimationFrame(startSkeletonLoop._raf);
+  function draw(){
+    if(!document.getElementById('cam-canvas')) return; // view changed
+    t+=0.05;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const cx=canvas.width/2, cy=canvas.height/2, sway=Math.sin(t)*10;
+    const bob = state.exercise.camPhase==='recording' ? Math.abs(Math.sin(t*1.6))*canvas.height*0.10 : 0;
+    const joints={
+      head:[cx+sway*0.3, cy-canvas.height*0.28+bob*0.2],
+      neck:[cx+sway*0.3, cy-canvas.height*0.18+bob*0.2],
+      lsh:[cx-30+sway*0.3, cy-canvas.height*0.15+bob*0.2], rsh:[cx+30+sway*0.3, cy-canvas.height*0.15+bob*0.2],
+      lel:[cx-46+sway, cy-canvas.height*0.02+bob*0.3], rel:[cx+46+sway, cy-canvas.height*0.02+bob*0.3],
+      lwr:[cx-52+sway, cy+canvas.height*0.10+bob*0.4], rwr:[cx+52+sway, cy+canvas.height*0.10+bob*0.4],
+      hip:[cx+sway*0.2, cy+canvas.height*0.06+bob*0.5],
+      lhip:[cx-22+sway*0.2, cy+canvas.height*0.08+bob*0.5], rhip:[cx+22+sway*0.2, cy+canvas.height*0.08+bob*0.5],
+      lkn:[cx-24+sway*0.1, cy+canvas.height*0.24+bob], rkn:[cx+24+sway*0.1, cy+canvas.height*0.24+bob],
+      lft:[cx-26, cy+canvas.height*0.40], rft:[cx+26, cy+canvas.height*0.40],
+    };
+    const bones=[['head','neck'],['neck','lsh'],['neck','rsh'],['lsh','lel'],['lel','lwr'],['rsh','rel'],['rel','rwr'],
+      ['lsh','hip'],['rsh','hip'],['hip','lhip'],['hip','rhip'],['lhip','lkn'],['lkn','lft'],['rhip','rkn'],['rkn','rft']];
+    ctx.strokeStyle='rgba(111,187,238,0.85)'; ctx.lineWidth=3; ctx.lineCap='round';
+    bones.forEach(([a,b])=>{ctx.beginPath();ctx.moveTo(...joints[a]);ctx.lineTo(...joints[b]);ctx.stroke();});
+    ctx.fillStyle='#6FBBEE';
+    Object.values(joints).forEach(([x,y])=>{ctx.beginPath();ctx.arc(x,y,4,0,7);ctx.fill();});
+    startSkeletonLoop._raf=requestAnimationFrame(draw);
+  }
+  draw();
+}
+function toggleRecording(){
+  const btn=document.getElementById('cam-toggle');
+  const statusEl=document.getElementById('cam-status');
+  const timerEl=document.getElementById('cam-timer');
+  if(state.exercise.camPhase!=='recording'){
+    state.exercise.camPhase='recording';
+    state.exercise.seconds=0;
+    btn.textContent='촬영 종료';
+    statusEl.textContent='촬영중';
+    let reps=0, accBase=82;
+    clearInterval(state.exercise.timerId);
+    state.exercise.timerId=setInterval(()=>{
+      state.exercise.seconds++;
+      const m=String(Math.floor(state.exercise.seconds/60)).padStart(2,'0');
+      const s=String(state.exercise.seconds%60).padStart(2,'0');
+      if(timerEl) timerEl.textContent=`${m}:${s}`;
+      if(state.exercise.seconds%3===0){
+        reps++;
+        const rEl=document.getElementById('live-reps'); if(rEl) rEl.textContent=reps;
+        const acc=Math.min(99, accBase + Math.round(Math.random()*14-4));
+        const aEl=document.getElementById('live-acc'); if(aEl) aEl.textContent=acc+'%';
+      }
+    },1000);
+  } else {
+    clearInterval(state.exercise.timerId);
+    state.exercise.camPhase='idle';
+    if(state.exercise.camStream){state.exercise.camStream.getTracks().forEach(t=>t.stop()); state.exercise.camStream=null;}
+    generateResult();
+    goExStep(3);
+  }
+}
+function generateResult(){
+  const dur=Math.max(state.exercise.seconds,9);
+  const total=Math.max(6, Math.round(dur/3));
+  const reps=[];
+  let missCount=0;
+  for(let i=0;i<total;i++){
+    const roll=Math.random();
+    let grade, angle;
+    if(roll<0.06){grade='MISS'; angle=Math.round(60+Math.random()*15); missCount++;}
+    else if(roll<0.4){grade='PERFECT'; angle=Math.round(88+Math.random()*6);}
+    else if(roll<0.75){grade='GREAT'; angle=Math.round(80+Math.random()*8);}
+    else {grade='GOOD'; angle=Math.round(72+Math.random()*8);}
+    reps.push({idx:i+1,grade,angle});
+  }
+  const valid=total-missCount;
+  const acc=Math.round((reps.reduce((s,r)=>s+(r.grade==='PERFECT'?100:r.grade==='GREAT'?85:r.grade==='GOOD'?70:0),0))/total);
+  const score=valid*10 + acc*3;
+  const ex=EXS.find(e=>e.id===state.exercise.picked)||EXS[0];
+  state.exercise.result={ex:ex.name, dur, total, valid, missCount, acc, score, reps};
+}
+
+function renderExStepReplay(){
+  const r=state.exercise.result;
+  if(!r) return `<div class="empty-note">촬영 데이터가 없습니다.</div>`;
+  return `
+  <div class="grid grid-2">
+    <div class="card">
+      <p class="section-label">${r.ex} · 리플레이 분석 결과</p>
+      <div class="stat-row">
+        <div class="stat-box"><div class="num mono">${r.total}</div><div class="lbl">총 횟수</div></div>
+        <div class="stat-box"><div class="num mono" style="color:var(--accent)">${r.valid}</div><div class="lbl">유효 횟수</div></div>
+        <div class="stat-box"><div class="num mono" style="color:var(--danger)">${r.missCount}</div><div class="lbl">MISS</div></div>
+        <div class="stat-box"><div class="num mono">${r.acc}%</div><div class="lbl">정확도</div></div>
+      </div>
+      <p class="section-label">관절 각도 오차 구간</p>
+      <div class="progress" style="height:14px;margin-bottom:6px;">
+        <span style="width:${r.acc}%;background:${r.acc>85?'var(--accent)':r.acc>70?'var(--gold)':'var(--danger)'}"></span>
+      </div>
+      <p class="desc">촬영 시간 ${Math.floor(r.dur/60)}분 ${r.dur%60}초 · 평균 정확도 ${r.acc}%</p>
+    </div>
+    <div class="card">
+      <p class="section-label">반복별 판정 (${r.reps.length}회)</p>
+      <div class="rep-list">
+        ${r.reps.map(rp=>`
+          <div class="rep-row">
+            <span class="idx">#${rp.idx}</span>
+            ${gradePill(rp.grade)}
+            <div class="bar-track"><span style="width:${rp.angle}%;background:${gradeColor(rp.grade)}"></span></div>
+            <span class="angle">${rp.angle}°</span>
+          </div>`).join('')}
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:20px;display:flex;gap:8px;align-items:center;">
+    ${renderRetakeButton()}
+    <button class="btn btn-primary" onclick="goExStep(4)">결과 저장하기</button>
+  </div>`;
+}
+const FREE_RETAKES = 2;
+function renderRetakeButton(){
+  const freeLeft = state.exercise.retakesUsed < FREE_RETAKES;
+  const freeRemain = FREE_RETAKES - state.exercise.retakesUsed;
+  const tickets = state.user.retakeTickets||0;
+  const canRetake = freeLeft || tickets>0;
+  const label = freeLeft ? `다시 촬영 (무료 ${freeRemain}회 남음)` : (tickets>0 ? `다시 촬영 (티켓 사용 · 보유 ${tickets}장)` : '다시 촬영 (티켓 필요)');
+  return `<button class="btn btn-ghost" ${canRetake?'':'disabled style="opacity:.5;cursor:not-allowed;"'} onclick="retakeExercise()">${label}</button>`;
+}
+function retakeExercise(){
+  const ex = state.exercise;
+  if(ex.retakesUsed < FREE_RETAKES){
+    ex.retakesUsed++;
+    toast(`무료 재촬영을 사용합니다 (남은 무료 횟수 ${FREE_RETAKES-ex.retakesUsed}회)`);
+  } else if(state.user.retakeTickets>0){
+    state.user.retakeTickets--;
+    ex.retakesUsed++;
+    toast(`다시찍기 티켓을 사용합니다 (남은 티켓 ${state.user.retakeTickets}장)`);
+  } else {
+    toast('무료 재촬영을 모두 사용했습니다. 포인트 상점에서 다시찍기 티켓을 구매해주세요');
+    return;
+  }
+  ex.result = null;
+  goExStep(2);
+}
+
+function renderExStepSave(){
+  const r=state.exercise.result;
+  if(!r) return `<div class="empty-note">저장할 결과가 없습니다.</div>`;
+  return `
+  <div class="card" style="max-width:520px;">
+    <p class="section-label">획득 요약</p>
+    <h3 style="font-size:20px;">${r.ex} 세션 완료 ${gradePill(r.acc>90?'PERFECT':r.acc>78?'GREAT':r.acc>60?'GOOD':'MISS')}</h3>
+    <div class="stat-row">
+      <div class="stat-box"><div class="num mono" style="color:var(--gold)">+${r.score}</div><div class="lbl">획득 점수</div></div>
+      <div class="stat-box"><div class="num mono" style="color:var(--gold)">+${Math.round(r.score*0.4)}</div><div class="lbl">포인트</div></div>
+      <div class="stat-box"><div class="num mono">${r.acc}%</div><div class="lbl">정확도</div></div>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="saveExerciseResult()">기록 저장</button>
+  </div>`;
+}
+// [백엔드 연동 필요 구간] saveExerciseResult() — 위 섹션 헤더 주석의 파이프라인이
+// 실제로 이어지는 지점입니다.
+function saveExerciseResult(){
+  const r=state.exercise.result;
+  const pts=Math.round(r.score*0.4);
+  state.user.points += pts;
+  const gc={PERFECT:0,GREAT:0,GOOD:0,MISS:0};
+  r.reps.forEach(rp=>gc[rp.grade]++);
+  state.history.unshift({date:'오늘', ex:r.ex, reps:r.valid, acc:r.acc, score:r.score, grade:r.acc>90?'PERFECT':r.acc>78?'GREAT':r.acc>60?'GOOD':'MISS', gc});
+  toast(`저장 완료! +${pts}P 획득`);
+  state.exercise={step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0};
+  render();
+}
+
+/* ========================================================================
+   2. 미션·포인트
+   ======================================================================== */
+// (FR-MS-001) claimMission()에서 보상을 지급하는 지점부터 서버 연동이 필요합니다.
+//   미션 후보 5개 뽑기 > Java 미션 API(매일 자정 배치/스케줄러) > DB 연결 > SQL SELECT(랜덤 미션 후보)
+//   보상 수령(claimMission) > Java 미션 API > DB 연결 > SQL UPDATE(포인트 잔액, 미션 진행도)
+const MISSION_TABS=['미션 후보 5개','일·주·월 미션 선택'];
+function renderMission(){
+  const i=state.subtabs.mission;
+  return `
+  <div class="view-head"><h1>미션</h1><p>무작위 미션 후보 확인 → 기간별 선택 → 달성하고 포인트를 모아보세요</p></div>
+  <div class="subtabs">
+    ${MISSION_TABS.map((t,idx)=>`<div class="tab ${i===idx?'active':''}" onclick="setSub('mission',${idx})">${t}</div>`).join('')}
+  </div>
+  ${i===0?renderMissionCandidates():renderMissionPick()}`;
+}
+const PROFILE_TABS=['프로필·캐릭터 꾸미기','미션 달성 현황','운동 히스토리'];
+function renderProfile(){
+  const i=state.subtabs.profile;
+  return `
+  <div class="view-head"><h1>나의 프로필</h1><p>캐릭터·아이템을 꾸미고 누적 성과를 한눈에 확인하세요. 미션 달성 현황·운동 히스토리는 옆 탭에서.</p></div>
+  <div class="subtabs">
+    ${PROFILE_TABS.map((t,idx)=>`<div class="tab ${i===idx?'active':''}" onclick="setSub('profile',${idx})">${t}</div>`).join('')}
+  </div>
+  ${i===0?renderMissionAvatar(): i===1?renderMissionProgress(): renderHistory()}`;
+}
+function renderShop(){
+  return `
+  <div class="view-head"><h1>포인트 상점</h1><p>포인트로 아이템을 구매해 캐릭터에 착용하거나 능력치를 얻어보세요</p></div>
+  ${renderMissionShop()}`;
+}
+function renderBoardMenu(){
+  return `
+  <div class="view-head"><h1>자랑 게시판</h1><p>이웃들과 오늘의 운동을 공유해보세요</p></div>
+  ${renderBoard()}`;
+}
+function setSub(key,idx){state.subtabs[key]=idx; render();}
+
+function renderMissionCandidates(){
+  return `
+  <div class="grid grid-3">
+    ${state.missions.candidates.map(m=>`
+      <div class="card">
+        <span class="pill pill-accent">${m.ex}</span>
+        <h3 style="margin-top:10px;">${m.name}</h3>
+        <p class="desc">달성 시 <span class="mono" style="color:var(--gold);font-weight:700;">+${m.reward}P</span> 지급</p>
+        <button class="btn btn-secondary btn-sm" onclick="toast('일·주·월 미션 선택 탭에서 등록할 수 있어요')">미션으로 등록</button>
+      </div>`).join('')}
+  </div>
+  <p class="hint" style="margin-top:14px;">매일 자정 무작위 후보 5개가 새로 제시됩니다.</p>`;
+}
+function renderMissionPick(){
+  const p=state.missions.period;
+  const list=state.missions.picked[p];
+  return `
+  <div class="filter-bar">
+    ${['daily','weekly','monthly'].map(k=>`
+      <button class="btn ${p===k?'btn-primary':'btn-secondary'} btn-sm" onclick="setMissionPeriod('${k}')">${k==='daily'?'일간':k==='weekly'?'주간':'월간'}</button>`).join('')}
+  </div>
+  <div class="grid grid-2">
+    ${list.map(name=>{
+      const prog=state.missions.progress[name]||0;
+      return `
+      <div class="card">
+        <div class="flex-between"><h3>${name}</h3><span class="pill ${prog>=100?'pill-accent':'pill-muted'}">${prog>=100?'완료':'진행중'}</span></div>
+        <div class="progress" style="margin:10px 0;"><span style="width:${prog}%"></span></div>
+        <p class="desc">달성률 ${prog}%</p>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+function setMissionPeriod(k){state.missions.period=k; render();}
+function renderMissionProgress(){
+  const all=Object.entries(state.missions.progress);
+  return `
+  <div class="grid grid-2">
+    ${all.map(([name,prog])=>`
+      <div class="card">
+        <div class="flex-between"><h3>${name}</h3>${prog>=100?'<span class="pill pill-accent">달성</span>':''}</div>
+        <div class="progress" style="margin:10px 0;"><span style="width:${Math.min(prog,100)}%"></span></div>
+        <div class="flex-between">
+          <p class="desc" style="margin:0;">${Math.min(prog,100)}% 진행</p>
+          <button class="btn btn-sm ${prog>=100?'btn-primary':'btn-ghost'}" ${prog>=100?'':'disabled style="opacity:.4;cursor:not-allowed;"'} onclick="claimMission('${name}')">보상 받기</button>
+        </div>
+      </div>`).join('')}
+  </div>`;
+}
+function claimMission(name){
+  toast(`'${name}' 보상을 수령했습니다`);
+  state.user.points += 50;
+  render();
+}
+const EXP_PER_LEVEL=1000;
+function getProfileStats(){
+  const gc={PERFECT:0,GREAT:0,GOOD:0,MISS:0};
+  state.history.forEach(h=>{ if(h.gc) Object.keys(gc).forEach(k=>gc[k]+=h.gc[k]||0); });
+  const gcTotal=Object.values(gc).reduce((a,b)=>a+b,0)||1;
+  const exCounts={};
+  state.history.forEach(h=>{ exCounts[h.ex]=(exCounts[h.ex]||0)+h.reps; });
+  const activeEffects=state.shopItems
+    .filter(it=>it.slot && it.owned && it.equipped && !it.effect.startsWith('능력치 없음'))
+    .map(it=>`${it.name} · ${it.effect}`);
+  return {
+    total: totalScore(),
+    expToNext: Math.round((100-state.user.exp)/100*EXP_PER_LEVEL),
+    myRank: getRegionRanking(state.user.region.trim().split(/\s+/).pop()).find(r=>r.isMe).rank,
+    perfectPct: Math.round(gc.PERFECT/gcTotal*100),
+    greatPct: Math.round(gc.GREAT/gcTotal*100),
+    missPct: Math.round(gc.MISS/gcTotal*100),
+    exCounts: Object.entries(exCounts),
+    activeEffects,
+  };
+}
+// (FR-PF-001~003) renderMissionAvatar: 캐릭터·아이템 꾸미기 화면. 그리기 자체(drawPixelCharacter)는
+// 캔버스로 그리는 순수 프론트엔드 로직이고, "저장이 필요한 동작"만 아래 두 함수에서 이어집니다.
+//   자기소개 저장(saveProfileBio) > Java 프로필 API > DB 연결 > SQL UPDATE(계정 테이블 bio 컬럼)
+//   아이템 착용/해제(toggleEquip) > Java 프로필 API > DB 연결 > SQL UPDATE(보유 아이템 테이블 equipped 여부)
+function renderCosmeticCard(it){
+  const idx = state.shopItems.indexOf(it);
+  return `
+  <div style="border:1px solid var(--line);border-radius:10px;padding:12px;">
+    <img src="${itemIconDataURL(it.name)}" style="width:48px;height:48px;image-rendering:pixelated;border-radius:6px;display:block;margin:0 auto 8px;">
+    <div class="flex-between"><b style="font-size:12.5px;">${it.name}</b>
+      ${it.owned?(it.equipped?'<span class="pill pill-accent">착용중</span>':'<span class="pill pill-muted">보유</span>'):'<span class="pill pill-gold">'+it.price+'P</span>'}
+    </div>
+    <span class="pill ${it.effect.startsWith('능력치 없음')?'pill-muted':'pill-accent'}" style="margin-top:6px;">효과 · ${it.effect}</span>
+    <p class="desc" style="margin-top:6px;font-size:11.5px;">${it.effectDesc}</p>
+    <button class="btn btn-sm ${it.owned?'btn-ghost':'btn-secondary'}" style="margin-top:8px;width:100%;" onclick="${it.owned?`toggleEquip(${idx})`:`goToShopFor(${idx})`}">${it.owned?(it.equipped?'착용 해제':'착용하기'):'상점에서 구매'}</button>
+  </div>`;
+}
+function goToShopFor(idx){
+  setMenu('shop');
+  toast(`${state.shopItems[idx].name}은(는) 포인트 상점에서 구매할 수 있어요`);
+}
+function renderMissionAvatar(){
+  const cosmetics = state.shopItems.filter(it=>it.slot);
+  const nickColor = getEquipState().nickname ? 'var(--gold)' : 'inherit';
+  const stats = getProfileStats();
+  return `
+  <div class="grid grid-2">
+    <div class="card" style="text-align:center;">
+      <p class="section-label">내 캐릭터</p>
+      <canvas id="avatar-char-canvas" style="width:144px;height:176px;margin:10px auto;display:block;border-radius:10px;image-rendering:pixelated;"></canvas>
+      <h3 style="color:${nickColor};">${state.user.nickname || '홈트초보'}</h3>
+      <span class="pill pill-gold">Lv.${state.user.level}</span>
+      <div class="field" style="margin-top:14px;text-align:left;">
+        <label for="profile-bio-input">자기소개</label>
+        <textarea id="profile-bio-input" rows="3" maxlength="80" placeholder="나를 소개하는 한마디를 남겨보세요">${state.user.bio||''}</textarea>
+        <button class="btn btn-sm btn-secondary" style="margin-top:6px;width:100%;" onclick="saveProfileBio()">자기소개 저장</button>
+      </div>
+      <div style="text-align:left;margin-top:18px;">
+        <p class="section-label">누적 성과</p>
+        <div class="stat-row">
+          <div class="stat-box"><div class="num mono">${stats.total.toLocaleString()}</div><div class="lbl">누적 점수</div></div>
+          <div class="stat-box"><div class="num mono">#${stats.myRank}</div><div class="lbl">동네 랭킹</div></div>
+          <div class="stat-box"><div class="num mono">${stats.expToNext.toLocaleString()}</div><div class="lbl">레벨업까지 남은 점수</div></div>
+        </div>
+        <div class="progress" style="margin-top:12px;"><span style="width:${state.user.exp}%"></span></div>
+        <p class="hint" style="margin-top:4px;">Lv.${state.user.level} 진행도 ${state.user.exp}%</p>
+        <p class="section-label" style="margin-top:16px;">등급 비율 (전체 세션 기준)</p>
+        <div class="stat-row">
+          <div class="stat-box"><div class="num mono" style="color:var(--accent)">${stats.perfectPct}%</div><div class="lbl">PERFECT</div></div>
+          <div class="stat-box"><div class="num mono" style="color:var(--gold)">${stats.greatPct}%</div><div class="lbl">GREAT</div></div>
+          <div class="stat-box"><div class="num mono" style="color:var(--danger)">${stats.missPct}%</div><div class="lbl">MISS</div></div>
+        </div>
+        <p class="section-label" style="margin-top:16px;">운동 종류별 누적 횟수</p>
+        ${stats.exCounts.length ? stats.exCounts.map(([ex,cnt])=>`
+          <div class="rep-row" style="justify-content:space-between;"><span>${ex}</span><span class="mono">${cnt}회</span></div>
+        `).join('') : '<div class="empty-note">아직 기록이 없습니다.</div>'}
+        <p class="section-label" style="margin-top:16px;">장착 아이템 보정 효과</p>
+        ${stats.activeEffects.length ? stats.activeEffects.map(e=>`<span class="pill pill-accent" style="margin:0 6px 6px 0;display:inline-block;">${e}</span>`).join('') : '<p class="hint">착용 중인 능력치 아이템이 없습니다.</p>'}
+      </div>
+    </div>
+    <div class="card">
+      <p class="section-label">보유 아이템</p>
+      <div class="grid" style="grid-template-columns:repeat(2,1fr);">
+        ${cosmetics.filter(it=>it.owned).map(it=>renderCosmeticCard(it)).join('') || '<p class="empty-note" style="grid-column:1/-1;">아직 보유한 꾸미기 아이템이 없어요.</p>'}
+      </div>
+      <p class="section-label" style="margin-top:18px;">미보유 아이템</p>
+      <div class="grid" style="grid-template-columns:repeat(2,1fr);">
+        ${cosmetics.filter(it=>!it.owned).map(it=>renderCosmeticCard(it)).join('') || '<p class="empty-note" style="grid-column:1/-1;">모든 아이템을 보유하고 있어요!</p>'}
+      </div>
+      <p class="hint" style="margin-top:14px;">보유 아이템을 착용/해제하면 캐릭터에 바로 반영됩니다.</p>
+    </div>
+  </div>`;
+}
+function saveProfileBio(){
+  const el=document.getElementById('profile-bio-input');
+  if(!el) return;
+  state.user.bio=el.value.trim();
+  toast('자기소개를 저장했습니다');
+  render();
+}
+function getEquipState(){
+  const bySlot={};
+  state.shopItems.forEach(it=>{ if(it.slot && it.owned && it.equipped) bySlot[it.slot]=true; });
+  return bySlot;
+}
+function toggleEquip(idx){
+  const it=state.shopItems[idx];
+  if(!it.owned){ toast('포인트 상점에서 구매해주세요'); return; }
+  it.equipped=!it.equipped;
+  toast(it.equipped?`${it.name} 착용했습니다`:`${it.name} 착용 해제했습니다`);
+  render();
+}
+function drawAvatarCanvas(){
+  const canvas=document.getElementById('avatar-char-canvas');
+  if(!canvas) return;
+  drawPixelCharacter(canvas, getEquipState(), state.user.gender);
+}
+// 상단바의 작은 프로필 캐릭터 미리보기. drawPixelCharacter가 내부적으로 캔버스 해상도를
+// 144x176으로 고정하지만, CSS에서 36x36 원형으로 축소 표시한다.
+function drawTopbarAvatar(){
+  const canvas=document.getElementById('topbar-avatar-canvas');
+  if(!canvas) return;
+  drawPixelCharacter(canvas, getEquipState(), state.user.gender);
+}
+// gender: 'male' | 'female' — 회원가입 캘리브레이션에서 고른 값(state.user.gender)을 그대로 받아
+// 머리 모양만 구분한다. 로봇 스킨 아이템을 장착하면 성별과 무관하게 로봇 얼굴이 우선한다.
+function drawPixelCharacter(canvas, equip, gender){
+  const U=8, W=18, H=22;
+  canvas.width=W*U; canvas.height=H*U;
+  const ctx=canvas.getContext('2d');
+  ctx.imageSmoothingEnabled=true;
+  // 각 블록을 각진 사각형 대신 둥근 사각형으로 그려서 8비트 느낌 대신 종이를 오려붙인 듯한
+  // 부드러운 실루엣을 만든다. 반지름은 블록의 짧은 변 기준으로 계산하고, 큰 블록(몸통·머리)이
+  // 과하게 알약 모양이 되지 않도록 10px로 상한을 둔다.
+  const px=(x,y,w,h,color)=>{
+    ctx.fillStyle=color;
+    const r=Math.min(Math.min(w,h)*U*0.35, 10);
+    ctx.beginPath();
+    ctx.roundRect(x*U,y*U,w*U,h*U,r);
+    ctx.fill();
+  };
+
+  if(equip.background){
+    const g=ctx.createLinearGradient(0,0,0,H*U);
+    g.addColorStop(0,'#3b2f63'); g.addColorStop(0.55,'#c06b4f'); g.addColorStop(1,'#f0b35c');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W*U,H*U);
+  } else {
+    ctx.fillStyle='#241C12'; ctx.fillRect(0,0,W*U,H*U);
+  }
+
+  const isRobot=!!equip.skin;
+  const skinColor=isRobot?'#B8C4CE':'#F2C79C';
+  const outfitOn=!!equip.outfit;
+  const outfitColor=outfitOn?'#0F172A':'#4A5568';
+
+  px(6,17,2,3,'#2D3748'); px(10,17,2,3,'#2D3748');
+  px(6,20,2,1,'#191F2B'); px(10,20,2,1,'#191F2B');
+
+  px(5,11,8,6,outfitColor);
+  if(outfitOn){ px(5,11,8,1,'#6FBBEE'); px(5,15,8,1,'#FF8A5E'); }
+  px(3,12,2,5,outfitColor); px(13,12,2,5,outfitColor);
+  px(3,17,2,1,skinColor); px(13,17,2,1,skinColor);
+
+  px(8,9,2,2,skinColor);
+  px(5,3,8,6,skinColor);
+  if(isRobot){
+    px(6,5,6,2,'#6FBBEE');
+  } else {
+    px(5,3,8,2,'#3A2B22');
+    if(gender==='female'){ px(4,3,1,6,'#3A2B22'); px(13,3,1,6,'#3A2B22'); }
+    px(6,6,2,1,'#22303C'); px(10,6,2,1,'#22303C');
+  }
+
+  if(equip.crown){
+    px(5,1,8,2,'#D9A226');
+    px(5,0,1,1,'#D9A226'); px(8,0,1,1,'#D9A226'); px(12,0,1,1,'#D9A226');
+  }
+
+  if(equip.badge){
+    ctx.strokeStyle='#D9A226'; ctx.lineWidth=U*0.6;
+    ctx.strokeRect(ctx.lineWidth/2, ctx.lineWidth/2, W*U-ctx.lineWidth, H*U-ctx.lineWidth);
+  }
+}
+const _itemIconCache={};
+function itemIconDataURL(name){
+  if(_itemIconCache[name]) return _itemIconCache[name];
+  let seed=2166136261;
+  for(let i=0;i<name.length;i++){ seed^=name.charCodeAt(i); seed=Math.imul(seed,16777619); }
+  seed=seed>>>0;
+  const rnd=()=>{ seed=(seed+0x6D2B79F5)|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; };
+  const U=6, N=8;
+  const c=document.createElement('canvas'); c.width=N*U; c.height=N*U;
+  const ctx=c.getContext('2d'); ctx.imageSmoothingEnabled=false;
+  const hue=Math.floor(rnd()*360);
+  ctx.fillStyle=`hsl(${hue},40%,18%)`; ctx.fillRect(0,0,N*U,N*U);
+  const fg1=`hsl(${hue},70%,55%)`, fg2=`hsl(${(hue+40)%360},80%,65%)`;
+  for(let y=0;y<N;y++){
+    for(let x=0;x<N/2;x++){
+      if(rnd()<0.45){
+        ctx.fillStyle=rnd()<0.5?fg1:fg2;
+        ctx.fillRect(x*U,y*U,U,U);
+        ctx.fillRect((N-1-x)*U,y*U,U,U);
+      }
+    }
+  }
+  const url=c.toDataURL();
+  _itemIconCache[name]=url;
+  return url;
+}
+// (FR-SH-001) 아래 buyItem()에서 실제 결제/포인트 차감이 필요합니다.
+//   아이템 구매(buyItem) > Java 상점 API > DB 연결 > SQL UPDATE(포인트 잔액) + INSERT(보유 아이템 테이블)
+//   — 포인트 차감과 아이템 지급은 하나의 트랜잭션으로 묶어야 중간 실패 시 포인트만 깎이는 사고를 막을 수 있습니다.
+function renderMissionShop(){
+  return `
+  <p class="hint" style="margin-bottom:14px;">아이템마다 적용되는 능력치가 다릅니다. 구매 전 효과를 확인하세요.</p>
+  <div class="grid grid-3">
+    ${state.shopItems.map((it,idx)=>`
+      <div class="card">
+        <div class="feed-media" style="height:88px;">${it.name}</div>
+        <div class="flex-between" style="margin-top:10px;">
+          <h3 style="margin:0;">${it.name}</h3>
+        </div>
+        <span class="pill ${it.effect.startsWith('능력치 없음')?'pill-muted':'pill-accent'}" style="margin-top:8px;">효과 · ${it.effect}</span>
+        ${it.consumable?`<p class="desc" style="margin-top:4px;color:var(--accent);">보유 수량: ${it.name==='닉네임 변경권'?(state.user.nicknameTickets||0):state.user.retakeTickets}장</p>`:''}
+        <p class="desc" style="margin-top:8px;">${it.effectDesc}</p>
+        <div class="flex-between" style="margin-top:6px;">
+          <span class="shop-price">P ${it.price}</span>
+          <button class="btn btn-sm ${(it.owned && !it.consumable)?'btn-ghost':'btn-primary'}" ${(it.owned && !it.consumable)?'disabled style="opacity:.5;"':''} onclick="buyItem(${idx})">${(it.owned && !it.consumable)?'보유중':'구매하기'}</button>
+        </div>
+      </div>`).join('')}
+  </div>`;
+}
+function buyItem(idx){
+  const it=state.shopItems[idx];
+  if(it.owned && !it.consumable){toast('이미 보유한 아이템입니다'); return;}
+  if(state.user.points<it.price){toast('포인트가 부족합니다'); return;}
+  state.user.points -= it.price;
+  if(it.consumable){
+    if(it.name==='닉네임 변경권'){
+      state.user.nicknameTickets = (state.user.nicknameTickets||0) + 1;
+      toast(`${it.name} 구매 완료 (보유 ${state.user.nicknameTickets}장)`);
+    } else {
+      state.user.retakeTickets = (state.user.retakeTickets||0) + 1;
+      toast(`${it.name} 구매 완료 (보유 ${state.user.retakeTickets}장)`);
+    }
+  } else {
+    it.owned=true;
+    toast(`${it.name} 구매 완료`);
+  }
+  render();
+}
+
+/* ========================================================================
+   3. 홈크루
+   ======================================================================== */
+// (FR-CR-001~005) 크루 생성/가입/배분/강퇴/공지/가입승인은 모두 아래 파이프라인이 필요한 구간입니다.
+//   크루 생성(createCrew) / 가입(joinCrew) > Java 크루 API > DB 연결 > SQL INSERT(크루 테이블, 크루원 테이블)
+//   단체 미션 배분(setCrewMissionEx 등) > Java 크루 API > DB 연결 > SQL UPDATE(미션 배분 테이블)
+//   가입 요청 승인(approveJoinRequest) > Java 크루 API > DB 연결 > SQL INSERT(크루원) + DELETE(가입요청)
+//   크루원 강퇴(kickMember) > Java 크루 API > DB 연결 > SQL DELETE(크루원 테이블)
+//   크루공지 작성(postCrewNotice, 팀장 전용) > Java 크루 API(권한 확인) > DB 연결 > SQL INSERT(공지 테이블)
+// 참고: 기존에 있던 실시간 크루 채팅 기능은 삭제되었습니다 — 대신 크루공지에서 팀장이
+// 외부 메신저 채팅방 정보를 안내하는 방식으로 대체했습니다.
+const CREW_ENTRY_TABS=['크루 생성','우리동네 크루 가입하기'];
+const CREW_MISSION_EX_OPTIONS = EXS.map(e=>e.name);
+// 팀장일 때만 '크루원관리' 탭이 추가로 붙는다 (가입요청 승인·강퇴는 팀장 전용 화면으로 분리).
+function getCrewPageTabs(){
+  const tabs=['크루 메인','크루공지','오늘의 단체 미션','크루원 정보'];
+  if(getMyCrewRole()==='팀장') tabs.push('크루원관리');
+  return tabs;
+}
+// 우리동네 크루 가입하기 목록. 검색·지역 필터·페이지네이션 데모를 위해 여러 지역에 걸쳐 구성했다.
+const JOINABLE_CREWS=[
+  {name:'역삼동 러너스', level:11, score:4820, leader:'써니핏', regionCity:'서울시', regionGu:'강남구', regionDong:'역삼동', desc:'매일 아침 6시 인증 러닝 크루입니다.'},
+  {name:'삼성동 스쿼트클럽', level:6, score:2400, leader:'헬스왕', regionCity:'서울시', regionGu:'강남구', regionDong:'삼성동', desc:'스쿼트 하나만 파는 크루예요.'},
+  {name:'합정 플랭커즈', level:9, score:3990, leader:'런닝수달', regionCity:'서울시', regionGu:'마포구', regionDong:'합정동', desc:'플랭크 최강자를 가립니다.'},
+  {name:'망원 버피팀', level:7, score:2950, leader:'버피장인', regionCity:'서울시', regionGu:'마포구', regionDong:'망원동', desc:'버피로 체지방 태우는 크루.'},
+  {name:'성수 스쿼트단', level:8, score:3650, leader:'단백질맨', regionCity:'서울시', regionGu:'성동구', regionDong:'성수동', desc:'단백질 챙겨먹고 스쿼트하는 사람들.'},
+  {name:'해운대 러너스', level:10, score:4100, leader:'바다사나이', regionCity:'부산시', regionGu:'해운대구', regionDong:'우동', desc:'해변 따라 뛰는 부산 크루.'},
+  {name:'중동 조깅클럽', level:5, score:1800, leader:'조깅요정', regionCity:'부산시', regionGu:'해운대구', regionDong:'중동', desc:'가볍게 조깅부터 시작해요.'},
+  {name:'봉명 홈트팀', level:4, score:1300, leader:'대전홈트', regionCity:'대전시', regionGu:'유성구', regionDong:'봉명동', desc:'대전 유성구 홈트 초보 모임.'},
+  {name:'오룡 파워워커즈', level:9, score:3800, leader:'파워워커', regionCity:'전남광주통합특별시', regionGu:'북구', regionDong:'오룡동', desc:'빠르게 걷기부터 파워워킹까지.'},
+  {name:'상무 헬스메이트', level:8, score:3400, leader:'헬스메이트', regionCity:'전남광주통합특별시', regionGu:'서구', regionDong:'상무동', desc:'헬스 초보 환영하는 크루.'},
+  {name:'역삼 런지크루', level:6, score:2200, leader:'런지킹', regionCity:'서울시', regionGu:'강남구', regionDong:'역삼동', desc:'런지 100개 챌린지 진행중.'},
+  {name:'오룡 조깅단', level:5, score:1900, leader:'조깅단장', regionCity:'전남광주통합특별시', regionGu:'북구', regionDong:'오룡동', desc:'주말마다 함께 조깅해요.'},
+];
+function renderCrew(){
+  const i=state.subtabs.crew;
+  if(!state.crew.created){
+    return `
+    <div class="view-head"><h1>홈크루</h1><p>크루를 새로 만들거나 우리동네 크루에 가입해보세요</p></div>
+    <div class="subtabs">
+      ${CREW_ENTRY_TABS.map((t,idx)=>`<div class="tab ${i===idx?'active':''}" onclick="setSub('crew',${idx})">${t}</div>`).join('')}
+    </div>
+    ${i===0?renderCrewCreate():renderCrewJoin()}`;
+  }
+  const tabs=getCrewPageTabs();
+  const activeTab=tabs[i]||tabs[0];
+  return `
+  <div class="view-head"><h1>${state.crew.name}</h1><p>크루 메인 → 크루공지 → 오늘의 단체 미션 → 크루원 정보</p></div>
+  <div class="subtabs">
+    ${tabs.map((t,idx)=>`<div class="tab ${i===idx?'active':''}" onclick="setSub('crew',${idx})">${t}</div>`).join('')}
+  </div>
+  ${activeTab==='크루 메인'?renderCrewOverview()
+    :activeTab==='크루공지'?renderCrewNotice()
+    :activeTab==='오늘의 단체 미션'?renderCrewAssign()
+    :activeTab==='크루원 정보'?renderCrewMembers()
+    :renderCrewManage()}`;
+}
+function renderCrewCreate(){
+  return `
+  <div class="card" style="max-width:480px;">
+    <p class="section-label">새 크루 만들기 (포인트 100 소모)</p>
+    <div class="field">
+      <label>활동 지역</label>
+      <div class="hint" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);">${state.user.region} <span style="color:var(--ink-faint);">(캘리브레이션 시 등록된 활동 지역)</span></div>
+    </div>
+    <div class="field"><label for="cr-name">크루 이름</label><input id="cr-name" placeholder="예: 역삼동 스쿼트단"></div>
+    <div class="field"><label for="cr-desc">크루 소개</label><textarea id="cr-desc" rows="3" placeholder="어떤 크루인지 소개해주세요"></textarea></div>
+    <button class="btn btn-primary btn-block" onclick="createCrew()">100P로 크루 생성</button>
+  </div>`;
+}
+function createCrew(){
+  if(state.user.points<100){toast('포인트가 부족합니다'); return;}
+  const name=document.getElementById('cr-name').value.trim() || '역삼동 스쿼트단';
+  const desc=document.getElementById('cr-desc').value.trim() || '함께 성장하는 홈트 크루입니다.';
+  // (#8) 중복된 크루명 방지 — 실제로는 DB에 SQL SELECT로 존재 여부를 물어야 한다.
+  if(JOINABLE_CREWS.some(c=>c.name===name)){ toast('이미 사용중인 크루 이름입니다'); return; }
+  state.user.points -= 100;
+  state.crew.created=true;
+  state.crew.name=name;
+  state.crew.desc=desc;
+  state.crew.region=state.user.region;
+  state.crew.level=1;
+  state.crew.exp=120;
+  state.crew.members=[
+    {n:'나', role:'팀장', level:state.user.level, score:totalScore()},
+    {n:'써니핏', role:'팀원', level:8, score:3200},
+    {n:'런닝수달', role:'팀원', level:9, score:3800},
+    {n:'단백질맨', role:'팀원', level:6, score:2100},
+  ];
+  state.subtabs.crew=0;
+  toast('크루가 생성되었습니다');
+  render();
+}
+const CREW_JOIN_PAGE_SIZE=8;
+function renderCrewJoin(){
+  const s=state.crew;
+  const cities=Object.keys(REGION_DATA);
+  const fCity = s.joinCity && REGION_DATA[s.joinCity] ? s.joinCity : null;
+  const gus = fCity ? Object.keys(REGION_DATA[fCity]) : [];
+  const fGu = fCity && s.joinGu && REGION_DATA[fCity][s.joinGu] ? s.joinGu : null;
+  const dongs = fGu ? REGION_DATA[fCity][fGu] : [];
+  const fDong = fGu && s.joinDong && dongs.includes(s.joinDong) ? s.joinDong : null;
+
+  const list = JOINABLE_CREWS.filter(c=>{
+    if(s.joinSearch && !c.name.includes(s.joinSearch)) return false;
+    if(fCity && c.regionCity!==fCity) return false;
+    if(fGu && c.regionGu!==fGu) return false;
+    if(fDong && c.regionDong!==fDong) return false;
+    return true;
+  });
+  const totalPages=Math.max(1, Math.ceil(list.length/CREW_JOIN_PAGE_SIZE));
+  const page=Math.min(s.joinPage||1, totalPages);
+  const pageItems=list.slice((page-1)*CREW_JOIN_PAGE_SIZE, page*CREW_JOIN_PAGE_SIZE);
+
+  return `
+  <div class="field" style="max-width:360px;"><label for="crew-search-input">크루명 검색</label><input id="crew-search-input" placeholder="크루 이름으로 검색" value="${s.joinSearch||''}"
+    oninput="if(!this.dataset.composing) setCrewJoinSearch(this.value)"
+    oncompositionstart="this.dataset.composing='1'"
+    oncompositionend="this.dataset.composing=''; setCrewJoinSearch(this.value)"></div>
+  <div class="filter-bar">
+    <select onchange="setCrewJoinCity(this.value)">
+      <option value="">시 전체</option>
+      ${cities.map(c=>`<option ${c===fCity?'selected':''}>${c}</option>`).join('')}
+    </select>
+    <select onchange="setCrewJoinGu(this.value)" ${fCity?'':'disabled'}>
+      <option value="">구 전체</option>
+      ${gus.map(g=>`<option ${g===fGu?'selected':''}>${g}</option>`).join('')}
+    </select>
+    <select onchange="setCrewJoinDong(this.value)" ${fGu?'':'disabled'}>
+      <option value="">동 전체</option>
+      ${dongs.map(d=>`<option ${d===fDong?'selected':''}>${d}</option>`).join('')}
+    </select>
+  </div>
+  <div class="grid grid-3">
+    ${pageItems.length ? pageItems.map(c=>`
+      <div class="card">
+        <div class="flex-between"><h3 style="margin:0;">${c.name}</h3><span class="pill pill-gold">Lv.${c.level}</span></div>
+        <p class="desc" style="margin-top:8px;">${c.desc}</p>
+        <p class="hint" style="margin:0 0 10px;">${c.regionCity} ${c.regionGu} ${c.regionDong}</p>
+        <div class="stat-row" style="margin-top:0;">
+          <div class="stat-box"><div class="num mono">${c.score.toLocaleString()}</div><div class="lbl">누적 점수</div></div>
+          <div class="stat-box"><div class="num mono">${c.leader}</div><div class="lbl">크루장</div></div>
+        </div>
+        <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="joinCrew('${c.name}')">가입하기</button>
+      </div>`).join('') : '<div class="empty-note" style="grid-column:1/-1;">조건에 맞는 크루가 없어요.</div>'}
+  </div>
+  ${totalPages>1?`
+  <div class="flex-between" style="margin-top:16px;justify-content:center;gap:14px;">
+    <button class="btn btn-sm btn-ghost" ${page<=1?'disabled style="opacity:.4;cursor:not-allowed;"':''} onclick="setCrewJoinPage(${page-1})">이전</button>
+    <span class="hint" style="margin:0;">${page} / ${totalPages} 페이지</span>
+    <button class="btn btn-sm btn-ghost" ${page>=totalPages?'disabled style="opacity:.4;cursor:not-allowed;"':''} onclick="setCrewJoinPage(${page+1})">다음</button>
+  </div>`:''}`;
+}
+function setCrewJoinSearch(v){
+  state.crew.joinSearch=v; state.crew.joinPage=1; render();
+  setTimeout(()=>{ const el=document.getElementById('crew-search-input'); if(el){ el.focus(); el.selectionStart=el.selectionEnd=el.value.length; } },0);
+}
+function setCrewJoinCity(v){ state.crew.joinCity=v||null; state.crew.joinGu=null; state.crew.joinDong=null; state.crew.joinPage=1; render(); }
+function setCrewJoinGu(v){ state.crew.joinGu=v||null; state.crew.joinDong=null; state.crew.joinPage=1; render(); }
+function setCrewJoinDong(v){ state.crew.joinDong=v||null; state.crew.joinPage=1; render(); }
+function setCrewJoinPage(p){ state.crew.joinPage=p; render(); }
+function joinCrew(name){
+  const c=JOINABLE_CREWS.find(c=>c.name===name);
+  if(!c) return;
+  state.crew.created=true;
+  state.crew.name=c.name;
+  state.crew.desc=c.desc;
+  state.crew.region=`${c.regionCity} ${c.regionGu} ${c.regionDong}`;
+  state.crew.level=c.level;
+  state.crew.exp=Math.round(c.score*0.3);
+  state.crew.members=[
+    {n:c.leader, role:'팀장', level:c.level, score:c.score},
+    {n:'나', role:'팀원', level:state.user.level, score:totalScore()},
+  ];
+  state.subtabs.crew=0;
+  toast(`${c.name}에 가입했습니다`);
+  render();
+}
+function getMyCrewRole(){
+  const me=state.crew.members.find(m=>m.n==='나');
+  return me?me.role:'팀원';
+}
+function toggleMyCrewRole(){
+  const me=state.crew.members.find(m=>m.n==='나');
+  if(!me) return;
+  me.role = me.role==='팀장' ? '팀원' : '팀장';
+  toast(`내 역할이 '${me.role}'(으)로 바뀌었습니다 (테스트용 전환)`);
+  state.subtabs.crew=0;
+  render();
+}
+// 크루원 레벨 비율에 맞춰 전체 목표 횟수를 개인별 목표로 나눈다. (#9)
+function getCrewMissionTargets(){
+  const totalLevel = state.crew.members.reduce((s,m)=>s+m.level,0)||1;
+  const gm=state.crew.groupMission;
+  return state.crew.members.map(m=>({
+    ...m,
+    target: Math.max(5, Math.round(gm.totalTarget * (m.level/totalLevel))),
+  }));
+}
+// 실제로는 오늘 촬영한 운동 기록과 연동돼야 할 진행률이지만, 이 프로토타입에는 그 연결이
+// 없으므로 이름을 시드로 한 결정론적 값으로 흉내낸다.
+function getCrewMemberProgress(name, target){
+  const seed=hashStr(name+state.crew.groupMission.ex+state.crew.groupMission.period);
+  return Math.round(target * ((seed%70)+15)/100);
+}
+function renderCrewOverview(){
+  const members=state.crew.members;
+  const contribTotal=members.reduce((s,m)=>s+m.score,0)||1;
+  const ranked=[...members].sort((a,b)=>b.score-a.score).map((m,i)=>({...m, rank:i+1, pct:Math.round(m.score/contribTotal*100)}));
+  const dongRank=getMyDongCrewRank();
+  const gm=state.crew.groupMission;
+  const targets=getCrewMissionTargets();
+  const mine=targets.find(m=>m.n==='나');
+  const myPct=mine?Math.min(100, Math.round(getCrewMemberProgress('나',mine.target)/mine.target*100)):0;
+  return `
+  <div class="grid grid-2" style="align-items:start;">
+    <div class="card">
+      <p class="section-label">크루 레벨 · 누적 경험치</p>
+      <div class="stat-row">
+        <div class="stat-box"><div class="num mono">Lv.${state.crew.level}</div><div class="lbl">크루 레벨</div></div>
+        <div class="stat-box"><div class="num mono">${(state.crew.exp||0).toLocaleString()}</div><div class="lbl">누적 경험치</div></div>
+        <div class="stat-box"><div class="num mono">#${dongRank.rank}</div><div class="lbl">${dongRank.dong} 순위</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <p class="section-label">크루 미션 누적점수</p>
+      ${ranked.map(m=>`
+        <div class="rep-row">
+          <span class="rank-num ${m.rank===1?'top':''}" style="min-width:24px;height:22px;">${m.rank}</span>
+          <span class="user-avatar" style="width:22px;height:22px;font-size:10px;flex:none;background:${avatarColor(m.rank-1)}">${avatarInitial(m.n)}</span>
+          <span style="width:64px;">${m.n}${m.n==='나'?' <span class="pill pill-accent">나</span>':''}</span>
+          <div class="bar-track"><span style="width:${m.pct}%;background:var(--accent)"></span></div>
+          <span class="angle mono">${m.score.toLocaleString()}점</span>
+        </div>`).join('')}
+    </div>
+  </div>
+  <div class="grid grid-2" style="align-items:start;margin-top:14px;">
+    <div class="card">
+      <p class="section-label">팀미션 진행률</p>
+      <div class="progress" style="height:14px;margin:10px 0;"><span style="width:${state.crew.teamProgress}%"></span></div>
+      <p class="desc">전체 목표 대비 ${state.crew.teamProgress}% 달성</p>
+    </div>
+    <div class="card">
+      <p class="section-label">내게 배분된 미션</p>
+      <div class="flex-between"><h3 style="margin:0;">${mine?(mine.assignedEx||gm.ex):gm.ex}</h3><span class="pill pill-accent">${gm.period==='daily'?'일일':'주간'}</span></div>
+      <p class="desc" style="margin:8px 0;">목표 ${mine?mine.target:'-'}회</p>
+      <div class="progress" style="margin:6px 0;"><span style="width:${myPct}%"></span></div>
+      <p class="hint" style="margin:0;">진행률 ${myPct}% · 자세한 배분 현황은 '오늘의 단체 미션' 탭에서 확인하세요.</p>
+    </div>
+  </div>`;
+}
+/* ---------- 크루공지: 팀장만 작성 가능 ---------- */
+function renderCrewNotice(){
+  const isLeader=getMyCrewRole()==='팀장';
+  return `
+  ${isLeader?`
+  <div class="card" style="max-width:520px;margin-bottom:16px;">
+    <p class="section-label">공지 작성</p>
+    <div class="field"><label for="notice-title">제목</label><input id="notice-title" placeholder="예: 우리 크루 단톡방 안내"></div>
+    <div class="field"><label for="notice-body">내용</label><textarea id="notice-body" rows="3" placeholder="크루원에게 전달할 내용을 입력하세요 (예: 카카오톡 오픈채팅 '123' 검색)"></textarea></div>
+    <button class="btn btn-primary" onclick="postCrewNotice()">공지 등록</button>
+  </div>`:''}
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    ${state.crew.notices.length ? [...state.crew.notices].reverse().map(n=>`
+      <div class="card">
+        <div class="flex-between"><h3 style="margin:0;">${n.title}</h3><span class="hint" style="margin:0;">${n.date}</span></div>
+        <p class="desc" style="margin-top:8px;white-space:pre-wrap;">${n.body}</p>
+        <p class="hint" style="margin:0;">작성자 · ${n.who}</p>
+      </div>`).join('') : '<div class="empty-note">아직 등록된 공지가 없어요.</div>'}
+  </div>`;
+}
+function postCrewNotice(){
+  if(getMyCrewRole()!=='팀장'){ toast('공지 작성 권한이 없습니다'); return; }
+  const title=document.getElementById('notice-title').value.trim();
+  const body=document.getElementById('notice-body').value.trim();
+  if(!title || !body){ toast('제목과 내용을 입력해주세요'); return; }
+  state.crew.notices.push({who:state.user.nickname||'팀장', title, body, date:'오늘'});
+  toast('공지를 등록했습니다');
+  render();
+}
+/* ---------- 오늘의 단체 미션: 종목 1개 + 총목표를 레벨 비례로 개인 배분 ---------- */
+function renderCrewAssign(){
+  const isLeader=getMyCrewRole()==='팀장';
+  const gm=state.crew.groupMission;
+  const targets=getCrewMissionTargets();
+  return `
+  <div class="card" style="max-width:560px;margin-bottom:16px;">
+    <p class="section-label">${gm.period==='daily'?'크루 일일미션':'크루 주간미션'}</p>
+    <div class="filter-bar">
+      ${['daily','weekly'].map(p=>`<button class="btn btn-sm ${gm.period===p?'btn-primary':'btn-secondary'}" ${isLeader?`onclick="setCrewMissionPeriod('${p}')"`:'disabled style="opacity:.6;"'}>${p==='daily'?'일일':'주간'}</button>`).join('')}
+    </div>
+    <p class="desc">종목 <b style="color:var(--ink);">${gm.ex}</b> · 팀 전체 목표 <b style="color:var(--ink);">${gm.totalTarget}회</b> — 크루원 레벨에 맞춰 개인 목표가 자동으로 조정됩니다.</p>
+    ${isLeader?`
+    <div class="field"><label for="cm-ex-select">종목 선택</label><select id="cm-ex-select" onchange="setCrewMissionEx(this.value)">${CREW_MISSION_EX_OPTIONS.map(e=>`<option ${e===gm.ex?'selected':''}>${e}</option>`).join('')}</select></div>`:''}
+  </div>
+  <p class="section-label">배분 현황</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>팀원</th><th>역할</th><th>배분된 종목</th><th>진행률</th></tr></thead>
+      <tbody>
+        ${targets.map(m=>{
+          const done=getCrewMemberProgress(m.n, m.target);
+          const pct=Math.min(100, Math.round(done/m.target*100));
+          const ex=m.assignedEx||gm.ex;
+          return `
+          <tr>
+            <td>${m.n}${m.n==='나'?' <span class="pill pill-accent">나</span>':''}</td>
+            <td><span class="pill ${m.role==='팀장'?'pill-gold':'pill-muted'}">${m.role}</span></td>
+            <td>${isLeader
+              ? `<select onchange="setMemberMissionEx('${m.n}', this.value)" style="width:auto;padding:5px 8px;font-size:12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);">${CREW_MISSION_EX_OPTIONS.map(e=>`<option ${ex===e?'selected':''}>${e}</option>`).join('')}</select>`
+              : `<span class="pill pill-accent">${ex}</span>`}</td>
+            <td style="min-width:130px;">
+              <div class="bar-track"><span style="width:${pct}%;background:${pct>=100?'var(--accent)':'var(--gold)'}"></span></div>
+              <span class="hint" style="margin:3px 0 0;">${pct}%${pct>=100?' · 완료':''}</span>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>
+  <p class="hint" style="margin-top:10px;">테스트용 — <button class="btn btn-sm btn-ghost" onclick="toggleMyCrewRole()">내 역할(${getMyCrewRole()}) 전환해보기</button></p>`;
+}
+function setCrewMissionPeriod(p){
+  if(getMyCrewRole()!=='팀장'){ toast('미션 설정 권한이 없습니다'); return; }
+  state.crew.groupMission.period=p; render();
+}
+function setCrewMissionEx(v){
+  if(getMyCrewRole()!=='팀장'){ toast('미션 설정 권한이 없습니다'); return; }
+  state.crew.groupMission.ex=v; render();
+}
+function setMemberMissionEx(name, ex){
+  if(getMyCrewRole()!=='팀장'){ toast('배분 변경 권한이 없습니다'); return; }
+  const m=state.crew.members.find(m=>m.n===name);
+  if(m){ m.assignedEx=ex; toast(`${name}님의 배분 종목을 ${ex}(으)로 변경했습니다`); }
+  render();
+}
+/* ---------- 크루원 정보: 조회 전용 (강퇴 기능은 크루원관리 탭으로 이동) ---------- */
+function renderCrewMembers(){
+  return `
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>이름</th><th>역할</th><th>레벨</th></tr></thead>
+      <tbody>
+        ${state.crew.members.map(m=>`
+          <tr>
+            <td>${m.n}${m.n==='나'?' <span class="pill pill-accent">나</span>':''}</td>
+            <td><span class="pill ${m.role==='팀장'?'pill-gold':'pill-muted'}">${m.role}</span></td>
+            <td class="mono">Lv.${m.level}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+/* ---------- 크루원관리: 팀장 전용 — 크루 소개 수정 + 가입요청 승인 + 강퇴 ---------- */
+function renderCrewManage(){
+  if(getMyCrewRole()!=='팀장'){ return '<div class="empty-note">팀장만 접근할 수 있는 메뉴입니다.</div>'; }
+  const reqs=state.crew.joinRequests;
+  return `
+  <div class="card" style="max-width:520px;margin-bottom:20px;">
+    <p class="section-label">크루 소개 수정</p>
+    <div class="field"><textarea id="crew-desc-edit" rows="3">${state.crew.desc}</textarea></div>
+    <button class="btn btn-secondary" onclick="updateCrewDesc()">소개 저장</button>
+  </div>
+  <p class="section-label">가입 요청 (${reqs.length})</p>
+  <div class="grid grid-2" style="margin-bottom:24px;">
+    ${reqs.length ? reqs.map((r,idx)=>`
+      <div class="card">
+        <div class="flex-between"><h3 style="margin:0;">${r.n}</h3><span class="pill pill-gold">Lv.${r.level}</span></div>
+        <p class="desc" style="margin-top:8px;">${r.msg}</p>
+        <p class="hint">누적 점수 ${r.score.toLocaleString()}점</p>
+        <div class="flex-between" style="margin-top:10px;gap:8px;">
+          <button class="btn btn-sm btn-secondary" style="flex:1;" onclick="rejectJoinRequest(${idx})">거절</button>
+          <button class="btn btn-sm btn-primary" style="flex:1;" onclick="approveJoinRequest(${idx})">승인</button>
+        </div>
+      </div>`).join('') : '<div class="empty-note" style="grid-column:1/-1;">대기중인 가입 요청이 없어요.</div>'}
+  </div>
+  <p class="section-label">크루원 강퇴</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>이름</th><th>역할</th><th>레벨</th><th>관리</th></tr></thead>
+      <tbody>
+        ${state.crew.members.map(m=>`
+          <tr>
+            <td>${m.n}${m.n==='나'?' <span class="pill pill-accent">나</span>':''}</td>
+            <td><span class="pill ${m.role==='팀장'?'pill-gold':'pill-muted'}">${m.role}</span></td>
+            <td class="mono">Lv.${m.level}</td>
+            <td>${m.n!=='나'?`<button class="btn btn-sm btn-danger" onclick="kickMember('${m.n}')">강퇴</button>`:''}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+function updateCrewDesc(){
+  const v=document.getElementById('crew-desc-edit').value.trim();
+  if(!v){ toast('소개글을 입력해주세요'); return; }
+  state.crew.desc=v;
+  toast('크루 소개를 저장했습니다');
+  render();
+}
+function approveJoinRequest(idx){
+  const r=state.crew.joinRequests[idx];
+  if(!r) return;
+  state.crew.members.push({n:r.n, role:'팀원', level:r.level, score:r.score});
+  state.crew.joinRequests.splice(idx,1);
+  toast(`${r.n}님의 가입을 승인했습니다`);
+  render();
+}
+function rejectJoinRequest(idx){
+  const r=state.crew.joinRequests[idx];
+  if(!r) return;
+  state.crew.joinRequests.splice(idx,1);
+  toast(`${r.n}님의 가입 요청을 거절했습니다`);
+  render();
+}
+function kickMember(name){
+  if(getMyCrewRole()!=='팀장'){ toast('강퇴 권한이 없습니다'); return; }
+  state.crew.members=state.crew.members.filter(m=>m.n!==name);
+  toast(`${name}님을 크루에서 강퇴했습니다`);
+  render();
+}
+
+/* ---------- 크루 랭킹: 시/구/동 드롭다운 랭킹 + 시/구 드롭다운 지도 (#18, #19) ---------- */
+const CREW_NAME_POOL=['역삼동 러너스','합정 플랭커즈','성수 스쿼트단','오룡 파워워커즈','상무 헬스메이트','망원 버피팀','잠실 런지크루','봉선 조깅단'];
+function hashStr(s){
+  let h=2166136261;
+  for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); }
+  return h>>>0;
+}
+function getDongCrewRanking(dong){
+  const seed=hashStr(dong);
+  const names=[];
+  let idx=seed;
+  while(names.length<3){
+    idx=(idx*48271+1)%2147483647;
+    const name=CREW_NAME_POOL[idx%CREW_NAME_POOL.length];
+    if(!names.includes(name)) names.push(name);
+  }
+  return names.map((name,i)=>({
+    rank:i+1, name,
+    level:Math.max(1, 12-i*2-(seed%3)),
+    score:5200-i*430-(seed%100),
+  }));
+}
+function getMyCrewDong(){
+  const region=state.crew.region || state.user.region || '';
+  return region.trim().split(/\s+/).pop();
+}
+function getMyDongCrewRank(){
+  const dong=getMyCrewDong();
+  const myScore=state.crew.members.reduce((s,m)=>s+m.score,0);
+  const others=getDongCrewRanking(dong).filter(c=>c.name!==state.crew.name);
+  const rows=[...others, {name:state.crew.name, score:myScore}].sort((a,b)=>b.score-a.score);
+  return { dong, rank: rows.findIndex(r=>r.name===state.crew.name)+1 };
+}
+function renderCrewRegionRank(){
+  const cities=Object.keys(REGION_DATA);
+  const rankCity=REGION_DATA[state.crew.rankCity]?state.crew.rankCity:cities[0];
+  const rankGus=Object.keys(REGION_DATA[rankCity]);
+  const rankGu=REGION_DATA[rankCity][state.crew.rankGu]?state.crew.rankGu:rankGus[0];
+  const dongs=REGION_DATA[rankCity][rankGu];
+  const rankDong=dongs.includes(state.crew.rankDong)?state.crew.rankDong:dongs[0];
+  const rows=getDongCrewRanking(rankDong);
+  const mapCity=REGION_DATA[state.crew.mapCity]?state.crew.mapCity:cities[0];
+  const mapGus=Object.keys(REGION_DATA[mapCity]);
+  const mapGu=REGION_DATA[mapCity][state.crew.mapGu]?state.crew.mapGu:mapGus[0];
+  return `
+  <div class="grid grid-2" style="align-items:start;">
+    <div>
+      <p class="section-label">동네별 크루 랭킹</p>
+      <div class="filter-bar">
+        <select onchange="setCrewRankCity(this.value)">
+          ${cities.map(c=>`<option ${c===rankCity?'selected':''}>${c}</option>`).join('')}
+        </select>
+        <select onchange="setCrewRankGu(this.value)">
+          ${rankGus.map(g=>`<option ${g===rankGu?'selected':''}>${g}</option>`).join('')}
+        </select>
+        <select onchange="setCrewRankDong(this.value)">
+          ${dongs.map(d=>`<option ${d===rankDong?'selected':''}>${d}</option>`).join('')}
+        </select>
+      </div>
+      ${renderPodium(rows)}
+    </div>
+    <div>
+      <p class="section-label">동네별 1위 크루 지도</p>
+      <div class="filter-bar">
+        <select onchange="setCrewMapCity(this.value)">
+          ${cities.map(c=>`<option ${c===mapCity?'selected':''}>${c}</option>`).join('')}
+        </select>
+        <select onchange="setCrewMapGu(this.value)">
+          ${mapGus.map(g=>`<option ${g===mapGu?'selected':''}>${g}</option>`).join('')}
+        </select>
+      </div>
+      ${renderCrewMap(mapCity, mapGu)}
+    </div>
+  </div>`;
+}
+function renderCrewMap(city, gu){
+  const dongs=REGION_DATA[city][gu];
+  return `
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+    ${dongs.map(d=>{
+      const top=getDongCrewRanking(d)[0];
+      return `
+      <div style="border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--surface-2);">
+        <div class="flex-between"><b style="font-size:13px;">${d}</b><span class="pill pill-gold">1위</span></div>
+        <p class="desc" style="margin:6px 0 0;">${top.name}</p>
+        <p class="hint" style="margin-top:2px;">Lv.${top.level} · ${top.score.toLocaleString()}점</p>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+function setCrewRankCity(v){ state.crew.rankCity=v; state.crew.rankGu=null; state.crew.rankDong=null; render(); }
+function setCrewRankGu(v){ state.crew.rankGu=v; state.crew.rankDong=null; render(); }
+function setCrewRankDong(v){ state.crew.rankDong=v; render(); }
+function setCrewMapCity(v){ state.crew.mapCity=v; state.crew.mapGu=null; render(); }
+function setCrewMapGu(v){ state.crew.mapGu=v; render(); }
+
+/* ========================================================================
+   4. 랭킹·게시판
+   ======================================================================== */
+// (FR-RK-001~002) 지금은 getRegionRanking()/getDongCrewRanking()처럼 화면에서 정렬만 흉내내고
+// 있지만, 실제로는 순위를 매기는 연산 자체를 DB에 맡기는 편이 안전합니다.
+//   랭킹 조회(지역/종목/크루) > Java 랭킹 API > DB 연결 > SQL SELECT ... ORDER BY 점수 DESC (필요 시 캐싱)
+// (FR-BD-001) 게시판(renderBoard, openPost, likePost)은 별도로 아래 파이프라인이 필요합니다.
+//   글쓰기/좋아요/신고 > Java 게시판 API > DB 연결 > SQL INSERT/UPDATE(게시글, 좋아요, 신고 테이블)
+const RANK_TABS=['지역별 랭킹','운동 종목별 랭킹','크루 랭킹'];
+function renderRanking(){
+  const i=state.subtabs.ranking;
+  return `
+  <div class="view-head"><h1>랭킹</h1><p>지역별 랭킹 → 운동 종목별 랭킹 → 크루 랭킹</p></div>
+  <div class="subtabs">
+    ${RANK_TABS.map((t,idx)=>`<div class="tab ${i===idx?'active':''}" onclick="setSub('ranking',${idx})">${t}</div>`).join('')}
+  </div>
+  ${i===0?renderRankRegion(): i===1?renderRankExercise(): renderCrewRegionRank()}`;
+}
+// (#7) 1~3등은 캐릭터를 올림픽 단상 형태로, 4등부터는 기존 리스트로 보여주는 공용 포디움 컴포넌트.
+// rows는 이미 순위(rank)가 매겨진 배열이어야 하며, name/level/score 필드를 사용한다.
+// (#2) 1~3위는 아바타 원이 아니라 실제 픽셀 캐릭터를 단상 위에 세운다. 랭킹에 오른 다른
+// 사용자의 실제 장착 아이템·성별 데이터는 없으므로, 이름을 시드로 한 결정론적 값으로
+// 캐릭터 외형(성별·의상 유무)만 살짝 다르게 흉내낸다.
+function renderPodium(rows){
+  const byRank=r=>rows.find(x=>x.rank===r);
+  const first=byRank(1), second=byRank(2), third=byRank(3);
+  const step=(r,cls,size)=>{
+    if(!r) return '<div class="podium-step" style="visibility:hidden;"></div>';
+    const cid=`podium-char-${cls}-${Math.abs(hashStr(r.name+cls))}`;
+    return `
+    <div class="podium-step ${cls}">
+      <canvas class="podium-canvas" id="${cid}" data-seed="${r.name}" style="width:${size}px;height:${Math.round(size*1.22)}px;"></canvas>
+      <div class="podium-name">${r.name}${r.isMe?' <span class="pill pill-accent">나</span>':''}</div>
+      ${r.level!=null?`<div class="podium-lv mono">Lv.${r.level}</div>`:''}
+      <div class="podium-score mono">${r.isMe?'내 점수 ':''}${r.score.toLocaleString()}</div>
+      <div class="podium-stand">${r.rank}</div>
+    </div>`;
+  };
+  return `<div class="podium">${step(second,'rank2',52)}${step(first,'rank1',66)}${step(third,'rank3',52)}</div>`;
+}
+// 화면에 존재하는 모든 포디움 캔버스를 그린다. (render() 끝에서 매번 호출 — 포디움이 없는
+// 화면에서는 querySelectorAll 결과가 비어 있어 아무 일도 하지 않는다.)
+function drawPodiumChars(){
+  document.querySelectorAll('canvas.podium-canvas').forEach(canvas=>{
+    const seed=canvas.dataset.seed||'x';
+    const h=hashStr(seed);
+    const equip={ outfit:h%2===0, crown:false, badge:false, background:false, skin:false };
+    const gender=h%3===0?'female':'male';
+    drawPixelCharacter(canvas, equip, gender);
+  });
+}
+const PERSON_NAME_POOL=['런닝수달','써니핏','단백질맨','헬스왕','조깅요정','버피장인','파워워커','헬스메이트','런지킹','조깅단장','바다사나이','배드민턴킹'];
+// 동(dong)을 시드로 결정론적인 이웃 랭킹을 만든다. 실제로는 SQL SELECT ... ORDER BY 점수로 대체될 자리.
+function getDongPersonRanking(dong){
+  const seed=hashStr(dong+'person');
+  const names=[];
+  let idx=seed;
+  while(names.length<4){
+    idx=(idx*48271+1)%2147483647;
+    const nm=PERSON_NAME_POOL[idx%PERSON_NAME_POOL.length];
+    if(!names.includes(nm)) names.push(nm);
+  }
+  return names.map((name,i)=>({ name, level:Math.max(1, 11-i*2-(seed%3)), score:5100-i*380-(seed%90) }));
+}
+function totalScore(){ return state.history.reduce((s,h)=>s+h.score,0); }
+// (#16) 지역별 랭킹: 시/구/동 드롭다운으로 좁히고, 순위 집계는 동 기준을 유지한다.
+function getRegionRanking(dong){
+  const myDong = state.user.region.trim().split(/\s+/).pop();
+  const neighbors = getDongPersonRanking(dong).map(n=>({...n, isMe:false}));
+  const rows = dong===myDong
+    ? [...neighbors.slice(0,3), {name:state.user.nickname||'홈트초보', score:totalScore(), level:state.user.level, isMe:true}]
+    : neighbors;
+  return rows.sort((a,b)=>b.score-a.score).map((r,i)=>({...r, rank:i+1}));
+}
+function renderRankRegion(){
+  const f=state.rankFilter;
+  const cities=Object.keys(REGION_DATA);
+  const city=REGION_DATA[f.city]?f.city:cities[0];
+  const gus=Object.keys(REGION_DATA[city]);
+  const gu=REGION_DATA[city][f.gu]?f.gu:gus[0];
+  const dongs=REGION_DATA[city][gu];
+  const dong=dongs.includes(f.dong)?f.dong:dongs[0];
+  const rows=getRegionRanking(dong);
+  const rest=rows.filter(r=>r.rank>3);
+  return `
+  <div class="filter-bar">
+    <select onchange="setRankCity(this.value)">${cities.map(c=>`<option ${c===city?'selected':''}>${c}</option>`).join('')}</select>
+    <select onchange="setRankGu(this.value)">${gus.map(g=>`<option ${g===gu?'selected':''}>${g}</option>`).join('')}</select>
+    <select onchange="setRankDong(this.value)">${dongs.map(d=>`<option ${d===dong?'selected':''}>${d}</option>`).join('')}</select>
+  </div>
+  ${renderPodium(rows)}
+  ${rest.length?`
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>순위</th><th>닉네임</th><th>레벨</th><th>누적 점수</th></tr></thead>
+      <tbody>
+        ${rest.map(r=>`
+          <tr>
+            <td><span class="rank-num">${r.rank}</span></td>
+            <td><span class="name-cell"><span class="user-avatar" style="background:${avatarColor(r.rank-1)}">${avatarInitial(r.name)}</span>${r.name}${r.isMe?' <span class="pill pill-accent">나</span>':''}</span></td>
+            <td class="mono">Lv.${r.level}</td>
+            <td class="mono">${r.score.toLocaleString()}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`:''}`;
+}
+function setRankCity(v){ state.rankFilter={city:v, gu:null, dong:null}; render(); }
+function setRankGu(v){ state.rankFilter.gu=v; state.rankFilter.dong=null; render(); }
+function setRankDong(v){ state.rankFilter.dong=v; render(); }
+
+// (#17) 운동 종목별 랭킹: 시/구/동 + 운동종목 드롭다운. 점수는 해당 종목의 누적 점수를 의미한다.
+function getExerciseRanking(dong, ex){
+  const seed=hashStr(dong+ex);
+  const names=[];
+  let idx=seed;
+  while(names.length<4){
+    idx=(idx*48271+1)%2147483647;
+    const nm=PERSON_NAME_POOL[idx%PERSON_NAME_POOL.length];
+    if(!names.includes(nm)) names.push(nm);
+  }
+  const rows = names.map((name,i)=>({ name, level:Math.max(1, 10-i*2-(seed%3)), score:420-i*35-(seed%40) }));
+  const myDong = state.user.region.trim().split(/\s+/).pop();
+  if(dong===myDong){
+    const myScore = state.history.filter(h=>h.ex===ex).reduce((s,h)=>s+h.score,0);
+    rows[rows.length-1] = {name:state.user.nickname||'홈트초보', level:state.user.level, score:myScore, isMe:true};
+  }
+  return rows.sort((a,b)=>b.score-a.score).map((r,i)=>({...r, rank:i+1}));
+}
+function renderRankExercise(){
+  const f=state.exRankFilter;
+  const cities=Object.keys(REGION_DATA);
+  const city=REGION_DATA[f.city]?f.city:cities[0];
+  const gus=Object.keys(REGION_DATA[city]);
+  const gu=REGION_DATA[city][f.gu]?f.gu:gus[0];
+  const dongs=REGION_DATA[city][gu];
+  const dong=dongs.includes(f.dong)?f.dong:dongs[0];
+  const ex=EXS.some(e=>e.name===f.ex)?f.ex:EXS[0].name;
+  const rows=getExerciseRanking(dong, ex);
+  const rest=rows.filter(r=>r.rank>3);
+  return `
+  <div class="filter-bar">
+    <select onchange="setExRankCity(this.value)">${cities.map(c=>`<option ${c===city?'selected':''}>${c}</option>`).join('')}</select>
+    <select onchange="setExRankGu(this.value)">${gus.map(g=>`<option ${g===gu?'selected':''}>${g}</option>`).join('')}</select>
+    <select onchange="setExRankDong(this.value)">${dongs.map(d=>`<option ${d===dong?'selected':''}>${d}</option>`).join('')}</select>
+    <select onchange="setExRankEx(this.value)">${EXS.map(e=>`<option ${e.name===ex?'selected':''}>${e.name}</option>`).join('')}</select>
+  </div>
+  <p class="hint" style="margin:-6px 0 14px;">점수는 ${ex} 종목의 누적 점수 기준입니다.</p>
+  ${renderPodium(rows)}
+  ${rest.length?`
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>순위</th><th>닉네임</th><th>${ex} 누적점수</th></tr></thead>
+      <tbody>${rest.map(r=>`<tr><td><span class="rank-num">${r.rank}</span></td><td>${r.name}${r.isMe?' <span class="pill pill-accent">나</span>':''}</td><td class="mono">${r.score.toLocaleString()}</td></tr>`).join('')}</tbody>
+    </table>
+  </div>`:''}`;
+}
+function setExRankCity(v){ state.exRankFilter={...state.exRankFilter, city:v, gu:null, dong:null}; render(); }
+function setExRankGu(v){ state.exRankFilter.gu=v; state.exRankFilter.dong=null; render(); }
+function setExRankDong(v){ state.exRankFilter.dong=v; render(); }
+function setExRankEx(v){ state.exRankFilter.ex=v; render(); }
+function groupHistoryByDate(){
+  const map={};
+  state.history.forEach(h=>{ (map[h.date]=map[h.date]||[]).push(h); });
+  return Object.entries(map);
+}
+function getScoreBonusPct(){
+  const badge=state.shopItems.find(it=>it.slot==='badge');
+  if(!badge || !badge.owned || !badge.equipped) return 0;
+  const m=badge.effect.match(/\+(\d+)/);
+  return m ? +m[1] : 0;
+}
+function renderHistory(){
+  const groups=groupHistoryByDate();
+  const bonusPct=getScoreBonusPct();
+  if(!groups.length) return `<div class="empty-note">아직 운동 기록이 없습니다.</div>`;
+  return `
+  <div style="display:flex;flex-direction:column;gap:16px;">
+    ${groups.map(([date,entries])=>`
+      <div class="card">
+        <div class="flex-between" style="margin-bottom:10px;">
+          <p class="section-label" style="margin:0;">${date}</p>
+          <span class="pill pill-muted">${entries.length}개 종목</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          ${entries.map(h=>{
+            const gc=h.gc||{PERFECT:0,GREAT:0,GOOD:0,MISS:0};
+            const gcTotal=Object.values(gc).reduce((a,b)=>a+b,0)||1;
+            const pct=k=>Math.round((gc[k]||0)/gcTotal*100);
+            const bonus=Math.round(h.score*bonusPct/100);
+            const finalScore=h.score+bonus;
+            return `
+            <div style="border:1px solid var(--line);border-radius:10px;padding:12px;">
+              <div class="flex-between">
+                <b>${h.ex}</b>
+                ${gradePill(h.grade)}
+              </div>
+              <p class="desc" style="margin:6px 0;">유효 횟수 ${h.reps}회 · 전체 정확도 ${h.acc}%</p>
+              <div class="stat-row" style="margin:0;">
+                <div class="stat-box"><div class="num mono" style="color:var(--accent)">${pct('PERFECT')}%</div><div class="lbl">PERFECT</div></div>
+                <div class="stat-box"><div class="num mono" style="color:var(--gold)">${pct('GREAT')}%</div><div class="lbl">GREAT</div></div>
+                <div class="stat-box"><div class="num mono">${pct('GOOD')}%</div><div class="lbl">GOOD</div></div>
+              </div>
+              <p class="desc mono" style="margin-top:8px;">획득 점수 : ${h.score}${bonusPct>0?` + 아이템효과 ${bonusPct}% = ${finalScore}`:''}</p>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`).join('')}
+  </div>`;
+}
+function renderBoard(){
+  return `
+  <div class="flex-between" style="margin-bottom:14px;">
+    <p class="section-label" style="margin:0;">이웃들의 운동 자랑</p>
+    <button class="btn btn-primary btn-sm" onclick="openPost()">글쓰기</button>
+  </div>
+  <div class="grid grid-2" id="board-feed">
+    ${state.board.map((p,idx)=>renderBoardCard(p,idx)).join('')}
+  </div>`;
+}
+function renderBoardCard(p,idx){
+  return `
+  <div class="card feed-card">
+    <div class="feed-head">
+      <div class="user-avatar" style="width:34px;height:34px;font-size:13px;background:${avatarColor(idx)}">${avatarInitial(p.who)}</div>
+      <div><b style="font-size:13px;">${p.who}</b><div class="desc" style="margin:0;">${p.ex}</div></div>
+    </div>
+    <div class="feed-media">운동 인증 사진</div>
+    <p class="desc" style="margin:0;">${p.text}</p>
+    <div class="feed-actions">
+      <button onclick="likePost(${idx})">♥ <span class="mono">${p.likes}</span></button>
+      <button>💬 <span class="mono">${p.cmts}</span></button>
+      <button onclick="toast('신고가 접수되었습니다')" style="margin-left:auto;color:var(--ink-faint);">신고</button>
+    </div>
+  </div>`;
+}
+function likePost(idx){state.board[idx].likes++; render();}
+function openPost(){
+  askConfirm('운동 인증 글쓰기','오늘의 운동 히스토리를 자랑 게시판에 공유할까요?',()=>{
+    state.board.unshift({who:state.user.nickname||'홈트초보', ex:state.history[0]?state.history[0].ex+' 인증':'홈트 인증', text:'오늘도 완료! 다들 화이팅입니다.', likes:0, cmts:0});
+    closeConfirm();
+    toast('게시글이 등록되었습니다');
+  },'게시하기');
+}
+/* ========================================================================
+   고객센터 · 불편사항접수
+   ======================================================================== */
+// (FR-CS-001) 티켓 접수/조회, 신고 처리(삭제·기각)는 모두 관리자용 API가 함께 필요한 구간입니다.
+//   불편사항 접수(submitTicket) > Java 고객센터 API > DB 연결 > SQL INSERT(티켓 테이블)
+//   신고 처리(삭제/기각 버튼) > Java 관리자 API(운영팀 권한 확인) > DB 연결 > SQL UPDATE/DELETE(게시글, 신고 테이블)
+//   운영팀 답변 등록도 같은 API에서 SQL UPDATE(티켓 테이블 reply, status 컬럼)로 처리하면 됩니다.
+function renderSupport(){
+  const s=state.support;
+  const list = s.filter==='all' ? s.tickets : s.tickets.filter(t=>t.status===s.filter);
+  return `
+  <div class="view-head"><h1>고객센터</h1><p>불편사항접수 게시판 — Error 신고 및 추후 추가사항 의견을 접수하고 처리 현황을 확인합니다.</p></div>
+  <div class="card" style="margin-bottom:20px;">
+    <p class="section-label">신고 관리</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>게시물</th><th>사유</th><th>처리</th></tr></thead>
+      <tbody>
+        <tr><td>플랭크 3분 인증</td><td>부적절한 이미지</td><td><button class="btn btn-sm btn-danger" onclick="toast('게시물이 삭제되었습니다')">삭제</button></td></tr>
+        <tr><td>버피 20회 인증</td><td>스팸성 홍보</td><td><button class="btn btn-sm btn-ghost" onclick="toast('신고가 기각되었습니다')">기각</button></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <div class="flex-between" style="margin-bottom:14px;">
+    <div class="filter-bar" style="margin:0;">
+      ${['all','접수','처리중','답변완료'].map(f=>`
+        <button class="btn btn-sm ${s.filter===f?'btn-primary':'btn-secondary'}" onclick="setSupportFilter('${f}')">${f==='all'?'전체':f}</button>`).join('')}
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="toggleComposer()">${s.composerOpen?'접기':'불편사항 접수하기'}</button>
+  </div>
+
+  ${s.composerOpen ? `
+  <div class="card" style="max-width:560px;margin-bottom:20px;">
+    <p class="section-label">새 불편사항 접수</p>
+    <div class="field"><label for="sp-type">유형</label>
+      <select id="sp-type"><option>Error</option><option>기능제안</option><option>기타</option></select>
+    </div>
+    <div class="field"><label for="sp-title">제목</label><input id="sp-title" placeholder="어떤 문제인지 한 줄로 요약해주세요"></div>
+    <div class="field"><label for="sp-body">내용</label><textarea id="sp-body" rows="4" placeholder="언제, 어떤 화면에서, 어떤 문제가 발생했는지 알려주세요"></textarea></div>
+    <button class="btn btn-primary" onclick="submitTicket()">접수하기</button>
+  </div>` : ''}
+
+  <div class="grid grid-2">
+    ${list.length===0 ? `<div class="empty-note">해당하는 접수 내역이 없습니다.</div>` : list.map(t=>`
+      <div class="card">
+        <div class="flex-between">
+          <span class="pill ${t.type==='Error'?'pill-danger':t.type==='기능제안'?'pill-accent':'pill-muted'}">${t.type}</span>
+          <span class="pill ${t.status==='답변완료'?'pill-accent':t.status==='처리중'?'pill-gold':'pill-muted'}">${t.status}</span>
+        </div>
+        <h3 style="margin-top:10px;">${t.title}</h3>
+        <p class="desc">${t.body}</p>
+        <p class="hint" style="margin-bottom:${t.reply?'10px':'0'};">접수일 ${t.date}</p>
+        ${t.reply ? `
+        <div style="background:var(--surface-2);border-radius:10px;padding:10px 12px;">
+          <p class="hint" style="margin:0 0 4px;color:var(--accent);font-weight:700;">운영팀 답변</p>
+          <p class="desc" style="margin:0;">${t.reply}</p>
+        </div>` : ''}
+      </div>`).join('')}
+  </div>`;
+}
+function setSupportFilter(f){state.support.filter=f; render();}
+function toggleComposer(){state.support.composerOpen=!state.support.composerOpen; render();}
+function submitTicket(){
+  const type=document.getElementById('sp-type').value;
+  const title=document.getElementById('sp-title').value.trim();
+  const body=document.getElementById('sp-body').value.trim();
+  if(!title || !body){toast('제목과 내용을 입력해주세요'); return;}
+  state.support.tickets.unshift({id:Date.now(), type, title, body, status:'접수', date:'오늘', reply:''});
+  state.support.composerOpen=false;
+  state.support.filter='all';
+  toast('불편사항이 접수되었습니다');
+  render();
+}
+
+/* ========================================================================
+   5. 설정
+   ======================================================================== */
+// (FR-ST-001) 계정 정보 수정, 공개범위 설정, 회원탈퇴는 각각 DB에 실제로 반영돼야 하는 지점입니다.
+//   프로필 저장(saveAccount) > Java 계정 API > DB 연결 > SQL UPDATE(계정 테이블)
+//   공개범위 저장(renderSetPrivacy 안의 토글/셀렉트) > Java 계정 API > DB 연결 > SQL UPDATE(공개범위 컬럼)
+//   회원 탈퇴(doWithdraw) > Java 계정 API > DB 연결 > SQL DELETE(계정 및 연관 테이블 — 운동기록/포인트/크루 등)
+// 카메라·알림 설정(renderSetCamera)은 기기/브라우저 설정에 가까워 로컬 저장(localStorage)만으로도
+// 충분하며, 반드시 서버까지 갈 필요는 없습니다.
+const SET_TABS=['계정·프로필 관리','캘리브레이션 재설정','카메라·알림 설정','개인정보·공개범위','로그아웃·회원탈퇴'];
+function renderSettings(){
+  const i=state.subtabs.settings;
+  return `
+  <div class="view-head"><h1>설정</h1><p>계정·프로필 관리 → 캘리브레이션 재설정 → 카메라·알림 설정 → 개인정보 공개범위 → 로그아웃·회원탈퇴</p></div>
+  <div class="subtabs">
+    ${SET_TABS.map((t,idx)=>`<div class="tab ${i===idx?'active':''}" onclick="setSub('settings',${idx})">${t}</div>`).join('')}
+  </div>
+  ${i===0?renderSetAccount(): i===1?renderSetCalib(): i===2?renderSetCamera(): i===3?renderSetPrivacy(): renderSetLogout()}`;
+}
+function renderSetAccount(){
+  const a=state.settings.account;
+  const cities=Object.keys(REGION_DATA);
+  const city=REGION_DATA[a.regionCity]?a.regionCity:cities[0];
+  const gus=Object.keys(REGION_DATA[city]);
+  const gu=REGION_DATA[city][a.regionGu]?a.regionGu:gus[0];
+  const dongs=REGION_DATA[city][gu];
+  const dong=dongs.includes(a.regionDong)?a.regionDong:dongs[0];
+  const canEditNick = (state.user.nicknameTickets||0) > 0;
+  return `
+  <div class="card" style="max-width:460px;">
+    <p class="section-label">프로필</p>
+    <div class="field">
+      <label for="acc-nick">닉네임</label>
+      <input id="acc-nick" value="${state.user.nickname}" ${canEditNick?'':'disabled'}>
+      <p class="hint">${canEditNick ? `닉네임 변경권 보유중 · 저장 시 1장이 사용됩니다 (남은 수량 ${state.user.nicknameTickets}장)` : `닉네임 변경은 포인트 상점에서 '닉네임 변경권'을 구매한 뒤 가능합니다.`}</p>
+      ${canEditNick?'':'<button class="btn btn-sm btn-secondary" style="margin-top:6px;" onclick="setMenu(\'shop\')">포인트 상점으로 이동</button>'}
+    </div>
+    <div class="field">
+      <label>활동 지역</label>
+      <div class="field-row">
+        <select onchange="setAccountCity(this.value)" style="flex:1;min-width:0;">${cities.map(c=>`<option ${c===city?'selected':''}>${c}</option>`).join('')}</select>
+        <select onchange="setAccountGu(this.value)" style="flex:1;min-width:0;">${gus.map(g=>`<option ${g===gu?'selected':''}>${g}</option>`).join('')}</select>
+        <select onchange="setAccountDong(this.value)" style="flex:1;min-width:0;">${dongs.map(d=>`<option ${d===dong?'selected':''}>${d}</option>`).join('')}</select>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="saveAccount()">저장</button>
+  </div>`;
+}
+function setAccountCity(v){ state.settings.account.regionCity=v; state.settings.account.regionGu=null; state.settings.account.regionDong=null; render(); }
+function setAccountGu(v){ state.settings.account.regionGu=v; state.settings.account.regionDong=null; render(); }
+function setAccountDong(v){ state.settings.account.regionDong=v; render(); }
+function saveAccount(){
+  const a=state.settings.account;
+  let nickMsg='';
+  const nickEl=document.getElementById('acc-nick');
+  if(nickEl && !nickEl.disabled){
+    const newNick=nickEl.value.trim();
+    if(newNick && newNick!==state.user.nickname){
+      if(EXISTING_USERS.some(u=>u.nickname===newNick)){ toast('이미 사용중인 닉네임입니다'); return; }
+      state.user.nicknameTickets--;
+      state.user.nickname=newNick;
+      a.nickname=newNick;
+      nickMsg = ` · 닉네임 변경 (남은 변경권 ${state.user.nicknameTickets}장)`;
+    }
+  }
+  state.user.region = `${a.regionCity} ${a.regionGu} ${a.regionDong}`;
+  toast(`프로필이 저장되었습니다${nickMsg}`);
+  render();
+}
+function renderSetCalib(){
+  return `
+  <div class="card" style="max-width:460px;">
+    <p class="section-label">카메라 캘리브레이션</p>
+    <p class="desc">촬영 각도·거리·신체 비율을 다시 측정하여 분석 정확도를 갱신합니다.</p>
+    <button class="btn btn-secondary btn-block" onclick="toast('체형 보정을 다시 진행했습니다')">캘리브레이션 다시 진행</button>
+  </div>`;
+}
+function renderSetCamera(){
+  return `
+  <div class="card" style="max-width:520px;">
+    <div class="toggle-row"><div><div class="t-label">운동 알림</div><div class="t-desc">미션·팀 활동 알림 수신</div></div>
+      <div class="switch ${state.settings.notif?'on':''}" onclick="this.classList.toggle('on')"><span class="knob"></span></div></div>
+    <div class="toggle-row"><div><div class="t-label">촬영 효과음</div><div class="t-desc">촬영 시작·종료 알림음</div></div>
+      <div class="switch ${state.settings.sound?'on':''}" onclick="this.classList.toggle('on')"><span class="knob"></span></div></div>
+    <div class="toggle-row"><div><div class="t-label">카메라 해상도</div><div class="t-desc">촬영 품질 설정</div></div>
+      <select><option ${state.settings.camRes==='720p'?'selected':''}>720p</option><option ${state.settings.camRes==='1080p'?'selected':''}>1080p</option></select></div>
+  </div>`;
+}
+function renderSetPrivacy(){
+  return `
+  <div class="card" style="max-width:520px;">
+    <div class="toggle-row"><div><div class="t-label">프로필 공개 범위</div><div class="t-desc">랭킹·게시판에서 프로필 노출 대상</div></div>
+      <select><option>전체공개</option><option>크루공개</option><option>비공개</option></select></div>
+    <div class="toggle-row"><div><div class="t-label">운동 기록 공개 범위</div><div class="t-desc">운동 히스토리 노출 대상</div></div>
+      <select><option>전체공개</option><option selected>크루공개</option><option>비공개</option></select></div>
+    <div class="toggle-row"><div><div class="t-label">촬영 영상 공개</div><div class="t-desc">리플레이 영상 자동 공개 여부</div></div>
+      <div class="switch" onclick="this.classList.toggle('on')"><span class="knob"></span></div></div>
+  </div>`;
+}
+function renderSetLogout(){
+  return `
+  <div class="grid grid-2">
+    <div class="card">
+      <p class="section-label">로그아웃</p>
+      <p class="desc">현재 계정에서 로그아웃합니다.</p>
+      <button class="btn btn-secondary" onclick="doLogout()">로그아웃</button>
+    </div>
+    <div class="card">
+      <p class="section-label">회원 탈퇴</p>
+      <p class="desc">모든 운동 기록과 포인트가 삭제되며 복구할 수 없습니다.</p>
+      <button class="btn btn-danger" onclick="askConfirm('정말 탈퇴하시겠어요?','모든 운동 기록, 포인트, 홈크루 정보가 영구히 삭제됩니다.',doWithdraw,'탈퇴하기',true)">회원 탈퇴</button>
+    </div>
+  </div>`;
+}
+function doLogout(){state.screen='login'; render();}
+function doWithdraw(){
+  closeConfirm();
+  toast('회원 탈퇴가 완료되었습니다');
+  setTimeout(()=>{
+    location.reload();
+  },900);
+}
+
+/* ---------- confirm dialog ---------- */
+function renderConfirm(){
+  const c=state.confirm;
+  return `
+  <div class="confirm-backdrop" onclick="if(event.target===this)closeConfirm()">
+    <div class="confirm-box">
+      <h3>${c.title}</h3>
+      <p>${c.desc}</p>
+      <div class="confirm-actions">
+        <button class="btn btn-ghost btn-sm" onclick="closeConfirm()">취소</button>
+        <button class="btn ${c.danger?'btn-danger':'btn-primary'} btn-sm" id="confirm-yes">${c.yesLabel}</button>
+      </div>
+    </div>
+  </div>`;
+}
+document.addEventListener('click', e=>{
+  if(e.target && e.target.id==='confirm-yes' && state.confirm){ state.confirm.onYes(); }
+});
+
+render();
+
+/* ============================================================================
+   [파일 하단 요약] 프론트/백엔드 경계 & 기술스택 정리
+   ----------------------------------------------------------------------------
+   이 script.js 전체는 지금은 순수 프론트엔드 목업입니다. state 객체 하나가
+   서버·DB 역할을 대신하고 있고, 화면은 render()가 매번 통째로 다시 그립니다.
+
+   [프론트엔드 — 그대로 유지]
+     - 기술스택: HTML5 / CSS3 / JavaScript(ES6+, 바닐라)
+     - 자세 인식: MediaPipe Pose (Tasks Vision, WASM) — calStartCamera ~ calComputeProfile,
+       setupCamera ~ toggleRecording 구간. 전부 브라우저 안에서 실행되고 서버로 영상을
+       보내지 않으므로 백엔드가 필요 없습니다.
+     - 캔버스 드로잉(픽셀 캐릭터 drawPixelCharacter, 관절 포인트 편집 calEditRender 등)도
+       전부 클라이언트 전용 로직입니다.
+
+   [백엔드 — 새로 구현해야 하는 부분]
+     - 제안 기술스택: Java 17+ / Spring Boot(Spring MVC) REST API, Spring Security(인증/JWT)
+     - 코드 안에 "// [백엔드 연동 필요 구간]"이라고 표시된 곳들이 전부 여기에 해당합니다.
+       (회원가입/로그인/소셜로그인, 캘리브레이션 저장, 운동기록 저장, 미션 보상 지급,
+        상점 구매, 크루 생성/가입/공지/가입승인/강퇴, 랭킹 조회, 게시판, 고객센터, 계정설정 등)
+     - 실시간(WebSocket) 서버는 필요 없습니다 — 크루 채팅 기능은 삭제되었고 나머지 기능은
+       모두 REST(요청-응답)로 충분합니다.
+
+   [데이터베이스 — 새로 구현해야 하는 부분]
+     - 제안 기술스택: MySQL 8 + Spring Data JPA(또는 MyBatis)
+     - "DB 연결 > SQL ..." 로 표시된 부분이 실제 테이블 CRUD가 필요한 지점입니다.
+     - 최소한으로 필요한 테이블 예시: 계정, 캘리브레이션 프로필, 운동기록, 미션, 미션진행도,
+       상점아이템, 보유아이템, 크루, 크루원, 크루공지, 크루가입요청, 게시글, 좋아요/신고,
+       고객센터티켓
+
+   위 스택 이름(Java/Spring Boot/MySQL 등)은 팀 표준에 맞게 자유롭게 바꿔서 읽으면 됩니다 —
+   이 주석의 목적은 "정확한 제품명 고정"이 아니라 프론트/백엔드/DB 경계 자체를 표시하는 것입니다.
+   ============================================================================ */
