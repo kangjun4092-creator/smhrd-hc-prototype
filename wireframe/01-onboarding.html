@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>홈챌린지 와이어프레임 · 온보딩</title>
+<style>
+  body{font-family:'Malgun Gothic',sans-serif;background:#f4f4f4;padding:32px;margin:0;color:#333;}
+  h1{font-size:18px;margin:0 0 24px;}
+  .group{margin-bottom:36px;}
+  .group h2{font-size:13px;color:#666;margin:0 0 14px;font-weight:600;}
+  .row{display:flex;gap:14px;flex-wrap:wrap;}
+  .phone{width:150px;background:#fff;border:1px solid #dcdcdc;border-radius:16px;padding:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  .phone .label{font-size:10px;color:#999;text-align:center;margin-bottom:8px;}
+  .ph-img{height:56px;border-radius:8px;background:repeating-linear-gradient(135deg,#eee,#eee 4px,#f6f6f6 4px,#f6f6f6 8px);margin-bottom:8px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#aaa;}
+  .ph-bar{height:7px;background:#e2e2e2;border-radius:3px;margin-bottom:6px;}
+  .w60{width:60%}.w40{width:40%}.w80{width:80%}.w50{width:50%}
+  .ph-btn{height:18px;background:#c9c9c9;border-radius:4px;margin-top:6px;}
+  .ph-btn.accent{background:#8fa8ff;}
+  .dots{display:flex;gap:4px;justify-content:center;margin:8px 0;}
+  .dot{width:5px;height:5px;border-radius:50%;background:#ddd;}
+  .dot.on{background:#8fa8ff;}
+  .nav{margin-bottom:20px;font-size:12px;}
+  .nav a{color:#666;margin-right:12px;text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="nav"><a href="index.html">← 목록으로</a></div>
+<h1>홈챌린지 프로토타입 · 와이어프레임 — 온보딩</h1>
+
+<div class="group">
+<h2>온보딩 / 시작 흐름</h2>
+<div class="row">
+
+  <div class="phone">
+    <div class="label">스플래시</div>
+    <div class="ph-img">로고</div>
+    <div class="ph-bar w60" style="margin:20px auto 6px;"></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">소개 1</div>
+    <div class="ph-img">운동 자세 일러스트</div>
+    <div class="ph-bar w80"></div>
+    <div class="ph-bar w60"></div>
+    <div class="dots"><div class="dot on"></div><div class="dot"></div><div class="dot"></div></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">소개 2</div>
+    <div class="ph-img">AI 자세 분석 일러스트</div>
+    <div class="ph-bar w80"></div>
+    <div class="ph-bar w60"></div>
+    <div class="dots"><div class="dot"></div><div class="dot on"></div><div class="dot"></div></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">소개 3</div>
+    <div class="ph-img">랭킹·크루 일러스트</div>
+    <div class="ph-bar w80"></div>
+    <div class="ph-bar w50"></div>
+    <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot on"></div></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">시작하기</div>
+    <div class="ph-img">홈챌린지</div>
+    <div class="ph-btn accent" style="margin-top:16px;"></div>
+    <div class="ph-btn" style="margin-top:8px;"></div>
+  </div>
+
+</div>
+</div>
+
+</body>
+</html>

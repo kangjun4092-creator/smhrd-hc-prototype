@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>목업 · 나의 프로필</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="04-app-exercise.html">
+      <div class="brand-mark">홈</div>
+      <div class="brand-name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
+    </a>
+    <div class="navitem"><span class="navicon"></span>운동</div>
+    <div class="navitem"><span class="navicon"></span>미션</div>
+    <div class="navitem active"><span class="navicon"></span>나의 프로필</div>
+    <div class="navitem"><span class="navicon"></span>포인트 상점</div>
+    <div class="navitem"><span class="navicon"></span>홈크루</div>
+    <div class="navitem"><span class="navicon"></span>랭킹</div>
+    <div class="navitem"><span class="navicon"></span>자랑 게시판</div>
+    <div class="navitem"><span class="navicon"></span>고객센터</div>
+    <div class="navitem"><span class="navicon"></span>계정 및 설정</div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">나의 프로필</div>
+        <div class="topbar-sub">서울시 강남구 역삼동</div>
+      </div>
+      <div class="user-chip">
+        <div class="points-pill">P <span class="mono">3,240</span></div>
+        <span class="topbar-nick">써니핏</span>
+        <div class="topbar-avatar">
+          <div style="width:36px;height:36px;border-radius:50%;border:2px solid var(--outline);background:var(--surface-2);"></div>
+          <span class="mono">Lv.7</span>
+        </div>
+      </div>
+    </div>
+    <div class="view">
+      <div class="view-head">
+        <h1>나의 프로필</h1>
+        <p>캐릭터·아이템을 꾸미고 누적 성과를 한눈에 확인하세요. 미션 달성 현황·운동 히스토리는 옆 탭에서.</p>
+      </div>
+      <div class="subtabs">
+        <div class="tab active">프로필·캐릭터 꾸미기</div>
+        <div class="tab">미션 달성 현황</div>
+        <div class="tab">운동 히스토리</div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card" style="text-align:center;">
+          <div style="width:120px;height:150px;margin:0 auto 14px;border-radius:16px;background:var(--surface-2);border:2px solid var(--outline);display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-family:var(--font-mono);font-size:12px;">캐릭터<br>미리보기</div>
+          <h3>써니핏</h3>
+          <p class="desc">Lv.7 · 스쿼트 전문가</p>
+        </div>
+        <div class="card">
+          <p class="section-label">보유 아이템</p>
+          <div class="grid grid-3" style="gap:10px;">
+            <div class="card" style="padding:10px;text-align:center;"><div class="ex-badge" style="margin:0 auto 6px;">👟</div><p class="desc" style="margin:0;">러닝화</p></div>
+            <div class="card" style="padding:10px;text-align:center;"><div class="ex-badge" style="margin:0 auto 6px;">🧢</div><p class="desc" style="margin:0;">모자</p></div>
+            <div class="card" style="padding:10px;text-align:center;"><div class="ex-badge" style="margin:0 auto 6px;">🎽</div><p class="desc" style="margin:0;">유니폼</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view-head" style="margin-top:32px;">
+        <p class="section-label">누적 성과</p>
+      </div>
+      <div class="stat-row">
+        <div class="stat-box"><div class="num mono">128</div><div class="lbl">총 운동 횟수</div></div>
+        <div class="stat-box"><div class="num mono">23</div><div class="lbl">완료한 미션</div></div>
+        <div class="stat-box"><div class="num mono">91%</div><div class="lbl">평균 정확도</div></div>
+        <div class="stat-box"><div class="num mono">14일</div><div class="lbl">연속 출석</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

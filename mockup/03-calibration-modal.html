@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>목업 · 웹캠 체형 캘리브레이션</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>
+  /* .check 는 실제 style.css에 정의돼 있지 않아(런타임에 인라인으로 색이 바뀌는 요소),
+     목업에서는 시각적 의도만 재현합니다. */
+  .check{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-dim);}
+  .check .dot{width:9px;height:9px;border-radius:50%;background:var(--line);flex:none;}
+  .check.ok{color:var(--ink);}
+  .check.ok .dot{background:var(--accent);}
+</style>
+</head>
+<body>
+<!-- 배경: 회원가입 화면 위에 모달이 뜬 상태 -->
+<div class="center-shell" style="filter:blur(1.5px) brightness(.97);">
+  <div class="auth-card">
+    <p class="auth-eyebrow">우리동네 홈트챌린지</p>
+    <h1 class="auth-title">회원가입</h1>
+  </div>
+</div>
+
+<div class="confirm-backdrop">
+  <div class="confirm-box" style="max-width:760px;width:100%;">
+    <h3>카메라 캘리브레이션</h3>
+    <p style="color:var(--ink-dim);font-size:13px;line-height:1.55;margin:0 0 16px;">전신이 화면에 들어오도록 서서, 화면의 점선 실루엣에 맞춰 2초간 자세를 유지하면 자동으로 체형이 저장됩니다.</p>
+
+    <div class="grid grid-2" style="align-items:start;">
+      <div>
+        <div class="cam-stage" style="aspect-ratio:4/3;">
+          <div class="cam-placeholder">카메라 미리보기<br>(MediaPipe Pose 실시간 분석)</div>
+          <div class="cam-badge"><span class="rec-dot"></span><span>측정중</span></div>
+        </div>
+        <button class="btn btn-primary btn-block" style="margin-top:12px;">카메라 시작</button>
+      </div>
+      <div>
+        <div class="check ok"><span class="dot"></span>전신 인식 (머리~발목)</div>
+        <div class="check ok" style="margin-top:8px;"><span class="dot"></span>적정 거리</div>
+        <div class="check" style="margin-top:8px;"><span class="dot"></span>중앙 정렬</div>
+        <div style="margin-top:12px;">
+          <div class="hint">보정 유지 시간</div>
+          <div class="progress" style="margin-top:6px;"><span style="width:55%"></span></div>
+        </div>
+        <div class="field" style="margin-top:16px;">
+          <label>캐릭터 성별</label>
+          <div class="subtabs" style="margin-bottom:0;">
+            <div class="tab active">남성 캐릭터</div>
+            <div class="tab">여성 캐릭터</div>
+          </div>
+        </div>
+        <div class="field-row" style="margin-top:16px;">
+          <div class="field"><label>키 (cm)</label><input type="number" placeholder="예: 170"></div>
+          <div class="field"><label>몸무게 (kg)</label><input type="number" placeholder="예: 65"></div>
+        </div>
+        <p class="hint">체형 정보를 입력하면 가이드 실루엣이 내 체형에 맞게 조정돼요.</p>
+        <button class="btn btn-ghost btn-block" style="margin-top:14px;">닫기</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

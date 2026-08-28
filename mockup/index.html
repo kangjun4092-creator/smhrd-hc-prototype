@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>홈챌린지 프로토타입 · 목업 디자인</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>
+  body{padding:40px;}
+  .page-head{margin-bottom:28px;}
+  .page-head h1{font-size:24px;margin:0 0 6px;}
+  .page-head p{color:var(--ink-dim);font-size:13.5px;margin:0;max-width:70ch;line-height:1.6;}
+  ul.list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;max-width:1000px;}
+  ul.list a{display:block;text-decoration:none;color:inherit;}
+  ul.list .card{margin:0;}
+  ul.list .card h3{margin-bottom:4px;}
+</style>
+</head>
+<body>
+<div class="page-head">
+  <h1>홈챌린지 프로토타입 · 목업 디자인</h1>
+  <p>실제 index.html / style.css / script.js의 디자인 시스템(색상·폰트·컴포넌트)을 그대로 사용한 정적 목업입니다. 각 화면은 비상호작용 스냅샷이며, 실제 동작은 상위 폴더의 프로토타입(index.html)에서 확인할 수 있습니다.</p>
+</div>
+<ul class="list">
+  <li><a href="01-login.html"><div class="card"><h3>01. 로그인</h3><p class="desc">아이디/비밀번호 · 소셜 로그인</p></div></a></li>
+  <li><a href="02-signup.html"><div class="card"><h3>02. 회원가입</h3><p class="desc">계정정보 · 활동지역 · 캘리브레이션 진입</p></div></a></li>
+  <li><a href="03-calibration-modal.html"><div class="card"><h3>03. 웹캠 캘리브레이션</h3><p class="desc">MediaPipe Pose 기반 체형 측정 모달</p></div></a></li>
+  <li><a href="04-app-exercise.html"><div class="card"><h3>04. 운동</h3><p class="desc">종목 선택 · 웹캠 촬영 화면</p></div></a></li>
+  <li><a href="05-app-mission.html"><div class="card"><h3>05. 미션</h3><p class="desc">미션 후보 · 진행중인 미션</p></div></a></li>
+  <li><a href="06-app-profile.html"><div class="card"><h3>06. 나의 프로필</h3><p class="desc">캐릭터 꾸미기 · 누적 성과</p></div></a></li>
+  <li><a href="07-app-shop.html"><div class="card"><h3>07. 포인트 상점</h3><p class="desc">아이템 구매</p></div></a></li>
+  <li><a href="08-app-ranking.html"><div class="card"><h3>08. 랭킹</h3><p class="desc">포디움 · 지역 랭킹 테이블</p></div></a></li>
+  <li><a href="09-app-board.html"><div class="card"><h3>09. 자랑 게시판</h3><p class="desc">운동 인증 피드</p></div></a></li>
+  <li><a href="10-app-settings.html"><div class="card"><h3>10. 계정 및 설정</h3><p class="desc">프로필 · 카메라/알림 토글</p></div></a></li>
+</ul>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>목업 · 랭킹</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="04-app-exercise.html">
+      <div class="brand-mark">홈</div>
+      <div class="brand-name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
+    </a>
+    <div class="navitem"><span class="navicon"></span>운동</div>
+    <div class="navitem"><span class="navicon"></span>미션</div>
+    <div class="navitem"><span class="navicon"></span>나의 프로필</div>
+    <div class="navitem"><span class="navicon"></span>포인트 상점</div>
+    <div class="navitem"><span class="navicon"></span>홈크루</div>
+    <div class="navitem active"><span class="navicon"></span>랭킹</div>
+    <div class="navitem"><span class="navicon"></span>자랑 게시판</div>
+    <div class="navitem"><span class="navicon"></span>고객센터</div>
+    <div class="navitem"><span class="navicon"></span>계정 및 설정</div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">랭킹</div>
+        <div class="topbar-sub">서울시 강남구 역삼동</div>
+      </div>
+      <div class="user-chip">
+        <div class="points-pill">P <span class="mono">3,240</span></div>
+        <span class="topbar-nick">써니핏</span>
+        <div class="topbar-avatar">
+          <div style="width:36px;height:36px;border-radius:50%;border:2px solid var(--outline);background:var(--surface-2);"></div>
+          <span class="mono">Lv.7</span>
+        </div>
+      </div>
+    </div>
+    <div class="view">
+      <div class="view-head">
+        <h1>랭킹</h1>
+        <p>지역별 랭킹 → 운동 종목별 랭킹 → 크루 랭킹</p>
+      </div>
+      <div class="subtabs">
+        <div class="tab active">지역 랭킹</div>
+        <div class="tab">종목별 랭킹</div>
+        <div class="tab">크루 랭킹</div>
+      </div>
+
+      <!-- 1~3위 포디움 (실제로는 canvas 픽셀 캐릭터, 목업에서는 원형 아바타로 대체) -->
+      <div class="podium">
+        <div class="podium-step rank2">
+          <div style="width:52px;height:63px;border-radius:10px;border:2px solid var(--outline);background:var(--surface-2);"></div>
+          <div class="podium-name">런닝수달</div>
+          <div class="podium-lv mono">Lv.9</div>
+          <div class="podium-score mono">4,120</div>
+          <div class="podium-stand">2</div>
+        </div>
+        <div class="podium-step rank1">
+          <div style="width:66px;height:80px;border-radius:10px;border:2px solid var(--outline);background:var(--gold-soft);"></div>
+          <div class="podium-name">단백질맨</div>
+          <div class="podium-lv mono">Lv.12</div>
+          <div class="podium-score mono">5,380</div>
+          <div class="podium-stand">1</div>
+        </div>
+        <div class="podium-step rank3">
+          <div style="width:52px;height:63px;border-radius:10px;border:2px solid var(--outline);background:var(--coral-soft);"></div>
+          <div class="podium-name">써니핏 <span class="pill pill-accent">나</span></div>
+          <div class="podium-lv mono">Lv.7</div>
+          <div class="podium-score mono">내 점수 3,900</div>
+          <div class="podium-stand">3</div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>순위</th><th>닉네임</th><th>레벨</th><th>점수</th></tr></thead>
+          <tbody>
+            <tr><td><span class="rank-num">4</span></td><td class="name-cell"><div class="user-avatar" style="background:var(--sky);">헬</div>헬스왕</td><td>Lv.8</td><td class="mono">3,610</td></tr>
+            <tr><td><span class="rank-num">5</span></td><td class="name-cell"><div class="user-avatar" style="background:var(--coral);">조</div>조깅요정</td><td>Lv.6</td><td class="mono">3,280</td></tr>
+            <tr><td><span class="rank-num">6</span></td><td class="name-cell"><div class="user-avatar" style="background:var(--accent);">버</div>버피장인</td><td>Lv.6</td><td class="mono">3,050</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>목업 · 운동</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="04-app-exercise.html">
+      <div class="brand-mark">홈</div>
+      <div class="brand-name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
+    </a>
+    <div class="navitem active"><span class="navicon"></span>운동</div>
+    <div class="navitem"><span class="navicon"></span>미션</div>
+    <div class="navitem"><span class="navicon"></span>나의 프로필</div>
+    <div class="navitem"><span class="navicon"></span>포인트 상점</div>
+    <div class="navitem"><span class="navicon"></span>홈크루</div>
+    <div class="navitem"><span class="navicon"></span>랭킹</div>
+    <div class="navitem"><span class="navicon"></span>자랑 게시판</div>
+    <div class="navitem"><span class="navicon"></span>고객센터</div>
+    <div class="navitem"><span class="navicon"></span>계정 및 설정</div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">운동</div>
+        <div class="topbar-sub">서울시 강남구 역삼동</div>
+      </div>
+      <div class="user-chip">
+        <div class="points-pill">P <span class="mono">3,240</span></div>
+        <span class="topbar-nick">써니핏</span>
+        <div class="topbar-avatar">
+          <div style="width:36px;height:36px;border-radius:50%;border:2px solid var(--outline);background:var(--surface-2);"></div>
+          <span class="mono">Lv.7</span>
+        </div>
+      </div>
+    </div>
+    <div class="view">
+      <div class="view-head">
+        <h1>운동</h1>
+        <p>운동 종목 선택 → 튜토리얼·스트레칭 → 웹캠 촬영 → 리플레이 자세 분석 → 결과·점수 저장</p>
+      </div>
+      <div class="subtabs">
+        <div class="tab active">1. 종목 선택</div>
+        <div class="tab">2. 튜토리얼·스트레칭</div>
+        <div class="tab">3. 웹캠 촬영</div>
+        <div class="tab">4. 리플레이 분석</div>
+        <div class="tab">5. 결과 저장</div>
+      </div>
+
+      <div class="grid grid-3">
+        <div class="card exercise-card selected">
+          <div class="ex-badge">스</div>
+          <h3>스쿼트</h3>
+          <p class="desc">타겟: 하체 · 둔근</p>
+          <span class="pill pill-accent">초급</span>
+        </div>
+        <div class="card exercise-card">
+          <div class="ex-badge">푸</div>
+          <h3>푸시업</h3>
+          <p class="desc">타겟: 가슴 · 삼두</p>
+          <span class="pill pill-accent">중급</span>
+        </div>
+        <div class="card exercise-card">
+          <div class="ex-badge">런</div>
+          <h3>런지</h3>
+          <p class="desc">타겟: 하체 · 코어</p>
+          <span class="pill pill-accent">초급</span>
+        </div>
+        <div class="card exercise-card">
+          <div class="ex-badge">플</div>
+          <h3>플랭크</h3>
+          <p class="desc">타겟: 코어 전신</p>
+          <span class="pill pill-accent">초급</span>
+        </div>
+        <div class="card exercise-card">
+          <div class="ex-badge">버</div>
+          <h3>버피</h3>
+          <p class="desc">타겟: 전신 · 심폐</p>
+          <span class="pill pill-accent">고급</span>
+        </div>
+      </div>
+      <div style="margin-top:20px;">
+        <button class="btn btn-primary">튜토리얼로 이동</button>
+      </div>
+
+      <div class="view-head" style="margin-top:40px;">
+        <p class="section-label">참고 — 3단계: 웹캠 촬영 (실시간 자세 인식) 화면 예시</p>
+      </div>
+      <div class="grid grid-2">
+        <div>
+          <div class="cam-stage">
+            <div class="cam-placeholder">카메라를 확인하는 중...<br>브라우저의 카메라 권한을 허용해주세요.</div>
+            <div class="cam-badge"><span class="rec-dot"></span><span>촬영중</span></div>
+            <div class="cam-timer mono">00:12</div>
+          </div>
+          <div style="margin-top:14px;display:flex;gap:8px;">
+            <button class="btn btn-primary">촬영 시작</button>
+            <button class="btn btn-ghost">이전</button>
+          </div>
+        </div>
+        <div class="card">
+          <p class="section-label">촬영 안내</p>
+          <ul class="steplist">
+            <li><span class="num">·</span>전신이 프레임에 들어오도록 카메라와 2~3m 거리를 둡니다.</li>
+            <li><span class="num">·</span>MediaPipe Pose가 관절 keypoint를 실시간 추적합니다.</li>
+            <li><span class="num">·</span>촬영 종료 시 자동으로 리플레이 분석이 시작됩니다.</li>
+          </ul>
+          <p class="section-label" style="margin-top:18px;">실시간 인식 상태</p>
+          <div class="stat-row" style="margin:0;">
+            <div class="stat-box"><div class="num mono">12</div><div class="lbl">인식 횟수</div></div>
+            <div class="stat-box"><div class="num mono">91%</div><div class="lbl">추정 정확도</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

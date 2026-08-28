@@ -43,7 +43,7 @@ const state = {
   user: {nickname:'', avatar:0, gender:'male', points:1240, exp:62, level:7, region:'서울시 강남구 역삼동', retakeTickets:0, nicknameTickets:0, bio:''},
   menu: 'exercise',
   subtabs: {mission:0, profile:0, crew:0, ranking:0, settings:0},
-  exercise: {step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0},
+  exercise: {step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0, liveReps:[]},
   missions: {
     candidates: MISSION_POOL.slice(0,5),
     picked: {daily:['스쿼트 30회 달성','정확도 90% 이상 1세트'], weekly:['MISS 0회로 세트 마감'], monthly:['홈크루 팀미션 참여']},
@@ -1031,6 +1031,15 @@ function goto(screen){state.screen=screen; render();}
 //   촬영 결과 저장(saveExerciseResult) > Java 운동기록 API > DB 연결 > SQL INSERT/UPDATE
 //   (운동 기록 테이블 INSERT, 포인트·경험치는 계정 테이블 UPDATE — 트랜잭션 처리 권장)
 const EX_STEPS=['종목 선택','튜토리얼·스트레칭','웹캠 촬영','리플레이 분석','결과 저장'];
+// 스쿼트 실시간 판정 기준. tools/extract-squat-reference.html로 Bodyweight_Squats.gif를
+// 분석해서 나온 값으로 교체한다 (지금은 일반적인 스쿼트 각도로 잡은 임시값).
+// standing = 서 있을 때 무릎 각도, bottom = 정자세 최저점 무릎 각도, 나머지는 bottom과의
+// 오차(도) 허용범위.
+const SQUAT_REFERENCE = {
+  standingKneeAngle: 172, bottomKneeAngle: 88,
+  perfectTol: 6, greatTol: 12, goodTol: 20,
+};
+const EXERCISE_REP_TARGET = 10; // 실시간 판정이 지원되는 운동(스쿼트)의 세션당 반복 횟수 제한
 function exerciseStepHead(){
   return `
   <div class="view-head">
@@ -1083,10 +1092,15 @@ function goToTutorial(){
 
 function renderExStepTutorial(){
   const ex=EXS.find(e=>e.id===state.exercise.picked) || EXS[0];
+  const isSquat = ex.id==='squat';
   return `
   <div class="grid grid-2">
     <div class="card">
       <p class="section-label">${ex.name} 정자세 가이드</p>
+      ${isSquat ? `
+      <div class="cam-stage" style="aspect-ratio:1/1;margin-bottom:14px;">
+        <img src="Bodyweight_Squats.gif" alt="스쿼트 정자세 레퍼런스" style="width:100%;height:100%;object-fit:cover;">
+      </div>` : ''}
       <ul class="steplist">
         <li><span class="num">1</span>발을 어깨너비로 벌리고 무게중심을 뒤꿈치에 둡니다.</li>
         <li><span class="num">2</span>허리를 곧게 편 상태로 천천히 내려갑니다.</li>
@@ -1128,6 +1142,7 @@ function runStretch(){
 }
 
 function renderExStepCam(){
+  const isSquat = state.exercise.picked==='squat';
   return `
   <div class="grid grid-2">
     <div>
@@ -1137,6 +1152,7 @@ function renderExStepCam(){
         <canvas class="cam-overlay-canvas" id="cam-canvas"></canvas>
         <div class="cam-badge"><span class="rec-dot"></span><span id="cam-status">대기중</span></div>
         <div class="cam-timer mono" id="cam-timer">00:00</div>
+        <div id="cam-grade-flash" class="cam-grade-flash"></div>
       </div>
       <div style="margin-top:14px;display:flex;gap:8px;">
         <button class="btn btn-primary" id="cam-toggle" onclick="toggleRecording()">촬영 시작</button>
@@ -1147,12 +1163,16 @@ function renderExStepCam(){
       <p class="section-label">촬영 안내</p>
       <ul class="steplist">
         <li><span class="num">·</span>전신이 프레임에 들어오도록 카메라와 2~3m 거리를 둡니다.</li>
-        <li><span class="num">·</span>YOLO-Pose가 관절 keypoint를 실시간 추적합니다.</li>
-        <li><span class="num">·</span>촬영 종료 시 자동으로 리플레이 분석이 시작됩니다.</li>
+        ${isSquat
+          ? `<li><span class="num">·</span>내 체형 캘리브레이션 실루엣이 화면에 고스트로 표시됩니다.</li>
+             <li><span class="num">·</span>동작마다 PERFECT/GREAT/GOOD/MISS가 실시간으로 표시됩니다.</li>
+             <li><span class="num">·</span>${EXERCISE_REP_TARGET}회를 채우면 자동으로 촬영이 종료됩니다.</li>`
+          : `<li><span class="num">·</span>YOLO-Pose가 관절 keypoint를 실시간 추적합니다.</li>
+             <li><span class="num">·</span>촬영 종료 시 자동으로 리플레이 분석이 시작됩니다.</li>`}
       </ul>
       <p class="section-label" style="margin-top:18px;">실시간 인식 상태</p>
       <div class="stat-row" style="margin:0;">
-        <div class="stat-box"><div class="num mono" id="live-reps">0</div><div class="lbl">인식 횟수</div></div>
+        <div class="stat-box"><div class="num mono" id="live-reps">0${isSquat?` / ${EXERCISE_REP_TARGET}`:''}</div><div class="lbl">인식 횟수</div></div>
         <div class="stat-box"><div class="num mono" id="live-acc">--%</div><div class="lbl">추정 정확도</div></div>
       </div>
     </div>
@@ -1171,17 +1191,23 @@ function setupCamera(){
       if(v){v.srcObject=stream; v.style.display='block';}
       const ph=document.getElementById('cam-placeholder');
       if(ph) ph.style.display='none';
-      startSkeletonLoop();
+      startPoseFeedback();
     }).catch(()=>{
       const ph=document.getElementById('cam-placeholder');
       if(ph) ph.innerHTML='카메라를 사용할 수 없습니다.<br>웹캠 프리뷰 없이 모의 자세 인식으로 진행합니다.';
-      startSkeletonLoop();
+      startPoseFeedback();
     });
   } else {
     const ph=document.getElementById('cam-placeholder');
     if(ph) ph.innerHTML='이 브라우저에서는 카메라를 지원하지 않습니다.<br>모의 자세 인식으로 진행합니다.';
-    startSkeletonLoop();
+    startPoseFeedback();
   }
+}
+// 스쿼트는 실제 MediaPipe 판정 루프로, 나머지 운동(아직 학습 데이터 없음)은 기존 모의
+// 스켈레톤 애니메이션으로 분기한다.
+function startPoseFeedback(){
+  if(state.exercise.picked==='squat' && state.exercise.camStream) exStartPoseLoop();
+  else startSkeletonLoop();
 }
 function startSkeletonLoop(){
   const canvas=document.getElementById('cam-canvas');
@@ -1219,23 +1245,174 @@ function startSkeletonLoop(){
   }
   draw();
 }
+/* ---------- 스쿼트 실시간 자세 판정 (MediaPipe Pose, 실제 웹캠) ---------- */
+// calStartCamera ~ calComputeProfile과 같은 방식으로 loadMediaPipe()를 재사용해 별도의
+// PoseLandmarker(VIDEO 모드) 인스턴스를 만들고, cam-video에 대해 detectForVideo 루프를 돈다.
+let exPoseLandmarker=null;
+let exRAF=null;
+let exLastVideoTime=-1;
+let exRepPhase='up';       // 'up'(서있음) | 'down'(스쿼트 진행중) 2단계 히스테리시스 상태머신
+let exMinAngleThisRep=null;
+let exMediaRecorder=null;
+let exRecordedChunks=[];
+
+function exKneeAngle(landmarks){
+  const idx=CAL_KEYPOINT_IDX;
+  const need=[idx.lhip,idx.rhip,idx.lknee,idx.rknee,idx.lank,idx.rank];
+  if(need.some(i=>!landmarks[i] || (landmarks[i].visibility??1)<CAL_VIS_THRESHOLD)) return null;
+  const angleAt=(a,b,c)=>{
+    const v1x=a.x-b.x, v1y=a.y-b.y, v2x=c.x-b.x, v2y=c.y-b.y;
+    const m1=Math.hypot(v1x,v1y), m2=Math.hypot(v2x,v2y);
+    if(!m1||!m2) return null;
+    let cos=(v1x*v2x+v1y*v2y)/(m1*m2);
+    cos=Math.max(-1,Math.min(1,cos));
+    return Math.acos(cos)*180/Math.PI;
+  };
+  const l=angleAt(landmarks[idx.lhip],landmarks[idx.lknee],landmarks[idx.lank]);
+  const r=angleAt(landmarks[idx.rhip],landmarks[idx.rknee],landmarks[idx.rank]);
+  if(l==null && r==null) return null;
+  if(l==null) return r;
+  if(r==null) return l;
+  return (l+r)/2;
+}
+// 저장된 내 체형 캘리브레이션 실루엣을 캠 화면 위에 반투명 고스트로 고정 오버레이한다
+// (calEditRender의 좌표·본 연결 방식을 재사용, 실시간으로 움직이지 않는 정지 가이드).
+function exDrawCalibrationGhost(ctx,w,h){
+  const profile=state.user.calibration;
+  if(!profile || !profile.landmarks) return;
+  const pts=profile.landmarks;
+  ctx.save();
+  ctx.globalAlpha=0.35;
+  ctx.strokeStyle='#F0B93A'; ctx.lineWidth=3;
+  CAL_EDIT_BONES.forEach(([a,b])=>{
+    if(!pts[a]||!pts[b]) return;
+    ctx.beginPath(); ctx.moveTo(pts[a].x*w, pts[a].y*h); ctx.lineTo(pts[b].x*w, pts[b].y*h); ctx.stroke();
+  });
+  ctx.fillStyle='#F0B93A';
+  Object.values(pts).forEach(p=>{ ctx.beginPath(); ctx.arc(p.x*w, p.y*h, 5, 0, Math.PI*2); ctx.fill(); });
+  ctx.restore();
+}
+function exGradeRep(bottomAngle){
+  const ref=SQUAT_REFERENCE;
+  const diff=Math.abs(bottomAngle-ref.bottomKneeAngle);
+  const angle=Math.round(bottomAngle);
+  let grade = diff<=ref.perfectTol ? 'PERFECT' : diff<=ref.greatTol ? 'GREAT' : diff<=ref.goodTol ? 'GOOD' : 'MISS';
+  if(grade!=='MISS') return {grade, angle};
+  const reason = bottomAngle>ref.bottomKneeAngle
+    ? `무릎 각도 부족(${angle}°, 기준 ${Math.round(ref.bottomKneeAngle)}° 이하)`
+    : `너무 깊게 앉음(${angle}°, 기준 ${Math.round(ref.bottomKneeAngle)}° 근처)`;
+  return {grade, angle, reason, failedJoint:'knee'};
+}
+function exFlashGrade(grade){
+  const el=document.getElementById('cam-grade-flash');
+  if(!el) return;
+  el.textContent=grade;
+  el.style.color=gradeColor(grade);
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  clearTimeout(exFlashGrade._tid);
+  exFlashGrade._tid=setTimeout(()=>el.classList.remove('show'),900);
+}
+// 한 렙(스쿼트 1회)이 끝났을 때: 판정하고 실시간 통계·플래시를 갱신한 뒤, 목표 횟수에
+// 도달하면 촬영을 자동 종료한다.
+function exRegisterRep(bottomAngle){
+  const result=exGradeRep(bottomAngle);
+  state.exercise.liveReps.push(result);
+  const rEl=document.getElementById('live-reps'); if(rEl) rEl.textContent=`${state.exercise.liveReps.length} / ${EXERCISE_REP_TARGET}`;
+  const weight={PERFECT:100,GREAT:85,GOOD:70,MISS:0};
+  const acc=Math.round(state.exercise.liveReps.reduce((s,r)=>s+weight[r.grade],0)/state.exercise.liveReps.length);
+  const aEl=document.getElementById('live-acc'); if(aEl) aEl.textContent=acc+'%';
+  exFlashGrade(result.grade);
+  if(state.exercise.liveReps.length>=EXERCISE_REP_TARGET) toggleRecording();
+}
+async function exStartPoseLoop(){
+  const canvas=document.getElementById('cam-canvas');
+  const stage=document.getElementById('cam-stage');
+  const video=document.getElementById('cam-video');
+  if(!canvas || !stage || !video) return;
+  function resize(){canvas.width=stage.clientWidth; canvas.height=stage.clientHeight;}
+  resize();
+  if(!exPoseLandmarker){
+    const {PoseLandmarker, FilesetResolver} = await loadMediaPipe();
+    const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+    exPoseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+      baseOptions:{
+        modelAssetPath:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+        delegate:'GPU',
+      },
+      runningMode:'VIDEO', numPoses:1,
+    });
+  }
+  exRepPhase='up'; exMinAngleThisRep=null; exLastVideoTime=-1;
+  const ctx=canvas.getContext('2d');
+  function loop(){
+    if(!document.getElementById('cam-canvas')) return; // 화면 이동 시 자연 종료
+    exRAF=requestAnimationFrame(loop);
+    if(video.readyState<2 || video.currentTime===exLastVideoTime) return;
+    exLastVideoTime=video.currentTime;
+    const res=exPoseLandmarker.detectForVideo(video, performance.now());
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    exDrawCalibrationGhost(ctx, canvas.width, canvas.height);
+    const landmarks=res.landmarks && res.landmarks[0];
+    if(landmarks){
+      ctx.strokeStyle='#6FBBEE'; ctx.lineWidth=3;
+      CAL_CONNECTIONS.forEach(([a,b])=>{
+        const pa=landmarks[a], pb=landmarks[b];
+        if(!pa||!pb) return;
+        ctx.beginPath(); ctx.moveTo(pa.x*canvas.width, pa.y*canvas.height); ctx.lineTo(pb.x*canvas.width, pb.y*canvas.height); ctx.stroke();
+      });
+      ctx.fillStyle='#6FBBEE';
+      landmarks.forEach(p=>{
+        if(p.visibility!==undefined && p.visibility<CAL_VIS_THRESHOLD) return;
+        ctx.beginPath(); ctx.arc(p.x*canvas.width, p.y*canvas.height, 4, 0, Math.PI*2); ctx.fill();
+      });
+
+      if(state.exercise.camPhase==='recording'){
+        const angle=exKneeAngle(landmarks);
+        if(angle!=null){
+          const standing=SQUAT_REFERENCE.standingKneeAngle;
+          if(exRepPhase==='up'){
+            if(angle < standing-20){ exRepPhase='down'; exMinAngleThisRep=angle; }
+          } else {
+            if(angle<exMinAngleThisRep) exMinAngleThisRep=angle;
+            if(angle > standing-10){
+              exRegisterRep(exMinAngleThisRep);
+              exRepPhase='up'; exMinAngleThisRep=null;
+            }
+          }
+        }
+      }
+    }
+  }
+  loop();
+}
+
 function toggleRecording(){
   const btn=document.getElementById('cam-toggle');
   const statusEl=document.getElementById('cam-status');
   const timerEl=document.getElementById('cam-timer');
+  const isSquat = state.exercise.picked==='squat';
   if(state.exercise.camPhase!=='recording'){
     state.exercise.camPhase='recording';
     state.exercise.seconds=0;
+    state.exercise.liveReps=[];
     btn.textContent='촬영 종료';
     statusEl.textContent='촬영중';
     let reps=0, accBase=82;
+    if(isSquat && state.exercise.camStream && window.MediaRecorder){
+      exRecordedChunks=[];
+      try{
+        exMediaRecorder=new MediaRecorder(state.exercise.camStream);
+        exMediaRecorder.ondataavailable=e=>{ if(e.data && e.data.size>0) exRecordedChunks.push(e.data); };
+        exMediaRecorder.start();
+      }catch(err){ console.error('MediaRecorder 시작 실패', err); exMediaRecorder=null; }
+    }
     clearInterval(state.exercise.timerId);
     state.exercise.timerId=setInterval(()=>{
       state.exercise.seconds++;
       const m=String(Math.floor(state.exercise.seconds/60)).padStart(2,'0');
       const s=String(state.exercise.seconds%60).padStart(2,'0');
       if(timerEl) timerEl.textContent=`${m}:${s}`;
-      if(state.exercise.seconds%3===0){
+      if(!isSquat && state.exercise.seconds%3===0){
         reps++;
         const rEl=document.getElementById('live-reps'); if(rEl) rEl.textContent=reps;
         const acc=Math.min(99, accBase + Math.round(Math.random()*14-4));
@@ -1244,13 +1421,39 @@ function toggleRecording(){
     },1000);
   } else {
     clearInterval(state.exercise.timerId);
-    state.exercise.camPhase='idle';
-    if(state.exercise.camStream){state.exercise.camStream.getTracks().forEach(t=>t.stop()); state.exercise.camStream=null;}
-    generateResult();
-    goExStep(3);
+    const finish=()=>{
+      state.exercise.camPhase='idle';
+      if(state.exercise.camStream){state.exercise.camStream.getTracks().forEach(t=>t.stop()); state.exercise.camStream=null;}
+      generateResult();
+      goExStep(3);
+    };
+    if(isSquat && exMediaRecorder && exMediaRecorder.state!=='inactive'){
+      exMediaRecorder.onstop=()=>{
+        if(state.exercise.result && state.exercise.result.myVideoUrl) URL.revokeObjectURL(state.exercise.result.myVideoUrl);
+        state.exercise._pendingVideoUrl = exRecordedChunks.length ? URL.createObjectURL(new Blob(exRecordedChunks,{type:'video/webm'})) : null;
+        finish();
+      };
+      exMediaRecorder.stop();
+    } else {
+      finish();
+    }
   }
 }
 function generateResult(){
+  if(state.exercise.picked==='squat' && state.exercise.liveReps.length>0){
+    const reps=state.exercise.liveReps.map((r,i)=>({idx:i+1, grade:r.grade, angle:r.angle}));
+    const missCount=reps.filter(r=>r.grade==='MISS').length;
+    const total=reps.length;
+    const valid=total-missCount;
+    const weight={PERFECT:100,GREAT:85,GOOD:70,MISS:0};
+    const acc=Math.round(reps.reduce((s,r)=>s+weight[r.grade],0)/total);
+    const score=valid*10 + acc*3;
+    const dur=Math.max(state.exercise.seconds,1);
+    const ex=EXS.find(e=>e.id==='squat');
+    state.exercise.result={ex:ex.name, dur, total, valid, missCount, acc, score, reps, myVideoUrl: state.exercise._pendingVideoUrl||null};
+    state.exercise._pendingVideoUrl=null;
+    return;
+  }
   const dur=Math.max(state.exercise.seconds,9);
   const total=Math.max(6, Math.round(dur/3));
   const reps=[];
@@ -1275,6 +1478,21 @@ function renderExStepReplay(){
   const r=state.exercise.result;
   if(!r) return `<div class="empty-note">촬영 데이터가 없습니다.</div>`;
   return `
+  ${r.myVideoUrl ? `
+  <div class="grid grid-2" style="margin-bottom:20px;">
+    <div>
+      <p class="section-label">레퍼런스 정자세</p>
+      <div class="cam-stage" style="aspect-ratio:1/1;">
+        <img src="Bodyweight_Squats.gif" alt="레퍼런스 스쿼트" style="width:100%;height:100%;object-fit:cover;">
+      </div>
+    </div>
+    <div>
+      <p class="section-label">내 촬영 영상</p>
+      <div class="cam-stage" style="aspect-ratio:1/1;">
+        <video src="${r.myVideoUrl}" controls style="width:100%;height:100%;object-fit:cover;"></video>
+      </div>
+    </div>
+  </div>` : ''}
   <div class="grid grid-2">
     <div class="card">
       <p class="section-label">${r.ex} · 리플레이 분석 결과</p>
@@ -1330,7 +1548,9 @@ function retakeExercise(){
     toast('무료 재촬영을 모두 사용했습니다. 포인트 상점에서 다시찍기 티켓을 구매해주세요');
     return;
   }
+  if(ex.result && ex.result.myVideoUrl) URL.revokeObjectURL(ex.result.myVideoUrl);
   ex.result = null;
+  ex.liveReps = [];
   goExStep(2);
 }
 
@@ -1359,7 +1579,8 @@ function saveExerciseResult(){
   r.reps.forEach(rp=>gc[rp.grade]++);
   state.history.unshift({date:'오늘', ex:r.ex, reps:r.valid, acc:r.acc, score:r.score, grade:r.acc>90?'PERFECT':r.acc>78?'GREAT':r.acc>60?'GOOD':'MISS', gc});
   toast(`저장 완료! +${pts}P 획득`);
-  state.exercise={step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0};
+  if(r.myVideoUrl) URL.revokeObjectURL(r.myVideoUrl);
+  state.exercise={step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0, liveReps:[]};
   render();
 }
 

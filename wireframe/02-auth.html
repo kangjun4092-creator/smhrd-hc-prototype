@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>홈챌린지 와이어프레임 · 로그인/가입</title>
+<style>
+  body{font-family:'Malgun Gothic',sans-serif;background:#f4f4f4;padding:32px;margin:0;color:#333;}
+  h1{font-size:18px;margin:0 0 24px;}
+  .group{margin-bottom:36px;}
+  .group h2{font-size:13px;color:#666;margin:0 0 14px;font-weight:600;}
+  .row{display:flex;gap:14px;flex-wrap:wrap;}
+  .phone{width:150px;background:#fff;border:1px solid #dcdcdc;border-radius:16px;padding:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  .phone .label{font-size:10px;color:#999;text-align:center;margin-bottom:8px;}
+  .ph-img{height:44px;border-radius:8px;background:repeating-linear-gradient(135deg,#eee,#eee 4px,#f6f6f6 4px,#f6f6f6 8px);margin-bottom:8px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#aaa;}
+  .ph-bar{height:7px;background:#e2e2e2;border-radius:3px;margin-bottom:6px;}
+  .w60{width:60%}.w40{width:40%}.w80{width:80%}.w50{width:50%}
+  .ph-input{height:16px;border:1px solid #ddd;border-radius:4px;margin-bottom:7px;background:#fafafa;}
+  .ph-btn{height:18px;background:#c9c9c9;border-radius:4px;margin-top:4px;margin-bottom:6px;}
+  .ph-btn.accent{background:#8fa8ff;}
+  .ph-btn.kakao{background:#FEE500;}
+  .ph-btn.naver{background:#03C75A;}
+  .ph-link{height:6px;width:70%;background:#eee;border-radius:3px;margin:6px auto;}
+  .nav{margin-bottom:20px;font-size:12px;}
+  .nav a{color:#666;margin-right:12px;text-decoration:none;}
+  .check{width:24px;height:24px;border-radius:50%;background:#8fa8ff;margin:14px auto;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;}
+</style>
+</head>
+<body>
+<div class="nav"><a href="index.html">← 목록으로</a></div>
+<h1>홈챌린지 프로토타입 · 와이어프레임 — 로그인 / 회원가입</h1>
+
+<div class="group">
+<h2>로그인 · 가입 · 소셜 로그인</h2>
+<div class="row">
+
+  <div class="phone">
+    <div class="label">로그인</div>
+    <div class="ph-bar w40"></div>
+    <div class="ph-input"></div>
+    <div class="ph-input"></div>
+    <div class="ph-btn accent"></div>
+    <div class="ph-link"></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">소셜 로그인 선택</div>
+    <div class="ph-btn kakao"></div>
+    <div class="ph-btn naver"></div>
+    <div class="ph-btn" style="background:#ddd;"></div>
+    <div class="ph-link" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">회원가입 1 (기본정보)</div>
+    <div class="ph-bar w60"></div>
+    <div class="ph-input"></div>
+    <div class="ph-input"></div>
+    <div class="ph-input"></div>
+    <div class="ph-btn accent"></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">회원가입 2 (체형정보)</div>
+    <div class="ph-bar w60"></div>
+    <div class="ph-input"></div>
+    <div class="ph-input"></div>
+    <div class="ph-img" style="height:30px;">체형 사진 등록(선택)</div>
+    <div class="ph-btn accent"></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">가입 완료</div>
+    <div class="check">✓</div>
+    <div class="ph-bar w80" style="margin:0 auto 6px;"></div>
+    <div class="ph-bar w50" style="margin:0 auto 10px;"></div>
+    <div class="ph-btn accent"></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">아이디 찾기</div>
+    <div class="ph-bar w60"></div>
+    <div class="ph-input"></div>
+    <div class="ph-btn accent"></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">비밀번호 찾기</div>
+    <div class="ph-bar w60"></div>
+    <div class="ph-input"></div>
+    <div class="ph-input"></div>
+    <div class="ph-btn accent"></div>
+  </div>
+
+</div>
+</div>
+
+</body>
+</html>

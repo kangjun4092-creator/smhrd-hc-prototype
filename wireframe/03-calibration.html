@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>홈챌린지 와이어프레임 · 캘리브레이션</title>
+<style>
+  body{font-family:'Malgun Gothic',sans-serif;background:#f4f4f4;padding:32px;margin:0;color:#333;}
+  h1{font-size:18px;margin:0 0 24px;}
+  .group{margin-bottom:36px;}
+  .group h2{font-size:13px;color:#666;margin:0 0 14px;font-weight:600;}
+  .row{display:flex;gap:14px;flex-wrap:wrap;}
+  .phone{width:150px;background:#fff;border:1px solid #dcdcdc;border-radius:16px;padding:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  .phone .label{font-size:10px;color:#999;text-align:center;margin-bottom:8px;}
+  .cam{height:90px;border-radius:8px;background:#e9e9ec;margin-bottom:8px;position:relative;overflow:hidden;}
+  .cam .skeleton{position:absolute;inset:0;background:
+    radial-gradient(circle 3px at 50% 20%, #9db4ff 98%, transparent 100%),
+    radial-gradient(circle 3px at 40% 40%, #9db4ff 98%, transparent 100%),
+    radial-gradient(circle 3px at 60% 40%, #9db4ff 98%, transparent 100%),
+    radial-gradient(circle 3px at 50% 60%, #9db4ff 98%, transparent 100%),
+    radial-gradient(circle 3px at 42% 85%, #9db4ff 98%, transparent 100%),
+    radial-gradient(circle 3px at 58% 85%, #9db4ff 98%, transparent 100%);
+  }
+  .cam .txt{position:absolute;bottom:4px;left:4px;right:4px;font-size:8px;color:#888;text-align:center;}
+  .ph-bar{height:7px;background:#e2e2e2;border-radius:3px;margin-bottom:6px;}
+  .w60{width:60%}.w80{width:80%}.w50{width:50%}
+  .ph-btn{height:18px;background:#c9c9c9;border-radius:4px;margin-top:6px;}
+  .ph-btn.accent{background:#8fa8ff;}
+  .progress{height:8px;background:#eee;border-radius:4px;overflow:hidden;margin:8px 0;}
+  .progress span{display:block;height:100%;background:#8fa8ff;}
+  .statgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px;}
+  .statbox{background:#f5f5f7;border-radius:6px;padding:6px;text-align:center;}
+  .statbox .n{height:10px;width:60%;background:#ccc;border-radius:3px;margin:0 auto 4px;}
+  .statbox .l{height:5px;width:80%;background:#e2e2e2;border-radius:3px;margin:0 auto;}
+  .nav{margin-bottom:20px;font-size:12px;}
+  .nav a{color:#666;margin-right:12px;text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="nav"><a href="index.html">← 목록으로</a></div>
+<h1>홈챌린지 프로토타입 · 와이어프레임 — 웹캠 체형 캘리브레이션 (MediaPipe Pose)</h1>
+
+<div class="group">
+<h2>회원가입 시 체형 캘리브레이션</h2>
+<div class="row">
+
+  <div class="phone">
+    <div class="label">카메라 권한 안내</div>
+    <div class="cam"><div class="txt">카메라 접근을 허용해주세요</div></div>
+    <div class="ph-bar w80"></div>
+    <div class="ph-btn accent"></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">정면 자세 정렬</div>
+    <div class="cam"><div class="skeleton"></div><div class="txt">가이드라인에 맞춰 서주세요</div></div>
+    <div class="progress"><span style="width:35%"></span></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">캘리브레이션 진행중</div>
+    <div class="cam"><div class="skeleton"></div><div class="txt">체형 데이터 측정 중...</div></div>
+    <div class="progress"><span style="width:70%"></span></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">체형 프로필 결과</div>
+    <div class="ph-bar w60" style="margin-bottom:8px;"></div>
+    <div class="statgrid">
+      <div class="statbox"><div class="n"></div><div class="l"></div></div>
+      <div class="statbox"><div class="n"></div><div class="l"></div></div>
+      <div class="statbox"><div class="n"></div><div class="l"></div></div>
+      <div class="statbox"><div class="n"></div><div class="l"></div></div>
+    </div>
+    <div class="ph-btn accent" style="margin-top:8px;"></div>
+  </div>
+
+</div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>홈챌린지 와이어프레임 · 프로필/랭킹/크루</title>
+<style>
+  body{font-family:'Malgun Gothic',sans-serif;background:#f4f4f4;padding:32px;margin:0;color:#333;}
+  h1{font-size:18px;margin:0 0 24px;}
+  .group{margin-bottom:36px;}
+  .group h2{font-size:13px;color:#666;margin:0 0 14px;font-weight:600;}
+  .row{display:flex;gap:14px;flex-wrap:wrap;}
+  .phone{width:150px;background:#fff;border:1px solid #dcdcdc;border-radius:16px;padding:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  .phone .label{font-size:10px;color:#999;text-align:center;margin-bottom:8px;}
+  .avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#c9d4ff,#8fa8ff);margin:0 auto 6px;}
+  .ph-bar{height:7px;background:#e2e2e2;border-radius:3px;margin-bottom:6px;}
+  .w60{width:60%}.w80{width:80%}.w50{width:50%}.w40{width:40%}
+  .center{margin-left:auto;margin-right:auto;}
+  .statrow{display:flex;gap:4px;margin:8px 0;}
+  .statbox{flex:1;background:#f5f5f7;border-radius:6px;padding:6px 0;text-align:center;}
+  .statbox .n{height:10px;width:60%;background:#ccc;border-radius:3px;margin:0 auto 4px;}
+  .statbox .l{height:5px;width:70%;background:#e2e2e2;border-radius:3px;margin:0 auto;}
+  .chart{height:50px;border-radius:6px;background:#f5f5f7;margin-bottom:6px;position:relative;overflow:hidden;}
+  .chart .line{position:absolute;inset:8px;background:linear-gradient(120deg,transparent 0%,transparent 40%,#8fa8ff 40%,#8fa8ff 42%,transparent 42%);}
+  .chart svg{width:100%;height:100%;}
+  .list-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+  .rank-badge{width:16px;height:16px;border-radius:4px;background:#ffd76a;font-size:8px;display:flex;align-items:center;justify-content:center;}
+  .rank-avatar{width:16px;height:16px;border-radius:50%;background:#ddd;}
+  .ph-btn{height:18px;background:#c9c9c9;border-radius:4px;margin-top:6px;}
+  .ph-btn.accent{background:#8fa8ff;}
+  .tabs{display:flex;gap:4px;margin-bottom:8px;}
+  .tab{flex:1;height:14px;background:#eee;border-radius:4px;}
+  .tab.on{background:#dce4ff;}
+  .nav{margin-bottom:20px;font-size:12px;}
+  .nav a{color:#666;margin-right:12px;text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="nav"><a href="index.html">← 목록으로</a></div>
+<h1>홈챌린지 프로토타입 · 와이어프레임 — 프로필 · 랭킹 · 홈크루</h1>
+
+<div class="group">
+<h2>나의 프로필</h2>
+<div class="row">
+
+  <div class="phone">
+    <div class="label">프로필 홈</div>
+    <div class="avatar"></div>
+    <div class="ph-bar w50 center"></div>
+    <div class="ph-bar w40 center" style="margin-bottom:0;"></div>
+    <div class="statrow">
+      <div class="statbox"><div class="n"></div><div class="l"></div></div>
+      <div class="statbox"><div class="n"></div><div class="l"></div></div>
+    </div>
+  </div>
+
+  <div class="phone">
+    <div class="label">체형 변화 그래프</div>
+    <div class="ph-bar w60"></div>
+    <div class="chart"><svg viewBox="0 0 100 40" preserveAspectRatio="none"><polyline points="0,35 20,28 40,30 60,18 80,20 100,8" fill="none" stroke="#8fa8ff" stroke-width="2"/></svg></div>
+    <div class="ph-bar w40"></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">운동 기록</div>
+    <div class="tabs"><div class="tab on"></div><div class="tab"></div><div class="tab"></div></div>
+    <div class="ph-bar w80"></div>
+    <div class="ph-bar w60"></div>
+    <div class="ph-bar w80"></div>
+  </div>
+
+</div>
+</div>
+
+<div class="group">
+<h2>홈크루</h2>
+<div class="row">
+
+  <div class="phone">
+    <div class="label">크루 목록</div>
+    <div class="list-row"><div class="rank-avatar"></div><div class="ph-bar w60" style="margin:0;"></div></div>
+    <div class="list-row"><div class="rank-avatar"></div><div class="ph-bar w50" style="margin:0;"></div></div>
+    <div class="list-row"><div class="rank-avatar"></div><div class="ph-bar w60" style="margin:0;"></div></div>
+    <div class="ph-btn" style="background:#eee;"></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">크루 상세 / 참여</div>
+    <div class="avatar" style="width:44px;height:44px;"></div>
+    <div class="ph-bar w60 center"></div>
+    <div class="ph-btn accent"></div>
+  </div>
+
+</div>
+</div>
+
+<div class="group">
+<h2>랭킹</h2>
+<div class="row">
+
+  <div class="phone">
+    <div class="label">전체 랭킹</div>
+    <div class="tabs"><div class="tab on"></div><div class="tab"></div></div>
+    <div class="list-row"><div class="rank-badge">1</div><div class="rank-avatar"></div><div class="ph-bar w60" style="margin:0;"></div></div>
+    <div class="list-row"><div class="rank-badge">2</div><div class="rank-avatar"></div><div class="ph-bar w50" style="margin:0;"></div></div>
+    <div class="list-row"><div class="rank-badge">3</div><div class="rank-avatar"></div><div class="ph-bar w60" style="margin:0;"></div></div>
+  </div>
+
+</div>
+</div>
+
+</body>
+</html>

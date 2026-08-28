@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSE 알림 테스트</title>
+</head>
+
+<body>
+
+    <h1>알람 테스트</h1>
+
+    <div id="alarm-block" style="display: none;">
+        서버에서 알림이 왔어요~!
+    </div>
+
+    <script>
+        /*
+            [통신 흐름]
+            1.new EvenetSource()
+            2.FastAPI 서버와 SSE 연결 생성
+            3.onopen 이벤트 발생 -> 연결 성공
+            4.FastAPI 알림 발생 ->서버에서 데이터 전송 -> onmessage 이벤트 발생
+            5.event.data를 통해 서버에서 전달한 데이터 확인
+            6. JSON.parse()를 통해 문자열을 객체로 변환
+            7. showAlarm() 함수를 통해 화면에 알림 표시
+        
+            * 연결에 문제 발생 시 -> onerror 이벤트 발생
+        */
+
+
+        // id가 "alarm-block"인 HTML 요소에 접근합니다.
+        // 서버에서 알림이 오면 이 요소를 화면에 표시합니다.
+        const alarmBlock = document.getElementById("alarm-block");
+
+
+        // 알림을 화면에 표시하는 함수입니다.
+        // message : 서버에서 전달받은 알림 메시지
+        function showAlarm(message) {
+
+            // 알림 영역의 내용을 전달받은 메시지로 변경합니다.
+            alarmBlock.innerText = message;
+
+            // display: none 상태였던 알림 영역을 화면에 표시합니다.
+            alarmBlock.style.display = "block";
+        }
+
+
+        // FastAPI 서버의 /alarm 주소와 SSE 연결을 생성합니다.
+        // 연결이 만들어진 후 서버에서 데이터를 보내면 실시간으로 받을 수 있습니다.
+        const eventSource = new EventSource(
+            "http://127.0.0.1:8000/alarm"
+        );
+
+
+        // FastAPI 서버와 SSE 연결이 성공하면 실행됩니다.
+        eventSource.onopen = () => {
+
+            console.log("SSE 연결 성공");
+        };
+
+
+        // FastAPI 서버에서 새로운 데이터가 전달되면 실행됩니다.
+        // event 객체에는 서버에서 전달한 데이터에 대한 정보가 들어있습니다.
+        eventSource.onmessage = (event) => {
+
+            console.log("서버에서 데이터 도착");
+
+            // event.data를 통해 서버에서 전달한 데이터를 확인할 수 있습니다.
+            // SSE로 전달받은 데이터는 문자열 형태입니다.
+            console.log("event.data:", event.data);
+
+
+            // 서버에서 전달받은 JSON 문자열을
+            // JavaScript에서 사용할 수 있는 객체로 변환합니다.
+            const data = JSON.parse(event.data);
+
+            console.log("data:", data);
+
+
+            // 서버에서 전달받은 message 값을 showAlarm() 함수에 전달합니다.
+            // showAlarm() 함수가 실행되면서 화면에 알림이 표시됩니다.
+            showAlarm(data.message);
+        };
+
+
+        // FastAPI 서버와의 SSE 연결에 문제가 발생하면 실행됩니다.
+        eventSource.onerror = (error) => {
+
+            console.log("SSE 연결 오류:", error);
+        };
+    </script>
+
+</body>
+
+</html>

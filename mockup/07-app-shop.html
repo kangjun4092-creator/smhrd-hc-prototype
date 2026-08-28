@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>목업 · 포인트 상점</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="04-app-exercise.html">
+      <div class="brand-mark">홈</div>
+      <div class="brand-name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
+    </a>
+    <div class="navitem"><span class="navicon"></span>운동</div>
+    <div class="navitem"><span class="navicon"></span>미션</div>
+    <div class="navitem"><span class="navicon"></span>나의 프로필</div>
+    <div class="navitem active"><span class="navicon"></span>포인트 상점</div>
+    <div class="navitem"><span class="navicon"></span>홈크루</div>
+    <div class="navitem"><span class="navicon"></span>랭킹</div>
+    <div class="navitem"><span class="navicon"></span>자랑 게시판</div>
+    <div class="navitem"><span class="navicon"></span>고객센터</div>
+    <div class="navitem"><span class="navicon"></span>계정 및 설정</div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">포인트 상점</div>
+        <div class="topbar-sub">서울시 강남구 역삼동</div>
+      </div>
+      <div class="user-chip">
+        <div class="points-pill">P <span class="mono">3,240</span></div>
+        <span class="topbar-nick">써니핏</span>
+        <div class="topbar-avatar">
+          <div style="width:36px;height:36px;border-radius:50%;border:2px solid var(--outline);background:var(--surface-2);"></div>
+          <span class="mono">Lv.7</span>
+        </div>
+      </div>
+    </div>
+    <div class="view">
+      <div class="view-head">
+        <h1>포인트 상점</h1>
+        <p>포인트로 아이템을 구매해 캐릭터에 착용하거나 능력치를 얻어보세요</p>
+      </div>
+
+      <div class="grid grid-3">
+        <div class="card">
+          <div class="ex-badge">👟</div>
+          <h3>러닝화</h3>
+          <p class="desc">캐릭터 외형 아이템</p>
+          <div class="flex-between">
+            <span class="shop-price">P 500</span>
+            <button class="btn btn-primary btn-sm">구매</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ex-badge">🧢</div>
+          <h3>모자</h3>
+          <p class="desc">캐릭터 외형 아이템</p>
+          <div class="flex-between">
+            <span class="shop-price">P 300</span>
+            <button class="btn btn-primary btn-sm">구매</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ex-badge">🏷️</div>
+          <h3>닉네임 변경권</h3>
+          <p class="desc">닉네임을 1회 변경할 수 있어요</p>
+          <div class="flex-between">
+            <span class="shop-price">P 1,200</span>
+            <button class="btn btn-primary btn-sm">구매</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ex-badge">🎽</div>
+          <h3>유니폼</h3>
+          <p class="desc">캐릭터 외형 아이템</p>
+          <div class="flex-between">
+            <span class="shop-price">P 800</span>
+            <button class="btn btn-primary btn-sm">구매</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ex-badge">👑</div>
+          <h3>랭킹 왕관</h3>
+          <p class="desc">랭킹 1위 달성 시에만 장착 가능</p>
+          <div class="flex-between">
+            <span class="shop-price pill-muted" style="color:var(--ink-faint);">보유중 아님</span>
+            <button class="btn btn-secondary btn-sm" disabled style="opacity:.5;cursor:not-allowed;">잠김</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

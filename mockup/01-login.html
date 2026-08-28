@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>목업 · 로그인</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="center-shell">
+  <div class="auth-card">
+    <p class="auth-eyebrow">우리동네홈트챌린지</p>
+    <h1 class="auth-title">로그인</h1>
+    <p class="auth-sub">계정 정보를 입력해 주세요</p>
+    <div class="field">
+      <label for="li-id">아이디</label>
+      <input id="li-id" type="text" placeholder="아이디">
+    </div>
+    <div class="field">
+      <label for="li-pw">비밀번호</label>
+      <input id="li-pw" type="password" placeholder="••••••••">
+    </div>
+    <div class="flex-between" style="margin:2px 0 4px;">
+      <button class="btn btn-ghost btn-sm" style="padding-left:0;">아이디 찾기</button>
+      <button class="btn btn-ghost btn-sm">비밀번호 찾기</button>
+    </div>
+    <button class="btn btn-primary btn-block">로그인</button>
+    <div class="flex-between" style="margin:16px 0;gap:10px;">
+      <div style="flex:1;height:1px;background:var(--line);"></div>
+      <span class="hint" style="margin:0;">SNS 계정으로 로그인</span>
+      <div style="flex:1;height:1px;background:var(--line);"></div>
+    </div>
+    <button class="btn btn-block" style="background:#FEE500;border-color:var(--outline);color:#241A00;margin-bottom:8px;">카카오로 계속하기</button>
+    <button class="btn btn-block" style="background:#03C75A;border-color:var(--outline);color:#fff;margin-bottom:8px;">네이버로 계속하기</button>
+    <button class="btn btn-secondary btn-block">Google로 계속하기</button>
+    <p class="switch-line">아직 계정이 없으신가요? <button>회원가입</button></p>
+  </div>
+</div>
+</body>
+</html>

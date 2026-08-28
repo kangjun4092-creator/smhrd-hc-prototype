@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>홈챌린지 와이어프레임 · 운동/미션</title>
+<style>
+  body{font-family:'Malgun Gothic',sans-serif;background:#f4f4f4;padding:32px;margin:0;color:#333;}
+  h1{font-size:18px;margin:0 0 24px;}
+  .group{margin-bottom:36px;}
+  .group h2{font-size:13px;color:#666;margin:0 0 14px;font-weight:600;}
+  .row{display:flex;gap:14px;flex-wrap:wrap;}
+  .phone{width:150px;background:#fff;border:1px solid #dcdcdc;border-radius:16px;padding:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  .phone .label{font-size:10px;color:#999;text-align:center;margin-bottom:8px;}
+  .ph-img{height:44px;border-radius:8px;background:repeating-linear-gradient(135deg,#eee,#eee 4px,#f6f6f6 4px,#f6f6f6 8px);margin-bottom:6px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#aaa;}
+  .cam{height:70px;border-radius:8px;background:#e9e9ec;margin-bottom:6px;position:relative;}
+  .cam .skeleton{position:absolute;inset:0;background:
+    radial-gradient(circle 3px at 50% 20%, #9db4ff 98%, transparent 100%),
+    radial-gradient(circle 3px at 40% 45%, #9db4ff 98%, transparent 100%),
+    radial-gradient(circle 3px at 60% 45%, #9db4ff 98%, transparent 100%),
+    radial-gradient(circle 3px at 50% 70%, #9db4ff 98%, transparent 100%);
+  }
+  .cam .rec{position:absolute;top:4px;left:4px;width:6px;height:6px;border-radius:50%;background:#ff6b6b;}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px;}
+  .minicard{background:#f5f5f7;border-radius:6px;height:26px;}
+  .minicard.on{background:#dce4ff;border:1px solid #8fa8ff;}
+  .ph-bar{height:7px;background:#e2e2e2;border-radius:3px;margin-bottom:6px;}
+  .w60{width:60%}.w80{width:80%}.w50{width:50%}.w40{width:40%}
+  .ph-btn{height:18px;background:#c9c9c9;border-radius:4px;margin-top:4px;}
+  .ph-btn.accent{background:#8fa8ff;}
+  .progress{height:8px;background:#eee;border-radius:4px;overflow:hidden;margin:6px 0;}
+  .progress span{display:block;height:100%;background:#8fa8ff;}
+  .badge{width:32px;height:32px;border-radius:50%;background:#ffd76a;margin:8px auto;display:flex;align-items:center;justify-content:center;font-size:14px;}
+  .checklist{margin-bottom:6px;}
+  .checkitem{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+  .checkitem .box{width:10px;height:10px;border:1px solid #ccc;border-radius:2px;}
+  .checkitem .box.done{background:#8fa8ff;border-color:#8fa8ff;}
+  .nav{margin-bottom:20px;font-size:12px;}
+  .nav a{color:#666;margin-right:12px;text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="nav"><a href="index.html">← 목록으로</a></div>
+<h1>홈챌린지 프로토타입 · 와이어프레임 — 운동 · 미션</h1>
+
+<div class="group">
+<h2>운동 (종목선택 → 튜토리얼 → 촬영 → 분석 → 결과)</h2>
+<div class="row">
+
+  <div class="phone">
+    <div class="label">1. 종목 선택</div>
+    <div class="cards">
+      <div class="minicard on"></div><div class="minicard"></div>
+      <div class="minicard"></div><div class="minicard"></div>
+    </div>
+    <div class="ph-btn accent"></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">2. 튜토리얼·스트레칭</div>
+    <div class="ph-img">정자세 가이드</div>
+    <div class="progress"><span style="width:60%"></span></div>
+    <div class="ph-bar w80"></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">3. 웹캠 촬영 (자세인식)</div>
+    <div class="cam"><div class="rec"></div><div class="skeleton"></div></div>
+    <div class="ph-bar w60"></div>
+    <div class="ph-btn accent"></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">4. 리플레이 분석</div>
+    <div class="cam"><div class="skeleton"></div></div>
+    <div class="progress"><span style="width:45%"></span></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">5. 결과·점수 저장</div>
+    <div class="badge">★</div>
+    <div class="ph-bar w60" style="margin:0 auto 6px;"></div>
+    <div class="ph-bar w40" style="margin:0 auto 10px;"></div>
+    <div class="ph-btn accent"></div>
+  </div>
+
+</div>
+</div>
+
+<div class="group">
+<h2>미션</h2>
+<div class="row">
+
+  <div class="phone">
+    <div class="label">미션 목록</div>
+    <div class="checklist">
+      <div class="checkitem"><div class="box done"></div><div class="ph-bar w80" style="margin:0;"></div></div>
+      <div class="checkitem"><div class="box"></div><div class="ph-bar w60" style="margin:0;"></div></div>
+      <div class="checkitem"><div class="box"></div><div class="ph-bar w80" style="margin:0;"></div></div>
+    </div>
+    <div class="ph-btn" style="background:#eee;"></div>
+  </div>
+
+  <div class="phone">
+    <div class="label">미션 완료 · 포인트 획득</div>
+    <div class="badge" style="background:#8fa8ff;color:#fff;">+P</div>
+    <div class="ph-bar w60" style="margin:0 auto 10px;"></div>
+    <div class="ph-btn accent"></div>
+  </div>
+
+</div>
+</div>
+
+</body>
+</html>

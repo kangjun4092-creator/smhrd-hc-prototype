@@ -174,7 +174,7 @@ button{font-family:inherit;}
   width:220px;flex:none;background:var(--surface);border-right:2.5px solid var(--outline);
   padding:22px 14px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh;
 }
-.brand{display:flex;align-items:center;gap:9px;padding:0 8px 20px;}
+.brand{display:flex;align-items:center;gap:9px;padding:0 8px 20px;color:inherit;text-decoration:none;cursor:pointer;}
 .brand-mark{width:34px;height:34px;border-radius:10px;background:var(--gold);border:2px solid var(--outline);flex:none;
   display:flex;align-items:center;justify-content:center;color:#241A00;font-family:var(--font-display);font-size:16px;}
 .brand-name{font-family:var(--font-display);font-size:16px;line-height:1.3;font-weight:400;}
@@ -268,6 +268,13 @@ button{font-family:inherit;}
   -webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.2);color:#fff;
   padding:7px 14px;border-radius:999px;font-family:var(--font-mono);font-size:14px;z-index:3;}
 .cam-placeholder{color:#9AA0A6;font-size:12.5px;text-align:center;padding:20px;line-height:1.6;font-family:var(--font-mono);}
+.cam-grade-flash{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.8);
+  font-family:var(--font-display);font-size:42px;font-weight:700;letter-spacing:.04em;
+  text-shadow:0 2px 0 rgba(0,0,0,.5);opacity:0;pointer-events:none;z-index:4;
+  transition:opacity .15s ease,transform .15s ease;
+}
+.cam-grade-flash.show{opacity:1;transform:translate(-50%,-50%) scale(1);}
 
 .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin:18px 0;}
 .stat-box{background:var(--surface-2);border:2px solid var(--outline);border-radius:12px;padding:14px;text-align:center;}
