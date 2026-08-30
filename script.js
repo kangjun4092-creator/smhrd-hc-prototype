@@ -9,12 +9,11 @@
 //   프론트(JS/화면) 구간 > Java 서버(Spring Boot 등 API) 구간 > DB 연결 > SQL 사용
 // 아래부터는 어느 화면(함수)이 이 파이프라인의 어느 지점과 이어지는지
 // 섹션별 주석으로 표시해 두었습니다.
+// 실시간 판정을 종목별로 하나씩 붙여나갈 예정이라, 우선 스쿼트만 노출한다.
+// 다른 종목 추가 시 여기에 다시 항목을 넣으면 됨(id는 tools/extract-exercise-reference.html의
+// EXERCISE_DEFS 키와 맞춰야 함): pushup, lunge, plank, burpee
 const EXS = [
   {id:'squat', name:'스쿼트', target:'하체 · 둔근', level:'초급'},
-  {id:'pushup', name:'푸시업', target:'가슴 · 삼두', level:'중급'},
-  {id:'lunge', name:'런지', target:'하체 · 코어', level:'초급'},
-  {id:'plank', name:'플랭크', target:'코어 전신', level:'초급'},
-  {id:'burpee', name:'버피', target:'전신 · 심폐', level:'고급'},
 ];
 
 const MISSION_POOL = [
@@ -468,7 +467,7 @@ function calEvaluate(landmarks){
 
 function calDrawGuideSilhouette(ctx, w, h, aligned){
   const totalH = ((CAL_DIST_MIN+CAL_DIST_MAX)/2) * h;
-  const topY = 0.22*h;
+  const topY = 0.32*h; // 발끝이 화면 아래쪽에 거의 닿도록 실루엣 전체를 아래로 내림 (크기는 그대로, 위치만 이동)
   const cx = 0.5*w;
   const {widthFactor, legShift} = calGetBodyShapeFactors();
 
@@ -487,11 +486,14 @@ function calDrawGuideSilhouette(ctx, w, h, aligned){
   const footHalfW = totalH*0.11*widthFactor;
 
   ctx.save();
-  ctx.globalAlpha = aligned ? 0.85 : 0.5;
-  ctx.strokeStyle = aligned ? '#6FBBEE' : 'rgba(255,255,255,0.6)';
+  ctx.globalAlpha = aligned ? 0.9 : 0.7;
+  ctx.strokeStyle = aligned ? '#6FBBEE' : 'rgba(255,255,255,0.85)';
   ctx.setLineDash([12,8]);
-  ctx.lineWidth = Math.max(2.5, totalH*0.014);
+  ctx.lineWidth = Math.max(3, totalH*0.017);
   ctx.lineCap='round'; ctx.lineJoin='round';
+  // 사용자 옷 색·배경 밝기와 상관없이 실루엣이 잘 보이도록 어두운 그림자를 깔아 대비를 높인다.
+  ctx.shadowColor = 'rgba(0,0,0,0.75)';
+  ctx.shadowBlur = 7;
 
   ctx.beginPath(); ctx.arc(cx, headCY, headR, 0, Math.PI*2); ctx.stroke();
 
@@ -978,7 +980,7 @@ function renderApp(){
   return `
   <div class="app-shell">
     <aside class="sidebar">
-      <div class="brand">
+      <div class="brand" onclick="goHome()" style="cursor:pointer;" title="운동 메인으로 이동">
         <div class="brand-mark">홈</div>
         <div class="brand-name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
       </div>
@@ -1017,6 +1019,8 @@ function renderApp(){
   </div>`;
 }
 function setMenu(id){state.menu=id; render();}
+// 좌측 상단 로고 클릭 시: 운동 탭의 종목 선택(1단계)으로 되돌아간다.
+function goHome(){ state.menu='exercise'; state.exercise.step=0; render(); }
 function goto(screen){state.screen=screen; render();}
 
 /* ========================================================================
@@ -1031,8 +1035,9 @@ function goto(screen){state.screen=screen; render();}
 //   촬영 결과 저장(saveExerciseResult) > Java 운동기록 API > DB 연결 > SQL INSERT/UPDATE
 //   (운동 기록 테이블 INSERT, 포인트·경험치는 계정 테이블 UPDATE — 트랜잭션 처리 권장)
 const EX_STEPS=['종목 선택','튜토리얼·스트레칭','웹캠 촬영','리플레이 분석','결과 저장'];
-// 스쿼트 실시간 판정 기준. tools/extract-squat-reference.html로 Bodyweight_Squats.gif를
-// 분석해서 나온 값으로 교체한다 (지금은 일반적인 스쿼트 각도로 잡은 임시값).
+// 스쿼트 실시간 판정 기준. tools/extract-exercise-reference.html(종목별 캡처 이미지로
+// 관절 각도를 뽑는 공용 도구, 스쿼트 항목)로 분석해서 나온 값으로 교체한다
+// (지금은 일반적인 스쿼트 각도로 잡은 임시값).
 // standing = 서 있을 때 무릎 각도, bottom = 정자세 최저점 무릎 각도, 나머지는 bottom과의
 // 오차(도) 허용범위.
 const SQUAT_REFERENCE = {
@@ -1040,6 +1045,7 @@ const SQUAT_REFERENCE = {
   perfectTol: 6, greatTol: 12, goodTol: 20,
 };
 const EXERCISE_REP_TARGET = 10; // 실시간 판정이 지원되는 운동(스쿼트)의 세션당 반복 횟수 제한
+const CAM_READY_SECONDS = 10; // "촬영 시작" 클릭 후 실제 판정이 시작되기 전, 스켈레톤에 맞춰 설 준비 시간
 function exerciseStepHead(){
   return `
   <div class="view-head">
@@ -1073,7 +1079,7 @@ function renderExStepPick(){
       </div>`).join('')}
   </div>
   <div style="margin-top:20px;">
-    <button class="btn btn-primary" ${state.exercise.picked?'':'disabled'} style="${state.exercise.picked?'':'opacity:.4;cursor:not-allowed;'}" onclick="goToTutorial()">튜토리얼로 이동</button>
+    <button class="btn btn-primary" ${state.exercise.picked?'':'disabled'} style="${state.exercise.picked?'':'opacity:.4;cursor:not-allowed;'}" onclick="goToTutorial()">운동 시작하기</button>
   </div>`;
 }
 function pickExercise(id){state.exercise.picked=id; render();}
@@ -1109,7 +1115,7 @@ function renderExStepTutorial(){
       </ul>
     </div>
     <div class="card">
-      <p class="section-label">부상 예방 스트레칭 (30초)</p>
+      <p class="section-label">부상 예방 스트레칭 (15초)</p>
       <div class="progress" style="margin:12px 0;"><span id="stretch-bar" style="width:0%"></span></div>
       <p class="desc" id="stretch-text">화면에 들어오면 자동으로 스트레칭 안내가 재생됩니다.</p>
       <button class="btn btn-ghost btn-sm" onclick="runStretch()">다시보기</button>
@@ -1130,7 +1136,7 @@ function runStretch(){
   if(goBtn){ goBtn.disabled=true; goBtn.style.opacity='.4'; goBtn.style.cursor='not-allowed'; }
   clearInterval(runStretch._id);
   runStretch._id=setInterval(()=>{
-    p+=100/30;
+    p+=100/15;
     if(bar) bar.style.width=Math.min(p,100)+'%';
     if(p>=100){
       clearInterval(runStretch._id);
@@ -1153,6 +1159,10 @@ function renderExStepCam(){
         <div class="cam-badge"><span class="rec-dot"></span><span id="cam-status">대기중</span></div>
         <div class="cam-timer mono" id="cam-timer">00:00</div>
         <div id="cam-grade-flash" class="cam-grade-flash"></div>
+        <div id="cam-ready-overlay" class="cam-ready-overlay">
+          <div class="count" id="cam-ready-count">${CAM_READY_SECONDS}</div>
+          <div class="msg">화면 속 스켈레톤에 맞춰 자리를 잡아주세요<br>카메라 거리·각도를 맞출 시간이에요</div>
+        </div>
       </div>
       <div style="margin-top:14px;display:flex;gap:8px;">
         <button class="btn btn-primary" id="cam-toggle" onclick="toggleRecording()">촬영 시작</button>
@@ -1164,7 +1174,9 @@ function renderExStepCam(){
       <ul class="steplist">
         <li><span class="num">·</span>전신이 프레임에 들어오도록 카메라와 2~3m 거리를 둡니다.</li>
         ${isSquat
-          ? `<li><span class="num">·</span>내 체형 캘리브레이션 실루엣이 화면에 고스트로 표시됩니다.</li>
+          ? `<li><span class="num">·</span><strong>카메라는 12시 방향에 두고, 다리 방향은 2시 방향을 향하도록 살짝 틀어 서주세요.</strong> (각도 판정 정확도를 위해 정면보다는 대각선 자세가 필요해요)</li>
+             <li><span class="num">·</span>"촬영 시작"을 누르면 바로 측정되지 않고, ${CAM_READY_SECONDS}초 동안 자리를 잡을 시간을 드려요.</li>
+             <li><span class="num">·</span>내 체형 캘리브레이션 실루엣이 화면에 고스트로 표시됩니다.</li>
              <li><span class="num">·</span>동작마다 PERFECT/GREAT/GOOD/MISS가 실시간으로 표시됩니다.</li>
              <li><span class="num">·</span>${EXERCISE_REP_TARGET}회를 채우면 자동으로 촬영이 종료됩니다.</li>`
           : `<li><span class="num">·</span>YOLO-Pose가 관절 keypoint를 실시간 추적합니다.</li>
@@ -1292,16 +1304,29 @@ function exDrawCalibrationGhost(ctx,w,h){
   Object.values(pts).forEach(p=>{ ctx.beginPath(); ctx.arc(p.x*w, p.y*h, 5, 0, Math.PI*2); ctx.fill(); });
   ctx.restore();
 }
+const GRADE_VOICE_LINES = { PERFECT:'퍼펙트!', GREAT:'그레이트!', GOOD:'굿!' };
 function exGradeRep(bottomAngle){
   const ref=SQUAT_REFERENCE;
   const diff=Math.abs(bottomAngle-ref.bottomKneeAngle);
   const angle=Math.round(bottomAngle);
   let grade = diff<=ref.perfectTol ? 'PERFECT' : diff<=ref.greatTol ? 'GREAT' : diff<=ref.goodTol ? 'GOOD' : 'MISS';
-  if(grade!=='MISS') return {grade, angle};
-  const reason = bottomAngle>ref.bottomKneeAngle
+  if(grade!=='MISS') return {grade, angle, voice:GRADE_VOICE_LINES[grade]};
+  const tooShallow = bottomAngle>ref.bottomKneeAngle; // 무릎이 목표보다 덜 굽혀짐(각도가 큼)
+  const reason = tooShallow
     ? `무릎 각도 부족(${angle}°, 기준 ${Math.round(ref.bottomKneeAngle)}° 이하)`
     : `너무 깊게 앉음(${angle}°, 기준 ${Math.round(ref.bottomKneeAngle)}° 근처)`;
-  return {grade, angle, reason, failedJoint:'knee'};
+  const voice = tooShallow ? '무릎을 더 굽혀주세요' : '너무 깊이 앉았어요';
+  return {grade, angle, reason, failedJoint:'knee', voice};
+}
+// 브라우저 내장 TTS로 판정 멘트를 읽어준다. 빠르게 연속 판정될 때 이전 멘트가 밀리지 않도록
+// 새로 말하기 전에 진행 중인 발화를 취소한다.
+function speakFeedback(text){
+  if(!('speechSynthesis' in window) || !text) return;
+  window.speechSynthesis.cancel();
+  const utter=new SpeechSynthesisUtterance(text);
+  utter.lang='ko-KR';
+  utter.rate=1.05;
+  window.speechSynthesis.speak(utter);
 }
 function exFlashGrade(grade){
   const el=document.getElementById('cam-grade-flash');
@@ -1322,6 +1347,7 @@ function exRegisterRep(bottomAngle){
   const acc=Math.round(state.exercise.liveReps.reduce((s,r)=>s+weight[r.grade],0)/state.exercise.liveReps.length);
   const aEl=document.getElementById('live-acc'); if(aEl) aEl.textContent=acc+'%';
   exFlashGrade(result.grade);
+  speakFeedback(result.voice);
   if(state.exercise.liveReps.length>=EXERCISE_REP_TARGET) toggleRecording();
 }
 async function exStartPoseLoop(){
@@ -1386,57 +1412,97 @@ async function exStartPoseLoop(){
   loop();
 }
 
+// "촬영 시작"을 눌러도 곧바로 판정하지 않고, CAM_READY_SECONDS초 동안 스켈레톤·캘리브레이션
+// 고스트를 보면서 거리·각도를 맞출 시간을 준 뒤 beginRecording()으로 넘어간다. (준비 안 된
+// 상태에서 바로 판정을 시작하면 첫 렙이 무조건 MISS로 잘못 찍히는 문제 때문에 추가)
 function toggleRecording(){
+  const isSquat = state.exercise.picked==='squat';
+  if(state.exercise.camPhase==='idle'){
+    if(isSquat) startReadyCountdown();
+    else beginRecording();
+    return;
+  }
+  if(state.exercise.camPhase!=='recording') return; // 'ready' 중엔 버튼이 비활성화돼 있어 여기 안 옴
+  stopRecording();
+}
+function startReadyCountdown(){
+  const btn=document.getElementById('cam-toggle');
+  const statusEl=document.getElementById('cam-status');
+  const overlay=document.getElementById('cam-ready-overlay');
+  const countEl=document.getElementById('cam-ready-count');
+  state.exercise.camPhase='ready';
+  if(btn){ btn.disabled=true; btn.textContent='준비중...'; btn.style.opacity='.5'; btn.style.cursor='not-allowed'; }
+  if(statusEl) statusEl.textContent='준비중';
+  if(overlay) overlay.classList.add('show');
+  let left=CAM_READY_SECONDS;
+  if(countEl) countEl.textContent=left;
+  clearInterval(state.exercise.readyTimerId);
+  state.exercise.readyTimerId=setInterval(()=>{
+    if(!document.getElementById('cam-ready-overlay')){ clearInterval(state.exercise.readyTimerId); return; } // 화면 이동 시 중단
+    left--;
+    const c=document.getElementById('cam-ready-count');
+    if(c) c.textContent=left>0?left:'시작!';
+    if(left<=0){
+      clearInterval(state.exercise.readyTimerId);
+      const ov=document.getElementById('cam-ready-overlay'); if(ov) ov.classList.remove('show');
+      const b=document.getElementById('cam-toggle');
+      if(b){ b.disabled=false; b.style.opacity='1'; b.style.cursor='pointer'; }
+      beginRecording();
+    }
+  },1000);
+}
+function beginRecording(){
   const btn=document.getElementById('cam-toggle');
   const statusEl=document.getElementById('cam-status');
   const timerEl=document.getElementById('cam-timer');
   const isSquat = state.exercise.picked==='squat';
-  if(state.exercise.camPhase!=='recording'){
-    state.exercise.camPhase='recording';
-    state.exercise.seconds=0;
-    state.exercise.liveReps=[];
-    btn.textContent='촬영 종료';
-    statusEl.textContent='촬영중';
-    let reps=0, accBase=82;
-    if(isSquat && state.exercise.camStream && window.MediaRecorder){
-      exRecordedChunks=[];
-      try{
-        exMediaRecorder=new MediaRecorder(state.exercise.camStream);
-        exMediaRecorder.ondataavailable=e=>{ if(e.data && e.data.size>0) exRecordedChunks.push(e.data); };
-        exMediaRecorder.start();
-      }catch(err){ console.error('MediaRecorder 시작 실패', err); exMediaRecorder=null; }
+  state.exercise.camPhase='recording';
+  state.exercise.seconds=0;
+  state.exercise.liveReps=[];
+  exRepPhase='up'; exMinAngleThisRep=null; // 준비 시간 동안 잘못 쌓였을 수 있는 렙 상태 초기화
+  if(btn) btn.textContent='촬영 종료';
+  if(statusEl) statusEl.textContent='촬영중';
+  let reps=0, accBase=82;
+  if(isSquat && state.exercise.camStream && window.MediaRecorder){
+    exRecordedChunks=[];
+    try{
+      exMediaRecorder=new MediaRecorder(state.exercise.camStream);
+      exMediaRecorder.ondataavailable=e=>{ if(e.data && e.data.size>0) exRecordedChunks.push(e.data); };
+      exMediaRecorder.start();
+    }catch(err){ console.error('MediaRecorder 시작 실패', err); exMediaRecorder=null; }
+  }
+  clearInterval(state.exercise.timerId);
+  state.exercise.timerId=setInterval(()=>{
+    state.exercise.seconds++;
+    const m=String(Math.floor(state.exercise.seconds/60)).padStart(2,'0');
+    const s=String(state.exercise.seconds%60).padStart(2,'0');
+    if(timerEl) timerEl.textContent=`${m}:${s}`;
+    if(!isSquat && state.exercise.seconds%3===0){
+      reps++;
+      const rEl=document.getElementById('live-reps'); if(rEl) rEl.textContent=reps;
+      const acc=Math.min(99, accBase + Math.round(Math.random()*14-4));
+      const aEl=document.getElementById('live-acc'); if(aEl) aEl.textContent=acc+'%';
     }
-    clearInterval(state.exercise.timerId);
-    state.exercise.timerId=setInterval(()=>{
-      state.exercise.seconds++;
-      const m=String(Math.floor(state.exercise.seconds/60)).padStart(2,'0');
-      const s=String(state.exercise.seconds%60).padStart(2,'0');
-      if(timerEl) timerEl.textContent=`${m}:${s}`;
-      if(!isSquat && state.exercise.seconds%3===0){
-        reps++;
-        const rEl=document.getElementById('live-reps'); if(rEl) rEl.textContent=reps;
-        const acc=Math.min(99, accBase + Math.round(Math.random()*14-4));
-        const aEl=document.getElementById('live-acc'); if(aEl) aEl.textContent=acc+'%';
-      }
-    },1000);
-  } else {
-    clearInterval(state.exercise.timerId);
-    const finish=()=>{
-      state.exercise.camPhase='idle';
-      if(state.exercise.camStream){state.exercise.camStream.getTracks().forEach(t=>t.stop()); state.exercise.camStream=null;}
-      generateResult();
-      goExStep(3);
-    };
-    if(isSquat && exMediaRecorder && exMediaRecorder.state!=='inactive'){
-      exMediaRecorder.onstop=()=>{
-        if(state.exercise.result && state.exercise.result.myVideoUrl) URL.revokeObjectURL(state.exercise.result.myVideoUrl);
-        state.exercise._pendingVideoUrl = exRecordedChunks.length ? URL.createObjectURL(new Blob(exRecordedChunks,{type:'video/webm'})) : null;
-        finish();
-      };
-      exMediaRecorder.stop();
-    } else {
+  },1000);
+}
+function stopRecording(){
+  const isSquat = state.exercise.picked==='squat';
+  clearInterval(state.exercise.timerId);
+  const finish=()=>{
+    state.exercise.camPhase='idle';
+    if(state.exercise.camStream){state.exercise.camStream.getTracks().forEach(t=>t.stop()); state.exercise.camStream=null;}
+    generateResult();
+    goExStep(3);
+  };
+  if(isSquat && exMediaRecorder && exMediaRecorder.state!=='inactive'){
+    exMediaRecorder.onstop=()=>{
+      if(state.exercise.result && state.exercise.result.myVideoUrl) URL.revokeObjectURL(state.exercise.result.myVideoUrl);
+      state.exercise._pendingVideoUrl = exRecordedChunks.length ? URL.createObjectURL(new Blob(exRecordedChunks,{type:'video/webm'})) : null;
       finish();
-    }
+    };
+    exMediaRecorder.stop();
+  } else {
+    finish();
   }
 }
 function generateResult(){

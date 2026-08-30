@@ -1,0 +1,316 @@
+<!doctype html>
+<!--
+  일회성 개발 도구: 종목별 "위쪽/아래쪽(또는 시작/최저)" 자세 캡처 이미지 두 장을 업로드하면
+  해당 종목에서 판정에 쓰는 관절 각도를 MediaPipe Pose(IMAGE 모드)로 자동 인식하고, 점을
+  드래그로 보정할 수 있게 해준다. 결과가 script.js의 {종목}_REFERENCE
+  (예: SQUAT_REFERENCE.standingKneeAngle / bottomKneeAngle)에 들어갈 값이다.
+  앱 본체에서는 로드하지 않는다.
+
+  종목 추가하는 법: 아래 EXERCISE_DEFS에 항목을 하나 추가하면 된다 (points/bones/sides/labels).
+  플랭크·버피는 "반복 횟수 + 각도 하나" 패턴이 아니라(자세 유지 시간, 다단계 동작) 이 도구로
+  풀리지 않아 별도 설계가 필요하다 — 여기 포함하지 않았다.
+-->
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>운동 종목별 레퍼런스 데이터 추출 (캡처 이미지 캘리브레이션)</title>
+<style>
+  body{font-family:'Malgun Gothic',sans-serif;background:#111;color:#eee;padding:24px;max-width:1000px;margin:0 auto;}
+  h2{margin-bottom:4px;}
+  p.desc{color:#9AA0A6;font-size:13px;line-height:1.5;}
+  select{font-size:14px;padding:6px 10px;background:#222;color:#eee;border:1px solid #444;border-radius:6px;margin:10px 0;}
+  .note{font-size:12px;color:#7a7a7a;margin:6px 0 0;}
+  .slots{display:flex;gap:20px;flex-wrap:wrap;margin-top:18px;}
+  .slot{width:340px;background:#1b1b1b;border:1px solid #333;border-radius:8px;padding:14px;}
+  .slot h4{margin:0 0 8px;font-size:14px;color:#ddd;}
+  .stage{position:relative;width:308px;height:308px;background:#000;border:1px solid #444;}
+  .stage canvas{position:absolute;top:0;left:0;width:100%;height:100%;cursor:grab;}
+  input[type=file]{margin:10px 0;font-size:12px;color:#aaa;width:100%;}
+  .status{font-size:12px;color:#9AA0A6;margin:6px 0;font-family:monospace;}
+  .angle{font-family:monospace;font-size:16px;color:#7CE0A0;margin:6px 0;}
+  .point-list{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;font-size:11px;}
+  .point-list span{background:#262626;border-radius:4px;padding:3px 6px;font-family:monospace;color:#aaa;}
+  pre{background:#1b1b1b;border:1px solid #333;padding:14px;white-space:pre-wrap;margin-top:18px;font-size:13px;}
+  .fields{display:flex;gap:10px;margin:14px 0;align-items:end;}
+  .fields label{font-size:12px;color:#9AA0A6;display:flex;flex-direction:column;gap:4px;}
+  .fields input[type=number]{width:60px;background:#222;border:1px solid #444;color:#eee;border-radius:4px;padding:4px 6px;}
+  button{font-size:14px;padding:8px 14px;cursor:pointer;background:#2a2a2a;color:#eee;border:1px solid #444;border-radius:6px;}
+  button:hover{background:#333;}
+</style>
+</head>
+<body>
+<h2>운동 종목별 레퍼런스 데이터 추출 (캡처 이미지 캘리브레이션)</h2>
+<p class="desc">종목을 고르고, "위쪽/시작 자세"와 "아래쪽/최저 자세" 캡처 이미지를 각각 한 장씩 올려주세요.
+올리면 MediaPipe가 해당 종목에 필요한 관절을 자동 인식해서 각도를 계산하고, 점을 드래그하면 즉시 다시 계산됩니다.</p>
+<select id="exercise-select" onchange="onExerciseChange()"></select>
+<p class="note" id="exercise-note"></p>
+<p class="note">※ 플랭크·버피는 "반복 2단계 + 각도 하나" 패턴이 아니라서(자세 유지 시간 판정 / 다단계 복합 동작) 이 도구로는 안 뽑힙니다 — 별도 판정 로직·도구가 필요합니다.</p>
+
+<div class="slots">
+  <div class="slot" id="slot-top">
+    <h4 id="slot-top-title"></h4>
+    <input type="file" accept="image/*" onchange="onFile('top', this.files[0])">
+    <div class="stage"><canvas id="edit-canvas-top" width="308" height="308"></canvas></div>
+    <div class="status" id="status-top">이미지를 업로드해주세요</div>
+    <div class="angle" id="angle-top">각도: --°</div>
+    <div class="point-list" id="points-top"></div>
+  </div>
+  <div class="slot" id="slot-bottom">
+    <h4 id="slot-bottom-title"></h4>
+    <input type="file" accept="image/*" onchange="onFile('bottom', this.files[0])">
+    <div class="stage"><canvas id="edit-canvas-bottom" width="308" height="308"></canvas></div>
+    <div class="status" id="status-bottom">이미지를 업로드해주세요</div>
+    <div class="angle" id="angle-bottom">각도: --°</div>
+    <div class="point-list" id="points-bottom"></div>
+  </div>
+</div>
+
+<div class="fields">
+  <label>perfectTol(°) <input type="number" id="tol-perfect" value="6"></label>
+  <label>greatTol(°) <input type="number" id="tol-great" value="12"></label>
+  <label>goodTol(°) <input type="number" id="tol-good" value="20"></label>
+  <button onclick="copyOutput()">결과 복사</button>
+</div>
+<pre id="output">(두 이미지를 모두 올리면 여기에 결과가 표시됩니다)</pre>
+
+<script type="module">
+// 종목 추가는 여기에 한 항목만 추가하면 됨.
+// points: MediaPipe 33-landmark 인덱스, sides: 좌/우 각각 (a,b,c) 각도 삼각점, bones: 화면에 그릴 선.
+const EXERCISE_DEFS = {
+  squat: {
+    label:'스쿼트 (무릎 각도)',
+    refName:'SQUAT_REFERENCE',
+    topLabel:'서 있는 자세', topField:'standingKneeAngle',
+    bottomLabel:'최저 자세', bottomField:'bottomKneeAngle',
+    points:{lhip:23,rhip:24,lknee:25,rknee:26,lank:27,rank:28},
+    bones:[['lhip','rhip'],['lhip','lknee'],['lknee','lank'],['rhip','rknee'],['rknee','rank']],
+    sides:[['lhip','lknee','lank'],['rhip','rknee','rank']],
+    labels:{lhip:'왼쪽 골반',rhip:'오른쪽 골반',lknee:'왼쪽 무릎',rknee:'오른쪽 무릎',lank:'왼쪽 발목',rank:'오른쪽 발목'},
+  },
+  pushup: {
+    label:'푸시업 (팔꿈치 각도)',
+    refName:'PUSHUP_REFERENCE',
+    topLabel:'팔 편 자세(위)', topField:'topElbowAngle',
+    bottomLabel:'팔 굽힌 자세(아래)', bottomField:'bottomElbowAngle',
+    points:{lsh:11,rsh:12,lelbow:13,relbow:14,lwrist:15,rwrist:16},
+    bones:[['lsh','rsh'],['lsh','lelbow'],['lelbow','lwrist'],['rsh','relbow'],['relbow','rwrist']],
+    sides:[['lsh','lelbow','lwrist'],['rsh','relbow','rwrist']],
+    labels:{lsh:'왼쪽 어깨',rsh:'오른쪽 어깨',lelbow:'왼쪽 팔꿈치',relbow:'오른쪽 팔꿈치',lwrist:'왼쪽 손목',rwrist:'오른쪽 손목'},
+  },
+  lunge: {
+    label:'런지 (앞다리 무릎 각도)',
+    refName:'LUNGE_REFERENCE',
+    topLabel:'서 있는 자세', topField:'standingKneeAngle',
+    bottomLabel:'런지 최저 자세(앞다리 기준)', bottomField:'bottomKneeAngle',
+    points:{lhip:23,rhip:24,lknee:25,rknee:26,lank:27,rank:28},
+    bones:[['lhip','rhip'],['lhip','lknee'],['lknee','lank'],['rhip','rknee'],['rknee','rank']],
+    sides:[['lhip','lknee','lank'],['rhip','rknee','rank']],
+    labels:{lhip:'왼쪽 골반',rhip:'오른쪽 골반',lknee:'왼쪽 무릎',rknee:'오른쪽 무릎',lank:'왼쪽 발목',rank:'오른쪽 발목'},
+    note:'런지는 앞다리만 카메라에 또렷하게 잡히면 그쪽 각도가 자동으로 우선 반영됩니다(다른 쪽은 가려져 인식 안 돼도 무방).',
+  },
+};
+
+const VIS_THRESHOLD=0.5;
+let currentDef=EXERCISE_DEFS.squat;
+let landmarker=null;
+const slots={top:null, bottom:null}; // {img, pts:{key:{x,y}}, dragKey:null, manualOrder, manualIdx}
+
+const selectEl=document.getElementById('exercise-select');
+selectEl.innerHTML=Object.entries(EXERCISE_DEFS).map(([id,def])=>`<option value="${id}">${def.label}</option>`).join('');
+
+window.onExerciseChange = function(){
+  currentDef=EXERCISE_DEFS[selectEl.value];
+  slots.top=null; slots.bottom=null;
+  document.getElementById('exercise-note').textContent=currentDef.note||'';
+  document.getElementById('slot-top-title').textContent=`① ${currentDef.topLabel} (${currentDef.topField})`;
+  document.getElementById('slot-bottom-title').textContent=`② ${currentDef.bottomLabel} (${currentDef.bottomField})`;
+  ['top','bottom'].forEach(which=>{
+    document.getElementById('status-'+which).textContent='이미지를 업로드해주세요';
+    document.getElementById('angle-'+which).textContent='각도: --°';
+    document.getElementById('points-'+which).innerHTML='';
+    document.getElementById('edit-canvas-'+which).getContext('2d').clearRect(0,0,308,308);
+  });
+  buildOutput();
+};
+onExerciseChange();
+
+function angleAt(a,b,c){
+  const v1x=a.x-b.x, v1y=a.y-b.y, v2x=c.x-b.x, v2y=c.y-b.y;
+  const m1=Math.hypot(v1x,v1y), m2=Math.hypot(v2x,v2y);
+  if(!m1||!m2) return null;
+  let cos=(v1x*v2x+v1y*v2y)/(m1*m2);
+  cos=Math.max(-1,Math.min(1,cos));
+  return Math.acos(cos)*180/Math.PI;
+}
+function angleFromPts(pts){
+  const vals=currentDef.sides.map(([a,b,c])=>{
+    if(!pts[a]||!pts[b]||!pts[c]) return null;
+    return angleAt(pts[a],pts[b],pts[c]);
+  }).filter(v=>v!=null);
+  if(vals.length===0) return null;
+  return vals.reduce((s,v)=>s+v,0)/vals.length;
+}
+function landmarksToPts(lm){
+  const need=Object.values(currentDef.points);
+  if(need.some(i=>!lm[i] || (lm[i].visibility??1)<VIS_THRESHOLD)) return null;
+  const pts={};
+  for(const [key,i] of Object.entries(currentDef.points)) pts[key]={x:lm[i].x, y:lm[i].y};
+  return pts;
+}
+
+async function loadLandmarker(){
+  const {PoseLandmarker, FilesetResolver} = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14');
+  const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+  return PoseLandmarker.createFromOptions(vision, {
+    baseOptions:{
+      modelAssetPath:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+      delegate:'GPU',
+    },
+    runningMode:'IMAGE', numPoses:1,
+  });
+}
+
+function drawSkeleton(ctx,w,h,pts,dragKey){
+  ctx.strokeStyle='rgba(111,187,238,0.85)'; ctx.lineWidth=3; ctx.lineCap='round';
+  currentDef.bones.forEach(([a,b])=>{
+    if(!pts[a]||!pts[b]) return;
+    ctx.beginPath(); ctx.moveTo(pts[a].x*w, pts[a].y*h); ctx.lineTo(pts[b].x*w, pts[b].y*h); ctx.stroke();
+  });
+  const palette=['#FF8A5E','#F0B93A','#4A7CFF','#8CD0FF','#E5645A','#C88CFF'];
+  Object.keys(currentDef.points).forEach((key,i)=>{
+    const p=pts[key]; if(!p) return;
+    ctx.beginPath();
+    ctx.arc(p.x*w, p.y*h, key===dragKey?9:6, 0, Math.PI*2);
+    ctx.fillStyle=palette[i%palette.length];
+    ctx.fill();
+    if(key===dragKey){ ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke(); }
+  });
+}
+
+window.onFile = async function(which, file){
+  if(!file) return;
+  const def=currentDef;
+  const statusEl=document.getElementById('status-'+which);
+  const canvas=document.getElementById('edit-canvas-'+which);
+  const ctx=canvas.getContext('2d');
+  statusEl.textContent='모델 로딩 및 인식중...';
+
+  const img=new Image();
+  const url=URL.createObjectURL(file);
+  await new Promise(resolve=>{ img.onload=resolve; img.src=url; });
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(img,0,0,canvas.width,canvas.height);
+
+  if(!landmarker) landmarker=await loadLandmarker();
+  const res=landmarker.detect(canvas);
+  const lm=res.landmarks && res.landmarks[0];
+  const pts=lm ? landmarksToPts(lm) : null;
+
+  if(!pts){
+    statusEl.textContent=`자동 인식 실패. 화면을 순서대로 클릭해 ${Object.keys(def.points).length}개 점을 직접 찍어주세요: `+Object.keys(def.points).map(k=>def.labels[k]).join(' → ');
+    slots[which]={img, pts:{}, dragKey:null, manualOrder:Object.keys(def.points), manualIdx:0};
+    renderSlot(which);
+    return;
+  }
+  statusEl.textContent='인식 완료 · 점을 드래그해서 보정할 수 있어요';
+  slots[which]={img, pts, dragKey:null};
+  renderSlot(which);
+  URL.revokeObjectURL(url);
+};
+
+function renderSlot(which){
+  const def=currentDef;
+  const slot=slots[which];
+  const canvas=document.getElementById('edit-canvas-'+which);
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(!slot) return;
+  ctx.drawImage(slot.img,0,0,canvas.width,canvas.height);
+  if(slot.pts) drawSkeleton(ctx,canvas.width,canvas.height,slot.pts,slot.dragKey);
+
+  const angleEl=document.getElementById('angle-'+which);
+  const a=slot.pts?angleFromPts(slot.pts):null;
+  angleEl.textContent='각도: '+(a!=null?a.toFixed(1)+'°':'--°');
+
+  const listEl=document.getElementById('points-'+which);
+  listEl.innerHTML=slot.pts ? Object.entries(slot.pts).map(([key,p])=>
+    `<span>${def.labels[key]} ${p.x.toFixed(3)},${p.y.toFixed(3)}</span>`).join('') : '';
+  buildOutput();
+}
+
+function canvasPos(canvas,evt){
+  const rect=canvas.getBoundingClientRect();
+  const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
+  const clientX=evt.touches?evt.touches[0].clientX:evt.clientX;
+  const clientY=evt.touches?evt.touches[0].clientY:evt.clientY;
+  return {x:(clientX-rect.left)*scaleX, y:(clientY-rect.top)*scaleY};
+}
+function hitTest(canvas,pts,mx,my){
+  let best=null, bestDist=16;
+  Object.entries(pts).forEach(([key,p])=>{
+    const d=Math.hypot(p.x*canvas.width-mx, p.y*canvas.height-my);
+    if(d<bestDist){ bestDist=d; best=key; }
+  });
+  return best;
+}
+['top','bottom'].forEach(which=>{
+  const canvas=document.getElementById('edit-canvas-'+which);
+  canvas.addEventListener('mousedown', evt=>{
+    const slot=slots[which]; if(!slot) return;
+    const {x,y}=canvasPos(canvas,evt);
+    if(slot.manualOrder && slot.manualIdx<slot.manualOrder.length){
+      const key=slot.manualOrder[slot.manualIdx++];
+      slot.pts[key]={x:Math.min(1,Math.max(0,x/canvas.width)), y:Math.min(1,Math.max(0,y/canvas.height))};
+      const statusEl=document.getElementById('status-'+which);
+      if(slot.manualIdx>=slot.manualOrder.length){
+        statusEl.textContent='점 배치 완료 · 이제 드래그로 미세 조정하세요';
+      } else {
+        statusEl.textContent='다음 점을 클릭하세요: '+currentDef.labels[slot.manualOrder[slot.manualIdx]];
+      }
+      renderSlot(which);
+      evt.preventDefault();
+      return;
+    }
+    const hit=hitTest(canvas,slot.pts,x,y);
+    if(hit){ slot.dragKey=hit; renderSlot(which); evt.preventDefault(); }
+  });
+  canvas.addEventListener('mousemove', evt=>{
+    const slot=slots[which]; if(!slot || !slot.dragKey) return;
+    const {x,y}=canvasPos(canvas,evt);
+    slot.pts[slot.dragKey]={x:Math.min(1,Math.max(0,x/canvas.width)), y:Math.min(1,Math.max(0,y/canvas.height))};
+    renderSlot(which);
+    evt.preventDefault();
+  });
+  window.addEventListener('mouseup', ()=>{ const slot=slots[which]; if(slot) slot.dragKey=null; });
+});
+
+window.buildOutput = function(){
+  const def=currentDef;
+  const outEl=document.getElementById('output');
+  const need=Object.keys(def.points).length;
+  const tPts=slots.top && slots.top.pts;
+  const bPts=slots.bottom && slots.bottom.pts;
+  const tComplete=tPts && Object.keys(tPts).length===need;
+  const bComplete=bPts && Object.keys(bPts).length===need;
+  if(!tComplete || !bComplete){
+    outEl.textContent='(두 이미지를 모두 올리고 점이 다 잡히면 여기에 결과가 표시됩니다)';
+    return;
+  }
+  const topAngle=+angleFromPts(tPts).toFixed(1);
+  const bottomAngle=+angleFromPts(bPts).toFixed(1);
+  const perfectTol=+document.getElementById('tol-perfect').value||6;
+  const greatTol=+document.getElementById('tol-great').value||12;
+  const goodTol=+document.getElementById('tol-good').value||20;
+  const result={[def.topField]:topAngle, [def.bottomField]:bottomAngle, perfectTol, greatTol, goodTol};
+  outEl.textContent=`const ${def.refName} = `+JSON.stringify(result,null,2)+';';
+};
+window.copyOutput = function(){
+  navigator.clipboard.writeText(document.getElementById('output').textContent).catch(()=>{});
+};
+['tol-perfect','tol-great','tol-good'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', buildOutput);
+});
+</script>
+</body>
+</html>
