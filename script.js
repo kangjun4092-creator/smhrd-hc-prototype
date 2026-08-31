@@ -111,6 +111,24 @@ const AVATAR_COLORS = ['#1B3A6B','#E8532B','#C98A00','#3E8FCF','#7A5CC9','#2AA9C
 function avatarColor(i){return AVATAR_COLORS[i % AVATAR_COLORS.length];}
 function avatarInitial(name){return (name||'홈').trim().charAt(0) || 'H';}
 
+// 프로필 캐릭터 픽셀아트 스프라이트. PNG 자체가 이미 검정 배경을 투명 처리해둔 컷아웃
+// 이미지라, 배경 아이템(equip.background)을 씌워도 캐릭터 뒤로 비쳐 보인다.
+// (주의) 원본 PNG는 검정 배경에 합성된 상태였는데, 그걸 브라우저에서 getImageData로 읽어
+// 알파를 지우는 방식은 file:// 로 열었을 때 "canvas has been tainted by cross-origin data"
+// 보안 오류로 막혀서 동작하지 않았다. 그래서 투명화는 스크립트 실행 전에 미리 처리해
+// assets/avatar-*.png 자체를 투명 PNG로 만들어두고, 여기서는 단순히 그리기만 한다.
+const CHAR_SPRITES = {male:null, female:null};
+function loadCharSprite(gender, src){
+  const img=new Image();
+  img.onload=()=>{
+    CHAR_SPRITES[gender]=img;
+    drawAvatarCanvas(); drawTopbarAvatar(); drawPodiumChars();
+  };
+  img.src=src;
+}
+loadCharSprite('male','assets/avatar-male.png');
+loadCharSprite('female','assets/avatar-female.png');
+
 /* ========================================================================
    유틸
    ======================================================================== */
@@ -1959,16 +1977,6 @@ function drawPixelCharacter(canvas, equip, gender){
   canvas.width=W*U; canvas.height=H*U;
   const ctx=canvas.getContext('2d');
   ctx.imageSmoothingEnabled=true;
-  // 각 블록을 각진 사각형 대신 둥근 사각형으로 그려서 8비트 느낌 대신 종이를 오려붙인 듯한
-  // 부드러운 실루엣을 만든다. 반지름은 블록의 짧은 변 기준으로 계산하고, 큰 블록(몸통·머리)이
-  // 과하게 알약 모양이 되지 않도록 10px로 상한을 둔다.
-  const px=(x,y,w,h,color)=>{
-    ctx.fillStyle=color;
-    const r=Math.min(Math.min(w,h)*U*0.35, 10);
-    ctx.beginPath();
-    ctx.roundRect(x*U,y*U,w*U,h*U,r);
-    ctx.fill();
-  };
 
   if(equip.background){
     const g=ctx.createLinearGradient(0,0,0,H*U);
@@ -1978,32 +1986,34 @@ function drawPixelCharacter(canvas, equip, gender){
     ctx.fillStyle='#241C12'; ctx.fillRect(0,0,W*U,H*U);
   }
 
-  const isRobot=!!equip.skin;
-  const skinColor=isRobot?'#B8C4CE':'#F2C79C';
-  const outfitOn=!!equip.outfit;
-  const outfitColor=outfitOn?'#0F172A':'#4A5568';
-
-  px(6,17,2,3,'#2D3748'); px(10,17,2,3,'#2D3748');
-  px(6,20,2,1,'#191F2B'); px(10,20,2,1,'#191F2B');
-
-  px(5,11,8,6,outfitColor);
-  if(outfitOn){ px(5,11,8,1,'#6FBBEE'); px(5,15,8,1,'#FF8A5E'); }
-  px(3,12,2,5,outfitColor); px(13,12,2,5,outfitColor);
-  px(3,17,2,1,skinColor); px(13,17,2,1,skinColor);
-
-  px(8,9,2,2,skinColor);
-  px(5,3,8,6,skinColor);
-  if(isRobot){
-    px(6,5,6,2,'#6FBBEE');
-  } else {
-    px(5,3,8,2,'#3A2B22');
-    if(gender==='female'){ px(4,3,1,6,'#3A2B22'); px(13,3,1,6,'#3A2B22'); }
-    px(6,6,2,1,'#22303C'); px(10,6,2,1,'#22303C');
+  const sprite=CHAR_SPRITES[gender==='female'?'female':'male'];
+  if(sprite){
+    ctx.save();
+    // '네온 트레이닝복'을 장착하면 실루엣 주위에 네온 림라이트를 추가로 씌운다 (원본 아트를
+    // 다시 그리는 대신, 착용 여부를 알아볼 수 있는 신호로 그림자 발광을 사용).
+    if(equip.outfit){ ctx.shadowColor='#3ED598'; ctx.shadowBlur=U*1.6; }
+    // '로봇 코치' 스킨은 전용 아트가 없어서, 대신 캔버스 필터로 금속/청록 톤 보정을 준다.
+    if(equip.skin){ ctx.filter='grayscale(0.6) sepia(0.35) hue-rotate(165deg) saturate(2.4)'; }
+    const sw=sprite.naturalWidth||sprite.width, sh=sprite.naturalHeight||sprite.height;
+    const scale=Math.min((W*U)/sw, (H*U)/sh);
+    const dw=sw*scale, dh=sh*scale;
+    ctx.drawImage(sprite, (W*U-dw)/2, H*U-dh, dw, dh);
+    ctx.restore();
   }
 
   if(equip.crown){
-    px(5,1,8,2,'#D9A226');
-    px(5,0,1,1,'#D9A226'); px(8,0,1,1,'#D9A226'); px(12,0,1,1,'#D9A226');
+    const xL=W*U*0.30, xR=W*U*0.70, baseY=U*1.5, topY=U*0.15, midY=U*0.85;
+    ctx.fillStyle='#D9A226';
+    ctx.beginPath();
+    ctx.moveTo(xL, baseY);
+    ctx.lineTo(xL, midY);
+    ctx.lineTo(xL+(xR-xL)*0.2, topY);
+    ctx.lineTo(xL+(xR-xL)*0.5, midY);
+    ctx.lineTo(xL+(xR-xL)*0.8, topY);
+    ctx.lineTo(xR, midY);
+    ctx.lineTo(xR, baseY);
+    ctx.closePath();
+    ctx.fill();
   }
 
   if(equip.badge){

@@ -161,13 +161,14 @@ function landmarksToPts(lm){
 async function loadLandmarker(){
   const {PoseLandmarker, FilesetResolver} = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14');
   const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
-  return PoseLandmarker.createFromOptions(vision, {
-    baseOptions:{
-      modelAssetPath:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
-      delegate:'GPU',
-    },
-    runningMode:'IMAGE', numPoses:1,
-  });
+  const baseOptions={modelAssetPath:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task'};
+  try{
+    return await PoseLandmarker.createFromOptions(vision, {baseOptions:{...baseOptions, delegate:'GPU'}, runningMode:'IMAGE', numPoses:1});
+  }catch(err){
+    // 일부 PC(내장 GPU/원격 데스크톱 등)는 GPU 딜리게이트 생성이 실패한다 — CPU로 재시도.
+    console.warn('GPU 딜리게이트 생성 실패, CPU로 재시도합니다', err);
+    return PoseLandmarker.createFromOptions(vision, {baseOptions:{...baseOptions, delegate:'CPU'}, runningMode:'IMAGE', numPoses:1});
+  }
 }
 
 function drawSkeleton(ctx,w,h,pts,dragKey){
@@ -193,19 +194,38 @@ window.onFile = async function(which, file){
   const statusEl=document.getElementById('status-'+which);
   const canvas=document.getElementById('edit-canvas-'+which);
   const ctx=canvas.getContext('2d');
-  statusEl.textContent='모델 로딩 및 인식중...';
+  statusEl.textContent='이미지 불러오는 중...';
 
   const img=new Image();
   const url=URL.createObjectURL(file);
-  await new Promise(resolve=>{ img.onload=resolve; img.src=url; });
+  try{
+    await new Promise((resolve,reject)=>{ img.onload=resolve; img.onerror=reject; img.src=url; });
+  }catch(err){
+    URL.revokeObjectURL(url);
+    // HEIC(아이폰 기본 사진 포맷) 등 브라우저 <img>가 디코딩하지 못하는 형식이면
+    // onload가 영원히 안 와서 예전 코드에서는 화면이 그냥 멈춰 있었다 — 여기서 원인을 알려준다.
+    statusEl.textContent='이미지를 불러올 수 없습니다. HEIC 등 일부 형식은 브라우저에서 열리지 않아요 — JPG/PNG로 변환 후 다시 올려주세요.';
+    return;
+  }
 
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.drawImage(img,0,0,canvas.width,canvas.height);
+  URL.revokeObjectURL(url);
 
-  if(!landmarker) landmarker=await loadLandmarker();
-  const res=landmarker.detect(canvas);
-  const lm=res.landmarks && res.landmarks[0];
-  const pts=lm ? landmarksToPts(lm) : null;
+  statusEl.textContent='모델 로딩 및 인식중...';
+  let pts=null;
+  try{
+    if(!landmarker) landmarker=await loadLandmarker();
+    const res=landmarker.detect(canvas);
+    const lm=res.landmarks && res.landmarks[0];
+    pts=lm ? landmarksToPts(lm) : null;
+  }catch(err){
+    console.error('포즈 인식 실패', err);
+    statusEl.textContent=`자동 인식 중 오류가 발생했습니다(${err&&err.message||err}). 화면을 순서대로 클릭해 ${Object.keys(def.points).length}개 점을 직접 찍어주세요: `+Object.keys(def.points).map(k=>def.labels[k]).join(' → ');
+    slots[which]={img, pts:{}, dragKey:null, manualOrder:Object.keys(def.points), manualIdx:0};
+    renderSlot(which);
+    return;
+  }
 
   if(!pts){
     statusEl.textContent=`자동 인식 실패. 화면을 순서대로 클릭해 ${Object.keys(def.points).length}개 점을 직접 찍어주세요: `+Object.keys(def.points).map(k=>def.labels[k]).join(' → ');
@@ -216,7 +236,6 @@ window.onFile = async function(which, file){
   statusEl.textContent='인식 완료 · 점을 드래그해서 보정할 수 있어요';
   slots[which]={img, pts, dragKey:null};
   renderSlot(which);
-  URL.revokeObjectURL(url);
 };
 
 function renderSlot(which){
