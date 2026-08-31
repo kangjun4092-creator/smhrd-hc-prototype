@@ -41,7 +41,7 @@ const state = {
   },
   user: {nickname:'', avatar:0, gender:'male', points:1240, exp:62, level:7, region:'서울시 강남구 역삼동', retakeTickets:0, nicknameTickets:0, bio:''},
   menu: 'exercise',
-  subtabs: {mission:0, profile:0, crew:0, ranking:0, settings:0},
+  subtabs: {mission:0, profile:0, crew:0, ranking:0},
   exercise: {step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0, liveReps:[]},
   missions: {
     candidates: MISSION_POOL.slice(0,5),
@@ -967,13 +967,12 @@ function renderFindPwModal(){
 const MENUS = [
   {id:'exercise', label:'운동'},
   {id:'mission', label:'미션'},
-  {id:'profile', label:'나의 프로필'},
+  {id:'profile', label:'마이페이지'},
   {id:'shop', label:'포인트 상점'},
   {id:'crew', label:'홈크루'},
   {id:'ranking', label:'랭킹'},
   {id:'board', label:'자랑 게시판'},
   {id:'support', label:'고객센터'},
-  {id:'settings', label:'계정 및 설정'},
 ];
 function renderApp(){
   const menuLabel = MENUS.find(m=>m.id===state.menu).label;
@@ -998,7 +997,7 @@ function renderApp(){
         <div class="user-chip">
           <div class="points-pill">P <span class="mono">${state.user.points.toLocaleString()}</span></div>
           <span class="topbar-nick">${state.user.nickname||'홈트초보'}</span>
-          <div class="topbar-avatar" onclick="setMenu('profile')" title="나의 프로필">
+          <div class="topbar-avatar" onclick="setMenu('profile')" title="마이페이지">
             <canvas id="topbar-avatar-canvas"></canvas>
             <span class="mono">Lv.${state.user.level}</span>
           </div>
@@ -1012,8 +1011,7 @@ function renderApp(){
           state.menu==='crew' ? renderCrew() :
           state.menu==='ranking' ? renderRanking() :
           state.menu==='board' ? renderBoardMenu() :
-          state.menu==='support' ? renderSupport() :
-          renderSettings()}
+          renderSupport()}
       </div>
     </div>
   </div>`;
@@ -1666,15 +1664,22 @@ function renderMission(){
   </div>
   ${i===0?renderMissionCandidates():renderMissionPick()}`;
 }
-const PROFILE_TABS=['프로필·캐릭터 꾸미기','미션 달성 현황','운동 히스토리'];
+const PROFILE_TABS=['프로필·캐릭터 꾸미기','미션 달성 현황','운동 히스토리','계정·프로필 관리','캘리브레이션 재설정','카메라·알림 설정','개인정보·공개범위','로그아웃·회원탈퇴'];
 function renderProfile(){
   const i=state.subtabs.profile;
   return `
-  <div class="view-head"><h1>나의 프로필</h1><p>캐릭터·아이템을 꾸미고 누적 성과를 한눈에 확인하세요. 미션 달성 현황·운동 히스토리는 옆 탭에서.</p></div>
+  <div class="view-head"><h1>마이페이지</h1><p>캐릭터 꾸미기·미션·운동 기록부터 계정·설정 관리까지 한 곳에서 확인하세요.</p></div>
   <div class="subtabs">
     ${PROFILE_TABS.map((t,idx)=>`<div class="tab ${i===idx?'active':''}" onclick="setSub('profile',${idx})">${t}</div>`).join('')}
   </div>
-  ${i===0?renderMissionAvatar(): i===1?renderMissionProgress(): renderHistory()}`;
+  ${i===0?renderMissionAvatar():
+    i===1?renderMissionProgress():
+    i===2?renderHistory():
+    i===3?renderSetAccount():
+    i===4?renderSetCalib():
+    i===5?renderSetCamera():
+    i===6?renderSetPrivacy():
+    renderSetLogout()}`;
 }
 function renderShop(){
   return `
@@ -2838,16 +2843,6 @@ function submitTicket(){
 //   회원 탈퇴(doWithdraw) > Java 계정 API > DB 연결 > SQL DELETE(계정 및 연관 테이블 — 운동기록/포인트/크루 등)
 // 카메라·알림 설정(renderSetCamera)은 기기/브라우저 설정에 가까워 로컬 저장(localStorage)만으로도
 // 충분하며, 반드시 서버까지 갈 필요는 없습니다.
-const SET_TABS=['계정·프로필 관리','캘리브레이션 재설정','카메라·알림 설정','개인정보·공개범위','로그아웃·회원탈퇴'];
-function renderSettings(){
-  const i=state.subtabs.settings;
-  return `
-  <div class="view-head"><h1>설정</h1><p>계정·프로필 관리 → 캘리브레이션 재설정 → 카메라·알림 설정 → 개인정보 공개범위 → 로그아웃·회원탈퇴</p></div>
-  <div class="subtabs">
-    ${SET_TABS.map((t,idx)=>`<div class="tab ${i===idx?'active':''}" onclick="setSub('settings',${idx})">${t}</div>`).join('')}
-  </div>
-  ${i===0?renderSetAccount(): i===1?renderSetCalib(): i===2?renderSetCamera(): i===3?renderSetPrivacy(): renderSetLogout()}`;
-}
 function renderSetAccount(){
   const a=state.settings.account;
   const cities=Object.keys(REGION_DATA);
