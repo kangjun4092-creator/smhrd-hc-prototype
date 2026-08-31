@@ -134,6 +134,21 @@ button{font-family:inherit;}
 .auth-title{font-size:30px;margin:0 0 6px;}
 .auth-sub{color:var(--ink-dim);font-size:13.5px;margin:0 0 24px;line-height:1.5;}
 
+/* ---------- 소개(랜딩) 페이지 : 로그인 전 첫 화면 ---------- */
+.landing-shell{min-height:100vh;background:var(--bg);}
+.landing-topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:16px 32px;border-bottom:2.5px solid var(--outline);background:var(--surface);
+}
+.landing-topbar .brand{padding:0;}
+.landing-actions{display:flex;gap:10px;flex:none;}
+.landing-hero{max-width:720px;margin:0 auto;padding:64px 24px 44px;text-align:center;}
+.landing-hero h1{font-size:34px;margin:0 0 14px;line-height:1.35;}
+.landing-hero p{color:var(--ink-dim);font-size:14.5px;max-width:52ch;margin:0 auto 28px;line-height:1.6;}
+.cta-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+.landing-body{max-width:1040px;margin:0 auto;padding:0 24px 72px;}
+.landing-section-title{text-align:center;font-size:21px;margin:0 0 24px;}
+
 .field{margin-bottom:14px;}
 .field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-dim);margin-bottom:6px;}
 .field input,.field select,.field textarea{

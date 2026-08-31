@@ -33,7 +33,7 @@ const EXISTING_USERS = [
   {id:'proteinman', nickname:'단백질맨'},
 ];
 const state = {
-  screen: 'login', // signup | login | app
+  screen: 'intro', // intro | signup | login | app
   signup: {
     id:'', pw:'', pw2:'', nickname:'',
     regionCity:'서울시', regionGu:'강남구', regionDong:'역삼동', gender:'male', calibrated:false,
@@ -143,7 +143,8 @@ function gradePill(g){
    ======================================================================== */
 function render(){
   const root=document.getElementById('app');
-  if(state.screen==='signup') root.innerHTML=renderSignup();
+  if(state.screen==='intro') root.innerHTML=renderIntro();
+  else if(state.screen==='signup') root.innerHTML=renderSignup();
   else if(state.screen==='login') root.innerHTML=renderLogin();
   else root.innerHTML=renderApp();
 
@@ -173,6 +174,70 @@ function render(){
     setTimeout(drawTopbarAvatar,0);
     setTimeout(drawPodiumChars,0);
   }
+}
+
+/* ---------- 소개(랜딩) 페이지 ---------- */
+// 로그인 전 첫 진입 화면. 비회원은 로그인/회원가입 창을 바로 보는 대신 여기서 서비스를
+// 먼저 둘러본 뒤, 상단 버튼으로 회원가입 또는 로그인으로 이동한다.
+// 같은 소개 콘텐츠(renderIntroFeatures/renderIntroSteps)는 로그인 후 좌측 상단 배너를
+// 눌렀을 때 이동하는 앱 안 "메인" 카테고리(renderMain)에서도 재사용된다.
+const INTRO_FEATURES = [
+  {icon:'🎯', title:'AI 자세 판정', desc:'웹캠만으로 스쿼트 같은 운동 자세를 실시간으로 분석하고 정확도를 채점해요.'},
+  {icon:'🏅', title:'미션 & 포인트', desc:'일간·주간·월간 미션을 달성하고 포인트를 모아 캐릭터를 꾸며보세요.'},
+  {icon:'🏘️', title:'홈크루 & 랭킹', desc:'우리 동네 이웃과 크루를 만들고, 지역별 랭킹으로 함께 동기부여 받아요.'},
+  {icon:'📸', title:'자랑 게시판', desc:'오늘의 운동 인증을 공유하고 이웃들과 응원을 주고받아요.'},
+];
+const INTRO_STEPS = [
+  '회원가입하고 웹캠으로 내 체형을 간단히 보정해요',
+  '종목을 골라 웹캠 앞에서 운동하면 자세를 실시간으로 판정해줘요',
+  '미션을 달성하고 포인트를 모아 캐릭터를 꾸미고 랭킹에 도전해요',
+];
+function renderIntroFeatures(){
+  return `
+  <div class="grid grid-3">
+    ${INTRO_FEATURES.map(f=>`
+      <div class="card" style="text-align:center;">
+        <div class="ex-badge" style="margin:0 auto 10px;">${f.icon}</div>
+        <h3 style="margin:0 0 6px;font-size:15px;">${f.title}</h3>
+        <p class="desc" style="margin:0;">${f.desc}</p>
+      </div>`).join('')}
+  </div>`;
+}
+function renderIntroSteps(){
+  return `
+  <ol class="steplist" style="max-width:520px;margin:0 auto;">
+    ${INTRO_STEPS.map((s,idx)=>`<li><span class="num">${idx+1}</span>${s}</li>`).join('')}
+  </ol>`;
+}
+function renderIntro(){
+  return `
+  <div class="landing-shell">
+    <div class="landing-topbar">
+      <div class="brand" style="cursor:default;">
+        <div class="brand-mark">홈</div>
+        <div class="brand-name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
+      </div>
+      <div class="landing-actions">
+        <button class="btn btn-ghost btn-sm" onclick="goto('login')">로그인</button>
+        <button class="btn btn-primary btn-sm" onclick="goto('signup')">회원가입</button>
+      </div>
+    </div>
+    <div class="landing-hero">
+      <p class="auth-eyebrow" style="text-align:center;">우리동네 홈트챌린지</p>
+      <h1>집에서, 우리 동네 사람들과 함께 운동해요</h1>
+      <p>웹캠으로 자세를 실시간 판정하고, 미션과 랭킹으로 이웃과 함께 성장하는 홈트레이닝 서비스예요.</p>
+      <div class="cta-row">
+        <button class="btn btn-primary" style="padding:12px 28px;" onclick="goto('signup')">무료로 시작하기</button>
+        <button class="btn btn-secondary" style="padding:12px 28px;" onclick="goto('login')">이미 계정이 있어요</button>
+      </div>
+    </div>
+    <div class="landing-body">
+      <h2 class="landing-section-title">이런 걸 할 수 있어요</h2>
+      ${renderIntroFeatures()}
+      <h2 class="landing-section-title" style="margin-top:52px;">이용 흐름</h2>
+      ${renderIntroSteps()}
+    </div>
+  </div>`;
 }
 
 /* ---------- 회원가입 ---------- */
@@ -965,6 +1030,7 @@ function renderFindPwModal(){
 
 /* ---------- 앱 셸 ---------- */
 const MENUS = [
+  {id:'main', label:'메인'},
   {id:'exercise', label:'운동'},
   {id:'mission', label:'미션'},
   {id:'profile', label:'마이페이지'},
@@ -979,7 +1045,7 @@ function renderApp(){
   return `
   <div class="app-shell">
     <aside class="sidebar">
-      <div class="brand" onclick="goHome()" style="cursor:pointer;" title="운동 메인으로 이동">
+      <div class="brand" onclick="goHome()" style="cursor:pointer;" title="메인으로 이동">
         <div class="brand-mark">홈</div>
         <div class="brand-name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
       </div>
@@ -1004,7 +1070,8 @@ function renderApp(){
         </div>
       </div>
       <div class="view">
-        ${state.menu==='exercise' ? renderExercise() :
+        ${state.menu==='main' ? renderMain() :
+          state.menu==='exercise' ? renderExercise() :
           state.menu==='mission' ? renderMission() :
           state.menu==='profile' ? renderProfile() :
           state.menu==='shop' ? renderShop() :
@@ -1017,8 +1084,21 @@ function renderApp(){
   </div>`;
 }
 function setMenu(id){state.menu=id; render();}
-// 좌측 상단 로고 클릭 시: 운동 탭의 종목 선택(1단계)으로 되돌아간다.
-function goHome(){ state.menu='exercise'; state.exercise.step=0; render(); }
+// 좌측 상단 로고(배너) 클릭 시: 서비스 소개 콘텐츠를 담은 "메인" 카테고리로 이동한다.
+function goHome(){ state.menu='main'; render(); }
+function renderMain(){
+  return `
+  <div class="view-head"><h1>메인</h1><p>우리동네 홈트챌린지가 어떤 서비스인지 한눈에 확인하세요.</p></div>
+  <div class="card" style="text-align:center;margin-bottom:24px;">
+    <h2 style="margin:0 0 8px;">집에서, 우리 동네 사람들과 함께 운동해요</h2>
+    <p class="desc" style="max-width:56ch;margin:0 auto 16px;">웹캠으로 자세를 실시간 판정하고, 미션과 랭킹으로 이웃과 함께 성장하는 홈트레이닝 서비스예요.</p>
+    <button class="btn btn-primary" onclick="setMenu('exercise')">운동 시작하기</button>
+  </div>
+  <p class="section-label">이런 걸 할 수 있어요</p>
+  ${renderIntroFeatures()}
+  <p class="section-label" style="margin-top:32px;">이용 흐름</p>
+  ${renderIntroSteps()}`;
+}
 function goto(screen){state.screen=screen; render();}
 
 /* ========================================================================
