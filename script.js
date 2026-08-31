@@ -35,7 +35,7 @@ const EXISTING_USERS = [
 const state = {
   screen: 'intro', // intro | signup | login | app
   signup: {
-    id:'', pw:'', pw2:'', nickname:'',
+    id:'', pw:'', pw2:'', nickname:'', email:'',
     regionCity:'서울시', regionGu:'강남구', regionDong:'역삼동', gender:'male', calibrated:false,
     calModalOpen:false, calStage:'idle', calProfile:null, calError:'',
   },
@@ -56,8 +56,8 @@ const state = {
     {name:'챔피언 왕관', price:900, owned:false, equipped:false, slot:'crown', effect:'랭킹 점수 +5%', effectDesc:'지역·종목 랭킹에 반영되는 점수가 5% 가산됩니다.'},
     {name:'프로필 배경 - 새벽 러닝', price:250, owned:true, equipped:true, slot:'background', effect:'출석 보너스 +5P/일', effectDesc:'연속 출석일마다 기본 출석 포인트에 5P가 추가됩니다.'},
     {name:'캐릭터 - 로봇 코치', price:600, owned:false, equipped:false, slot:'skin', effect:'스트레칭 시간 -15%', effectDesc:'운동 전 스트레칭 타이머가 15% 단축되어 표시됩니다.'},
-    {name:'닉네임 컬러 이펙트', price:180, owned:true, equipped:true, slot:'nickname', effect:'능력치 없음 · 외형 전용', effectDesc:'랭킹·게시판에서 닉네임 색상만 강조되며 점수에는 영향이 없습니다.'},
-    {name:'닉네임 변경권', price:150, owned:false, consumable:true, effect:'닉네임 변경 1회', effectDesc:'설정에서 닉네임을 한 번 변경할 수 있습니다. 무분별한 닉네임 변경으로 랭킹·게시판 혼선이 생기는 것을 막기 위한 아이템이에요.'},
+    {name:'닉네임 컬러 이펙트', price:180, owned:true, equipped:true, slot:'nickname', effect:'능력치 없음 · 외형 전용', effectDesc:'랭킹에서 닉네임 색상만 강조되며 점수에는 영향이 없습니다.'},
+    {name:'닉네임 변경권', price:150, owned:false, consumable:true, effect:'닉네임 변경 1회', effectDesc:'설정에서 닉네임을 한 번 변경할 수 있습니다. 무분별한 닉네임 변경으로 랭킹 혼선이 생기는 것을 막기 위한 아이템이에요.'},
   ],
   crew: {
     created:false, name:'', desc:'', region:'',
@@ -79,11 +79,6 @@ const state = {
     {date:'08.22', ex:'런지', reps:18, acc:84, score:250, grade:'GOOD', gc:{PERFECT:2,GREAT:8,GOOD:8,MISS:1}},
     {date:'08.20', ex:'플랭크', reps:1, acc:88, score:260, grade:'GOOD', gc:{PERFECT:0,GREAT:0,GOOD:1,MISS:0}},
     {date:'08.18', ex:'런지', reps:24, acc:95, score:388, grade:'PERFECT', gc:{PERFECT:20,GREAT:3,GOOD:1,MISS:1}},
-  ],
-  board: [
-    {who:'써니핏', ex:'런지 3세트', text:'오늘도 정자세 유지 성공! 다음 목표는 정확도 95%.', likes:24, cmts:5},
-    {who:'단백질맨', ex:'버피 20회', text:'버피는 역시 힘들다... 그래도 MISS 1개뿐!', likes:11, cmts:2},
-    {who:'런닝수달', ex:'플랭크 3분', text:'플랭크 챌린지 신기록 갱신했습니다', likes:31, cmts:8},
   ],
   settings: {
     account:{nickname:'', regionCity:'서울시', regionGu:'강남구', regionDong:'역삼동'},
@@ -203,7 +198,6 @@ const INTRO_FEATURES = [
   {icon:'🎯', title:'AI 자세 판정', desc:'웹캠만으로 스쿼트 같은 운동 자세를 실시간으로 분석하고 정확도를 채점해요.'},
   {icon:'🏅', title:'미션 & 포인트', desc:'일간·주간·월간 미션을 달성하고 포인트를 모아 캐릭터를 꾸며보세요.'},
   {icon:'🏘️', title:'홈크루 & 랭킹', desc:'우리 동네 이웃과 크루를 만들고, 지역별 랭킹으로 함께 동기부여 받아요.'},
-  {icon:'📸', title:'자랑 게시판', desc:'오늘의 운동 인증을 공유하고 이웃들과 응원을 주고받아요.'},
 ];
 const INTRO_STEPS = [
   '회원가입하고 웹캠으로 내 체형을 간단히 보정해요',
@@ -235,18 +229,14 @@ function renderIntro(){
         <div class="brand-mark">홈</div>
         <div class="brand-name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
       </div>
-      <div class="landing-actions">
-        <button class="btn btn-ghost btn-sm" onclick="goto('login')">로그인</button>
-        <button class="btn btn-primary btn-sm" onclick="goto('signup')">회원가입</button>
-      </div>
     </div>
     <div class="landing-hero">
       <p class="auth-eyebrow" style="text-align:center;">우리동네 홈트챌린지</p>
       <h1>집에서, 우리 동네 사람들과 함께 운동해요</h1>
       <p>웹캠으로 자세를 실시간 판정하고, 미션과 랭킹으로 이웃과 함께 성장하는 홈트레이닝 서비스예요.</p>
       <div class="cta-row">
-        <button class="btn btn-primary" style="padding:12px 28px;" onclick="goto('signup')">무료로 시작하기</button>
-        <button class="btn btn-secondary" style="padding:12px 28px;" onclick="goto('login')">이미 계정이 있어요</button>
+        <button class="btn btn-primary" style="padding:12px 28px;" onclick="goto('signup')">회원가입</button>
+        <button class="btn btn-secondary" style="padding:12px 28px;" onclick="goto('login')">기존 계정 로그인</button>
       </div>
     </div>
     <div class="landing-body">
@@ -279,26 +269,39 @@ function renderSignup(){
 
       <div class="field">
         <label for="su-id">아이디</label>
-        <input id="su-id" type="text" placeholder="영문/숫자 4자 이상" value="${state.signup.id||''}" oninput="state.signup.id=this.value">
+        <div class="field-row">
+          <input id="su-id" type="text" placeholder="영문/숫자 4자 이상" style="flex:1;min-width:0;" value="${state.signup.id||''}" oninput="state.signup.id=this.value">
+          <button type="button" class="btn btn-secondary btn-sm" style="flex:none;white-space:nowrap;" onclick="checkSignupIdDup()">중복확인</button>
+        </div>
+        <p class="hint" id="su-id-msg" style="display:none;"></p>
       </div>
       <div class="field-row">
         <div class="field">
           <label for="su-pw">비밀번호</label>
-          <input id="su-pw" type="password" placeholder="••••••••" value="${state.signup.pw||''}" oninput="state.signup.pw=this.value">
+          <input id="su-pw" type="password" placeholder="••••••••" value="${state.signup.pw||''}" oninput="state.signup.pw=this.value;checkSignupPwMatch();">
         </div>
         <div class="field">
           <label for="su-pw2">비밀번호 확인</label>
-          <input id="su-pw2" type="password" placeholder="••••••••" value="${state.signup.pw2||''}" oninput="state.signup.pw2=this.value">
+          <input id="su-pw2" type="password" placeholder="••••••••" value="${state.signup.pw2||''}" oninput="state.signup.pw2=this.value;checkSignupPwMatch();">
+          <p class="hint" id="su-pw2-msg" style="display:none;color:var(--danger);">비밀번호가 일치하지 않습니다</p>
         </div>
       </div>
       <div class="field">
         <label for="su-nick">닉네임</label>
-        <input id="su-nick" type="text" placeholder="홈트에서 사용할 닉네임" value="${state.signup.nickname||''}" oninput="state.signup.nickname=this.value">
+        <div class="field-row">
+          <input id="su-nick" type="text" placeholder="홈트에서 사용할 닉네임" style="flex:1;min-width:0;" value="${state.signup.nickname||''}" oninput="state.signup.nickname=this.value">
+          <button type="button" class="btn btn-secondary btn-sm" style="flex:none;white-space:nowrap;" onclick="checkSignupNickDup()">중복확인</button>
+        </div>
+        <p class="hint" id="su-nick-msg" style="display:none;"></p>
       </div>
       <div class="field">
-        <label for="su-ref">추천인 코드 (선택)</label>
+        <label for="su-ref">추천인 아이디 (선택)</label>
         <input id="su-ref" type="text" placeholder="추천인 아이디 입력 시 포인트 지급">
         <p class="hint">가입자와 추천인 모두에게 포인트가 지급됩니다.</p>
+      </div>
+      <div class="field">
+        <label for="su-email">이메일</label>
+        <input id="su-email" type="email" placeholder="example@email.com" value="${state.signup.email||''}" oninput="state.signup.email=this.value">
       </div>
       <div class="field">
         <label>활동 지역 (랭킹 산정 기준)</label>
@@ -343,18 +346,48 @@ function setSignupGu(v){
   render();
 }
 function setSignupDong(v){ state.signup.regionDong=v; render(); }
+// (#8) 아이디·닉네임 중복확인 버튼 — 실제로는 SQL SELECT ... WHERE id=? / nickname=? 로 대체된다.
+function checkSignupIdDup(){
+  const id=document.getElementById('su-id').value.trim();
+  const msg=document.getElementById('su-id-msg');
+  if(!id){ msg.style.color='var(--danger)'; msg.textContent='아이디를 입력해주세요'; msg.style.display='block'; return; }
+  const dup=EXISTING_USERS.some(u=>u.id===id);
+  msg.style.color = dup ? 'var(--danger)' : 'var(--accent)';
+  msg.textContent = dup ? '이미 사용중인 아이디입니다' : '사용 가능한 아이디입니다';
+  msg.style.display='block';
+}
+function checkSignupNickDup(){
+  const nick=document.getElementById('su-nick').value.trim();
+  const msg=document.getElementById('su-nick-msg');
+  if(!nick){ msg.style.color='var(--danger)'; msg.textContent='닉네임을 입력해주세요'; msg.style.display='block'; return; }
+  const dup=EXISTING_USERS.some(u=>u.nickname===nick);
+  msg.style.color = dup ? 'var(--danger)' : 'var(--accent)';
+  msg.textContent = dup ? '이미 사용중인 닉네임입니다' : '사용 가능한 닉네임입니다';
+  msg.style.display='block';
+}
+function checkSignupPwMatch(){
+  const pw=document.getElementById('su-pw').value;
+  const pw2=document.getElementById('su-pw2').value;
+  const msg=document.getElementById('su-pw2-msg');
+  msg.style.display = (pw2 && pw!==pw2) ? 'block' : 'none';
+}
 // [백엔드 연동 필요 구간] 여기 doSignup()부터: 지금은 state.user에 값만 옮겨 담는
 // 목업이지만, 실제 구현에서는 이 지점에서 아래 파이프라인이 필요합니다.
 //   회원가입 폼 제출(여기) > Java 서버 회원가입 API(비밀번호 해싱 포함) > DB 연결 > SQL INSERT(계정 테이블)
 function doSignup(){
   const id=document.getElementById('su-id').value.trim();
+  const pw=document.getElementById('su-pw').value;
+  const pw2=document.getElementById('su-pw2').value;
   const nick=document.getElementById('su-nick').value.trim() || '홈트초보';
+  const email=document.getElementById('su-email').value.trim();
   // (#8) 아이디·닉네임 중복 확인 — 실제로는 SQL SELECT ... WHERE id=? / nickname=? 로 대체된다.
   if(!id){ toast('아이디를 입력해주세요'); return; }
+  if(pw!==pw2){ toast('비밀번호가 일치하지 않습니다'); return; }
   if(EXISTING_USERS.some(u=>u.id===id)){ toast('이미 사용중인 아이디입니다'); return; }
   if(EXISTING_USERS.some(u=>u.nickname===nick)){ toast('이미 사용중인 닉네임입니다'); return; }
   const region=`${state.signup.regionCity} ${state.signup.regionGu} ${state.signup.regionDong}`;
   state.user.nickname = nick;
+  state.user.email = email;
   state.user.gender = state.signup.gender || 'male';
   state.user.region = region;
   state.user.calibration = state.signup.calProfile || null;
@@ -362,7 +395,7 @@ function doSignup(){
   state.settings.account.regionCity = state.signup.regionCity;
   state.settings.account.regionGu = state.signup.regionGu;
   state.settings.account.regionDong = state.signup.regionDong;
-  EXISTING_USERS.push({id, nickname:nick});
+  EXISTING_USERS.push({id, nickname:nick, email});
   toast('회원가입이 완료되었습니다');
   goto('login');
 }
@@ -739,7 +772,7 @@ function renderCalibrationModal(){
   const stage=s.calStage||'idle';
   return `
   <div class="confirm-backdrop">
-    <div class="confirm-box" style="max-width:760px;width:100%;">
+    <div class="confirm-box" style="max-width:min(1080px,94vw);width:100%;">
       <h3>카메라 캘리브레이션</h3>
       <p style="color:var(--ink-dim);font-size:13px;line-height:1.55;margin:0 0 16px;">전신이 화면에 들어오도록 서서, 화면의 점선 실루엣에 맞춰 2초간 자세를 유지하면 자동으로 체형이 저장됩니다.</p>
       ${stage==='done' ? renderCalDone(s) : renderCalLive(s)}
@@ -749,9 +782,9 @@ function renderCalibrationModal(){
 
 function renderCalLive(s){
   return `
-  <div class="grid grid-2" style="align-items:start;">
+  <div class="grid cal-grid">
     <div>
-      <div class="cam-stage" style="aspect-ratio:4/3;">
+      <div class="cam-stage" style="aspect-ratio:3/4;max-height:70vh;">
         <video id="cal-video" autoplay playsinline muted style="transform:scaleX(-1);width:100%;height:100%;object-fit:cover;"></video>
         <canvas class="cam-overlay-canvas" id="cal-canvas" style="transform:scaleX(-1);"></canvas>
         <div class="cam-badge"><span class="rec-dot"></span><span id="cal-fps-badge">대기중</span></div>
@@ -788,9 +821,9 @@ function renderCalDone(s){
   const p=s.calProfile;
   const bi=p.bodyInfo||{};
   return `
-  <div class="grid grid-2" style="align-items:start;">
+  <div class="grid cal-grid">
     <div>
-      <div class="cam-stage" style="aspect-ratio:4/3;">
+      <div class="cam-stage" style="aspect-ratio:3/4;max-height:70vh;">
         <canvas id="cal-edit-canvas" style="width:100%;height:100%;display:block;cursor:grab;"></canvas>
       </div>
       <p class="hint" style="margin-top:8px;">보정 완료 · ${new Date(p.createdAt).toLocaleString()} · 점을 드래그하면 관절 위치를 바로 수정할 수 있어요.</p>
@@ -974,7 +1007,7 @@ function renderLogin(){
 function doLogin(){
   if(!state.user.nickname){state.user.nickname='홈트초보';}
   state.screen='app';
-  state.menu='exercise';
+  state.menu='main';
   render();
 }
 // [백엔드 연동 필요 구간] doSocialLogin() — 실제로는 각 사(카카오/네이버/구글) OAuth 인가 코드를
@@ -984,7 +1017,7 @@ function doSocialLogin(provider){
   if(!state.user.nickname){state.user.nickname='홈트초보';}
   toast(`${provider} 계정으로 로그인했습니다`);
   state.screen='app';
-  state.menu='exercise';
+  state.menu='main';
   render();
 }
 
@@ -1055,7 +1088,6 @@ const MENUS = [
   {id:'shop', label:'포인트 상점'},
   {id:'crew', label:'홈크루'},
   {id:'ranking', label:'랭킹'},
-  {id:'board', label:'자랑 게시판'},
   {id:'support', label:'고객센터'},
 ];
 function renderApp(){
@@ -1095,7 +1127,6 @@ function renderApp(){
           state.menu==='shop' ? renderShop() :
           state.menu==='crew' ? renderCrew() :
           state.menu==='ranking' ? renderRanking() :
-          state.menu==='board' ? renderBoardMenu() :
           renderSupport()}
       </div>
     </div>
@@ -1246,9 +1277,9 @@ function runStretch(){
 function renderExStepCam(){
   const isSquat = state.exercise.picked==='squat';
   return `
-  <div class="grid grid-2">
+  <div class="grid cal-grid">
     <div>
-      <div class="cam-stage" id="cam-stage">
+      <div class="cam-stage" id="cam-stage" style="max-height:70vh;">
         <div class="cam-placeholder" id="cam-placeholder">카메라를 확인하는 중...<br>브라우저의 카메라 권한을 허용해주세요.</div>
         <video id="cam-video" autoplay playsinline muted style="display:none;"></video>
         <canvas class="cam-overlay-canvas" id="cam-canvas"></canvas>
@@ -1783,11 +1814,6 @@ function renderShop(){
   return `
   <div class="view-head"><h1>포인트 상점</h1><p>포인트로 아이템을 구매해 캐릭터에 착용하거나 능력치를 얻어보세요</p></div>
   ${renderMissionShop()}`;
-}
-function renderBoardMenu(){
-  return `
-  <div class="view-head"><h1>자랑 게시판</h1><p>이웃들과 오늘의 운동을 공유해보세요</p></div>
-  ${renderBoard()}`;
 }
 function setSub(key,idx){state.subtabs[key]=idx; render();}
 
@@ -2608,13 +2634,11 @@ function setCrewMapCity(v){ state.crew.mapCity=v; state.crew.mapGu=null; render(
 function setCrewMapGu(v){ state.crew.mapGu=v; render(); }
 
 /* ========================================================================
-   4. 랭킹·게시판
+   4. 랭킹
    ======================================================================== */
 // (FR-RK-001~002) 지금은 getRegionRanking()/getDongCrewRanking()처럼 화면에서 정렬만 흉내내고
 // 있지만, 실제로는 순위를 매기는 연산 자체를 DB에 맡기는 편이 안전합니다.
 //   랭킹 조회(지역/종목/크루) > Java 랭킹 API > DB 연결 > SQL SELECT ... ORDER BY 점수 DESC (필요 시 캐싱)
-// (FR-BD-001) 게시판(renderBoard, openPost, likePost)은 별도로 아래 파이프라인이 필요합니다.
-//   글쓰기/좋아요/신고 > Java 게시판 API > DB 연결 > SQL INSERT/UPDATE(게시글, 좋아요, 신고 테이블)
 const RANK_TABS=['지역별 랭킹','운동 종목별 랭킹','크루 랭킹'];
 function renderRanking(){
   const i=state.subtabs.ranking;
@@ -2817,40 +2841,6 @@ function renderHistory(){
       </div>`).join('')}
   </div>`;
 }
-function renderBoard(){
-  return `
-  <div class="flex-between" style="margin-bottom:14px;">
-    <p class="section-label" style="margin:0;">이웃들의 운동 자랑</p>
-    <button class="btn btn-primary btn-sm" onclick="openPost()">글쓰기</button>
-  </div>
-  <div class="grid grid-2" id="board-feed">
-    ${state.board.map((p,idx)=>renderBoardCard(p,idx)).join('')}
-  </div>`;
-}
-function renderBoardCard(p,idx){
-  return `
-  <div class="card feed-card">
-    <div class="feed-head">
-      <div class="user-avatar" style="width:34px;height:34px;font-size:13px;background:${avatarColor(idx)}">${avatarInitial(p.who)}</div>
-      <div><b style="font-size:13px;">${p.who}</b><div class="desc" style="margin:0;">${p.ex}</div></div>
-    </div>
-    <div class="feed-media">운동 인증 사진</div>
-    <p class="desc" style="margin:0;">${p.text}</p>
-    <div class="feed-actions">
-      <button onclick="likePost(${idx})">♥ <span class="mono">${p.likes}</span></button>
-      <button>💬 <span class="mono">${p.cmts}</span></button>
-      <button onclick="toast('신고가 접수되었습니다')" style="margin-left:auto;color:var(--ink-faint);">신고</button>
-    </div>
-  </div>`;
-}
-function likePost(idx){state.board[idx].likes++; render();}
-function openPost(){
-  askConfirm('운동 인증 글쓰기','오늘의 운동 히스토리를 자랑 게시판에 공유할까요?',()=>{
-    state.board.unshift({who:state.user.nickname||'홈트초보', ex:state.history[0]?state.history[0].ex+' 인증':'홈트 인증', text:'오늘도 완료! 다들 화이팅입니다.', likes:0, cmts:0});
-    closeConfirm();
-    toast('게시글이 등록되었습니다');
-  },'게시하기');
-}
 /* ========================================================================
    고객센터 · 불편사항접수
    ======================================================================== */
@@ -3005,7 +2995,7 @@ function renderSetCamera(){
 function renderSetPrivacy(){
   return `
   <div class="card" style="max-width:520px;">
-    <div class="toggle-row"><div><div class="t-label">프로필 공개 범위</div><div class="t-desc">랭킹·게시판에서 프로필 노출 대상</div></div>
+    <div class="toggle-row"><div><div class="t-label">프로필 공개 범위</div><div class="t-desc">랭킹에서 프로필 노출 대상</div></div>
       <select><option>전체공개</option><option>크루공개</option><option>비공개</option></select></div>
     <div class="toggle-row"><div><div class="t-label">운동 기록 공개 범위</div><div class="t-desc">운동 히스토리 노출 대상</div></div>
       <select><option>전체공개</option><option selected>크루공개</option><option>비공개</option></select></div>
@@ -3076,7 +3066,7 @@ render();
      - 제안 기술스택: Java 17+ / Spring Boot(Spring MVC) REST API, Spring Security(인증/JWT)
      - 코드 안에 "// [백엔드 연동 필요 구간]"이라고 표시된 곳들이 전부 여기에 해당합니다.
        (회원가입/로그인/소셜로그인, 캘리브레이션 저장, 운동기록 저장, 미션 보상 지급,
-        상점 구매, 크루 생성/가입/공지/가입승인/강퇴, 랭킹 조회, 게시판, 고객센터, 계정설정 등)
+        상점 구매, 크루 생성/가입/공지/가입승인/강퇴, 랭킹 조회, 고객센터, 계정설정 등)
      - 실시간(WebSocket) 서버는 필요 없습니다 — 크루 채팅 기능은 삭제되었고 나머지 기능은
        모두 REST(요청-응답)로 충분합니다.
 
