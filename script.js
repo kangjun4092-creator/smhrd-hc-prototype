@@ -16,15 +16,33 @@ const EXS = [
   {id:'squat', name:'스쿼트', target:'하체 · 둔근', level:'초급'},
 ];
 
-const MISSION_POOL = [
-  {name:'스쿼트 30회 달성', ex:'스쿼트', reward:80},
-  {name:'정확도 90% 이상 1세트', ex:'전체', reward:120},
-  {name:'런지 3세트 완료', ex:'런지', reward:90},
-  {name:'MISS 0회로 세트 마감', ex:'전체', reward:150},
-  {name:'플랭크 2분 버티기', ex:'플랭크', reward:70},
-  {name:'버피 15회 달성', ex:'버피', reward:100},
-  {name:'홈크루 팀미션 참여', ex:'크루', reward:60},
+// 스쿼트만 등록된 상태라 미션도 스쿼트 지표로만 구성한다. metric은 saveExerciseResult()에서
+// 세션이 끝날 때마다 누적되는 공용 카운터(state.missions.counters)를 가리키고, 일간/주간/월간
+// 미션이 전부 이 같은 카운터를 공유해서 스쿼트 한 번으로 세 기간 미션이 동시에 올라간다
+// (기간별로 카운터가 따로 리셋되는 실제 날짜 배치는 없는 프론트 목업이라, "겹쳐서 카운트"되는
+// 쪽이 오히려 지금 요구사항과 맞다).
+const SQUAT_MISSION_TEMPLATES = [
+  {metric:'reps', label:t=>`스쿼트 ${t}회 달성`, ranges:{daily:[15,30], weekly:[60,140], monthly:[200,450]}, rewardPerUnit:2.5},
+  {metric:'perfect', label:t=>`스쿼트 퍼펙트 ${t}개 만들기`, ranges:{daily:[3,8], weekly:[15,40], monthly:[60,150]}, rewardPerUnit:4},
+  {metric:'sessions', label:t=>`스쿼트 세트 ${t}회 완료`, ranges:{daily:[1,2], weekly:[3,6], monthly:[10,20]}, rewardPerUnit:35},
+  {metric:'missFreeSession', label:t=>`MISS 0회 세트 ${t}회 달성`, ranges:{daily:[1,1], weekly:[2,3], monthly:[5,10]}, rewardPerUnit:45},
+  {metric:'accSession', label:t=>`정확도 90% 이상 세트 ${t}회`, ranges:{daily:[1,2], weekly:[3,5], monthly:[8,15]}, rewardPerUnit:38},
 ];
+function randInt(a,b){ return a+Math.floor(Math.random()*(b-a+1)); }
+// 후보 템플릿 중 무작위로 count개를 뽑아 기간에 맞는 목표치를 굴려서 미션 인스턴스를 만든다.
+// 템플릿(5개)보다 뽑아야 할 개수(주간 7개·월간 15개)가 많을 수 있어 중복 템플릿 허용(목표치는
+// 매번 다시 굴리므로 완전히 같은 미션이 되진 않는다).
+function generateSquatMissions(period, count){
+  const list=[];
+  for(let i=0;i<count;i++){
+    const tpl=SQUAT_MISSION_TEMPLATES[Math.floor(Math.random()*SQUAT_MISSION_TEMPLATES.length)];
+    const [lo,hi]=tpl.ranges[period];
+    const target=randInt(lo,hi);
+    const reward=Math.round(target*tpl.rewardPerUnit/10)*10;
+    list.push({id:`${period}-${i}-${tpl.metric}`, period, metric:tpl.metric, target, label:tpl.label(target), reward});
+  }
+  return list;
+}
 
 // 아이디·닉네임·크루명 중복확인용 목업 데이터. 실제로는 DB 조회(SQL SELECT ... WHERE)로 대체된다.
 const EXISTING_USERS = [
@@ -44,10 +62,16 @@ const state = {
   subtabs: {mission:0, profile:0, crew:0, ranking:0},
   exercise: {step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0, liveReps:[]},
   missions: {
-    candidates: MISSION_POOL.slice(0,5),
-    picked: {daily:['스쿼트 30회 달성','정확도 90% 이상 1세트'], weekly:['MISS 0회로 세트 마감'], monthly:['홈크루 팀미션 참여']},
     period:'daily',
-    progress: {'스쿼트 30회 달성':70,'정확도 90% 이상 1세트':40,'MISS 0회로 세트 마감':20,'홈크루 팀미션 참여':55},
+    list: {
+      daily: generateSquatMissions('daily',3),
+      weekly: generateSquatMissions('weekly',7),
+      monthly: generateSquatMissions('monthly',15),
+    },
+    // 일간/주간/월간 미션이 공유하는 누적 카운터. saveExerciseResult()에서 스쿼트 세션이
+    // 저장될 때마다 갱신된다.
+    counters: {reps:0, perfect:0, sessions:0, missFreeSession:0, accSession:0},
+    claimed: {}, // {missionId: true} — 보상 중복 수령 방지
   },
   shopItems: [
     {name:'다시찍기 티켓', price:80, owned:false, consumable:true, effect:'재촬영 1회 추가', effectDesc:'세션당 무료 재촬영 2회를 모두 쓴 뒤, 추가로 다시 촬영할 때 1장씩 소모됩니다. 결과를 확인하며 반복 재촬영으로 정확도를 올리는 것을 막기 위한 아이템이에요.'},
@@ -172,13 +196,11 @@ function render(){
     setTimeout(calSetupEditCanvas,0);
   }
 
-  if(state.screen==='app' && state.menu==='exercise' && state.exercise.step===1){
-    // 버튼을 눌러야 시작하던 스트레칭 타이머를, 화면에 들어오자마자 자동으로 재생한다.
-    // (추후 실제 스트레칭 안내 영상으로 교체될 자리 — 지금은 진행바로 대신 표현)
-    setTimeout(runStretch,0);
-  }
   if(state.screen==='app' && state.menu==='exercise' && state.exercise.step===2){
     setTimeout(setupCamera,0);
+  }
+  if(state.screen==='app' && state.menu==='exercise' && state.exercise.step===3){
+    setTimeout(setupReplayComparison,0);
   }
   if(state.screen==='app' && state.menu==='profile' && state.subtabs.profile===0){
     setTimeout(drawAvatarCanvas,0);
@@ -502,11 +524,15 @@ function calUpdateBmiLabel(){
   lbl.textContent = `BMI ${bmi.toFixed(1)} · ${calBmiCategory(bmi)} 기준으로 실루엣을 보정했어요.`;
 }
 // BMI가 높을수록 실루엣 폭을 넓게, 키가 클수록 하체 비중을 늘려 힙 위치를 살짝 올려준다.
-function calGetBodyShapeFactors(){
-  const {heightCm,bmi}=calGetBodyInfo();
+// (회원가입 캘리브레이션 화면·운동 촬영 고스트 양쪽에서 재사용하도록 DOM 의존 없이 값만 받는다.)
+function bodyShapeFactorsFromBmi(bmi, heightCm){
   const widthFactor = bmi ? calClamp(0.85 + (bmi-21)*0.012, 0.82, 1.25) : 1;
   const legShift = heightCm ? calClamp((heightCm-165)*0.0006, -0.03, 0.03) : 0;
   return { widthFactor, legShift };
+}
+function calGetBodyShapeFactors(){
+  const {heightCm,bmi}=calGetBodyInfo();
+  return bodyShapeFactorsFromBmi(bmi, heightCm);
 }
 
 async function loadMediaPipe(){
@@ -581,13 +607,16 @@ function calEvaluate(landmarks){
   return { bodyOk, distOk, centerOk, all: bodyOk&&distOk&&centerOk, bodyHeightRatio };
 }
 
+// 키·몸무게(BMI) 입력값에 맞춰 크기·비율을 잡은 뒤, 얇은 점선 뼈대가 아니라 두꺼운 흰색
+// 캡슐+원으로 채운 실루엣을 그린다(운동 촬영 화면의 고스트와 같은 스타일). 정렬이 되면 흰색은
+// 그대로 두고 테두리 색만 파랗게 바꿔서 "채워진 흰색"이라는 느낌은 유지한다.
 function calDrawGuideSilhouette(ctx, w, h, aligned){
   const totalH = ((CAL_DIST_MIN+CAL_DIST_MAX)/2) * h;
   const topY = 0.32*h; // 발끝이 화면 아래쪽에 거의 닿도록 실루엣 전체를 아래로 내림 (크기는 그대로, 위치만 이동)
   const cx = 0.5*w;
   const {widthFactor, legShift} = calGetBodyShapeFactors();
 
-  const headR = totalH*0.075;
+  const headR = totalH*0.085*widthFactor;
   const headCY = topY+headR;
   const shoulderY = topY+totalH*0.20;
   const hipY = topY+totalH*(0.52-legShift);
@@ -600,33 +629,25 @@ function calDrawGuideSilhouette(ctx, w, h, aligned){
   const handHalfW = totalH*0.30;
   const kneeHalfW = totalH*0.09*widthFactor;
   const footHalfW = totalH*0.11*widthFactor;
+  const limbWidth = Math.max(10, totalH*0.05*widthFactor);
 
   ctx.save();
-  ctx.globalAlpha = aligned ? 0.9 : 0.7;
-  ctx.strokeStyle = aligned ? '#6FBBEE' : 'rgba(255,255,255,0.85)';
-  ctx.setLineDash([12,8]);
-  ctx.lineWidth = Math.max(3, totalH*0.017);
+  ctx.globalAlpha = aligned ? 0.85 : 0.6;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.strokeStyle = aligned ? '#6FBBEE' : '#FFFFFF';
   ctx.lineCap='round'; ctx.lineJoin='round';
   // 사용자 옷 색·배경 밝기와 상관없이 실루엣이 잘 보이도록 어두운 그림자를 깔아 대비를 높인다.
   ctx.shadowColor = 'rgba(0,0,0,0.75)';
   ctx.shadowBlur = 7;
 
-  ctx.beginPath(); ctx.arc(cx, headCY, headR, 0, Math.PI*2); ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(cx-shoulderHalfW, shoulderY);
-  ctx.lineTo(cx-hipHalfW, hipY);
-  ctx.lineTo(cx+hipHalfW, hipY);
-  ctx.lineTo(cx+shoulderHalfW, shoulderY);
-  ctx.closePath(); ctx.stroke();
-
-  [-1,1].forEach(side=>{
+  ctx.lineWidth = limbWidth;
+  [-1,1].forEach(side=>{ // 팔: 어깨→손 곡선을 두꺼운 캡슐로
     ctx.beginPath();
     ctx.moveTo(cx+side*shoulderHalfW, shoulderY);
     ctx.quadraticCurveTo(cx+side*handHalfW*0.9, (shoulderY+handY)/2, cx+side*handHalfW, handY);
     ctx.stroke();
   });
-  [-1,1].forEach(side=>{
+  [-1,1].forEach(side=>{ // 다리: 엉덩이→무릎→발
     ctx.beginPath();
     ctx.moveTo(cx+side*hipHalfW*0.7, hipY);
     ctx.lineTo(cx+side*kneeHalfW, kneeY);
@@ -634,9 +655,26 @@ function calDrawGuideSilhouette(ctx, w, h, aligned){
     ctx.stroke();
   });
 
-  ctx.setLineDash([]);
+  ctx.beginPath(); // 몸통: 채운 사각형
+  ctx.moveTo(cx-shoulderHalfW, shoulderY);
+  ctx.lineTo(cx-hipHalfW, hipY);
+  ctx.lineTo(cx+hipHalfW, hipY);
+  ctx.lineTo(cx+shoulderHalfW, shoulderY);
+  ctx.closePath(); ctx.fill();
+
+  const jointR = limbWidth*0.5; // 관절 이음매를 원으로 채워 캡슐 연결부를 매끄럽게
+  [[cx-shoulderHalfW,shoulderY],[cx+shoulderHalfW,shoulderY],
+   [cx-hipHalfW*0.7,hipY],[cx+hipHalfW*0.7,hipY],
+   [cx-kneeHalfW,kneeY],[cx+kneeHalfW,kneeY],
+   [cx-footHalfW,footY],[cx+footHalfW,footY],
+   [cx-handHalfW,handY],[cx+handHalfW,handY]].forEach(([x,y])=>{
+    ctx.beginPath(); ctx.arc(x,y,jointR,0,Math.PI*2); ctx.fill();
+  });
+
+  ctx.beginPath(); ctx.arc(cx, headCY, headR, 0, Math.PI*2); ctx.fill(); // 머리
+
   ctx.globalAlpha=1;
-  ctx.fillStyle = aligned ? '#6FBBEE' : 'rgba(255,255,255,0.75)';
+  ctx.fillStyle = aligned ? '#6FBBEE' : '#FFFFFF';
   ctx.font = `700 ${Math.max(12, w*0.018)}px 'Pretendard', 'Malgun Gothic', sans-serif`;
   ctx.textAlign='center';
   // 캔버스가 CSS로 좌우 반전(셀카뷰)되어 있어 텍스트만 한 번 더 반전시켜 상쇄한다.
@@ -1161,7 +1199,7 @@ function goto(screen){state.screen=screen; render();}
 // 아래처럼 서버 연동이 필요합니다.
 //   촬영 결과 저장(saveExerciseResult) > Java 운동기록 API > DB 연결 > SQL INSERT/UPDATE
 //   (운동 기록 테이블 INSERT, 포인트·경험치는 계정 테이블 UPDATE — 트랜잭션 처리 권장)
-const EX_STEPS=['종목 선택','튜토리얼·스트레칭','웹캠 촬영','리플레이 분석','결과 저장'];
+const EX_STEPS=['종목 선택','튜토리얼','웹캠 촬영','리플레이 분석','결과 저장'];
 // 스쿼트 실시간 판정 기준. tools/extract-exercise-reference.html(종목별 캡처 이미지로
 // 관절 각도를 뽑는 공용 도구, 스쿼트 항목)로 분석해서 나온 값으로 교체한다
 // (지금은 일반적인 스쿼트 각도로 잡은 임시값).
@@ -1172,7 +1210,13 @@ const SQUAT_REFERENCE = {
   perfectTol: 6, greatTol: 12, goodTol: 20,
 };
 const EXERCISE_REP_TARGET = 10; // 실시간 판정이 지원되는 운동(스쿼트)의 세션당 반복 횟수 제한
-const CAM_READY_SECONDS = 10; // "촬영 시작" 클릭 후 실제 판정이 시작되기 전, 스켈레톤에 맞춰 설 준비 시간
+const CAM_FINAL_COUNTDOWN_SECONDS = 5; // 정렬이 완료된 뒤 실제 촬영 시작까지의 음성 카운트다운
+const CAM_ALIGN_HOLD_MS = 700; // 정렬 조건이 이 시간 이상 계속 유지돼야 카운트다운 시작(흔들림 방지)
+const CAM_GUIDE_SPEAK_INTERVAL_MS = 2500; // 같은 안내 음성이 너무 자주 반복되지 않도록 하는 간격
+// 허리(상체) 각도 기준값. 튜토리얼 영상에서 별도로 뽑은 값이 아니라, 일반적인 스쿼트 안전
+// 자세 기준으로 잡은 값이라 나중에 tools/extract-exercise-reference.html처럼 실측 보정 가능.
+const TORSO_STANDING_MIN_ANGLE = 130; // 정렬(서있는) 단계에서 허리가 곧게 펴져 있다고 볼 최소 각도(완화됨)
+const TORSO_LEAN_WARN_DEG = 60; // 렙 진행 중 "서 있을 때 허리 각도" 대비 이만큼 이상 더 숙여지면 위험으로 판단(완화됨)
 function exerciseStepHead(){
   return `
   <div class="view-head">
@@ -1241,45 +1285,43 @@ function renderExStepTutorial(){
         <li><span class="num">4</span>동작 최저점에서 1초 정지 후 천천히 복귀합니다.</li>
       </ul>
     </div>
-    <div class="card">
-      <p class="section-label">부상 예방 스트레칭 (15초)</p>
-      <div class="progress" style="margin:12px 0;"><span id="stretch-bar" style="width:0%"></span></div>
-      <p class="desc" id="stretch-text">화면에 들어오면 자동으로 스트레칭 안내가 재생됩니다.</p>
-      <button class="btn btn-ghost btn-sm" onclick="runStretch()">다시보기</button>
-    </div>
+    ${isSquat ? renderTutorialMissionList() : ''}
   </div>
   <div style="margin-top:20px;display:flex;gap:8px;">
     <button class="btn btn-ghost" onclick="goExStep(0)">이전</button>
-    <button class="btn btn-primary" id="go-cam-btn" disabled style="opacity:.4;cursor:not-allowed;" onclick="goExStep(2)">웹캠 촬영 시작</button>
+    <button class="btn btn-primary" onclick="goExStep(2)">웹캠 촬영 시작</button>
   </div>`;
 }
-// 스트레칭 안내가 끝나기 전에는 웹캠 촬영으로 넘어가지 못하도록, 재생이 100%에 도달할 때만
-// 버튼을 활성화한다. (다시보기를 누르면 다시 잠긴다.)
-function runStretch(){
-  let p=0;
-  const bar=document.getElementById('stretch-bar');
-  const text=document.getElementById('stretch-text');
-  const goBtn=document.getElementById('go-cam-btn');
-  if(goBtn){ goBtn.disabled=true; goBtn.style.opacity='.4'; goBtn.style.cursor='not-allowed'; }
-  clearInterval(runStretch._id);
-  runStretch._id=setInterval(()=>{
-    p+=100/15;
-    if(bar) bar.style.width=Math.min(p,100)+'%';
-    if(p>=100){
-      clearInterval(runStretch._id);
-      if(text) text.textContent='스트레칭 완료! 부상 위험이 낮아졌습니다.';
-      const btn=document.getElementById('go-cam-btn');
-      if(btn){ btn.disabled=false; btn.style.opacity='1'; btn.style.cursor='pointer'; }
-    }
-  },1000);
+// 튜토리얼 화면에서 정자세 가이드 옆에, 지금 진행 중인 스쿼트 미션들과 각각의 진행 개수를
+// 같이 보여준다 — 튜토리얼을 보다가 바로 "아, 이만큼 더 하면 되는구나"를 알 수 있게.
+function renderTutorialMissionList(){
+  const missions=allMissions();
+  return `
+  <div class="card">
+    <p class="section-label">진행 중인 스쿼트 미션</p>
+    <div style="display:flex;flex-direction:column;gap:8px;max-height:460px;overflow-y:auto;">
+      ${missions.map(m=>{
+        const cur=Math.min(state.missions.counters[m.metric]||0, m.target);
+        const done=cur>=m.target;
+        return `
+        <div style="border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;">
+          <div class="flex-between">
+            <span class="pill pill-muted" style="font-size:10px;">${MISSION_PERIOD_LABEL[m.period]}</span>
+            <span class="mono" style="font-size:12px;color:${done?'var(--accent)':'var(--ink-dim)'};">${cur}/${m.target}</span>
+          </div>
+          <p style="margin:6px 0 0;font-size:12.5px;">${m.label}</p>
+          <div class="progress" style="margin-top:6px;height:6px;"><span style="width:${Math.min(100,cur/m.target*100)}%"></span></div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
 }
-
 function renderExStepCam(){
   const isSquat = state.exercise.picked==='squat';
   return `
   <div class="grid cal-grid">
     <div>
-      <div class="cam-stage" id="cam-stage" style="max-height:70vh;">
+      <div class="cam-stage" id="cam-stage" style="max-height:85vh;">
         <div class="cam-placeholder" id="cam-placeholder">카메라를 확인하는 중...<br>브라우저의 카메라 권한을 허용해주세요.</div>
         <video id="cam-video" autoplay playsinline muted style="display:none;"></video>
         <canvas class="cam-overlay-canvas" id="cam-canvas"></canvas>
@@ -1287,8 +1329,8 @@ function renderExStepCam(){
         <div class="cam-timer mono" id="cam-timer">00:00</div>
         <div id="cam-grade-flash" class="cam-grade-flash"></div>
         <div id="cam-ready-overlay" class="cam-ready-overlay">
-          <div class="count" id="cam-ready-count">${CAM_READY_SECONDS}</div>
-          <div class="msg">화면 속 스켈레톤에 맞춰 자리를 잡아주세요<br>카메라 거리·각도를 맞출 시간이에요</div>
+          <div class="count" id="cam-ready-count"></div>
+          <div class="msg" id="cam-ready-msg">화면 속 스켈레톤에 맞춰 자리를 잡아주세요</div>
         </div>
       </div>
       <div style="margin-top:14px;display:flex;gap:8px;">
@@ -1302,8 +1344,9 @@ function renderExStepCam(){
         <li><span class="num">·</span>전신이 프레임에 들어오도록 카메라와 2~3m 거리를 둡니다.</li>
         ${isSquat
           ? `<li><span class="num">·</span><strong>카메라는 12시 방향에 두고, 다리 방향은 2시 방향을 향하도록 살짝 틀어 서주세요.</strong> (각도 판정 정확도를 위해 정면보다는 대각선 자세가 필요해요)</li>
-             <li><span class="num">·</span>"촬영 시작"을 누르면 바로 측정되지 않고, ${CAM_READY_SECONDS}초 동안 자리를 잡을 시간을 드려요.</li>
+             <li><span class="num">·</span>"촬영 시작"을 누르면 바로 측정되지 않고, 거리·방향·자세를 맞추라는 음성 안내가 나와요. 다 맞으면 자동으로 ${CAM_FINAL_COUNTDOWN_SECONDS}초 카운트다운 후 측정이 시작됩니다.</li>
              <li><span class="num">·</span>내 체형 캘리브레이션 실루엣이 화면에 고스트로 표시됩니다.</li>
+             <li><span class="num">·</span>무릎 각도뿐 아니라 <strong>허리(상체) 각도</strong>도 함께 판정해 부상 위험이 있으면 알려드려요.</li>
              <li><span class="num">·</span>동작마다 PERFECT/GREAT/GOOD/MISS가 실시간으로 표시됩니다.</li>
              <li><span class="num">·</span>${EXERCISE_REP_TARGET}회를 채우면 자동으로 촬영이 종료됩니다.</li>`
           : `<li><span class="num">·</span>YOLO-Pose가 관절 keypoint를 실시간 추적합니다.</li>
@@ -1392,47 +1435,143 @@ let exRAF=null;
 let exLastVideoTime=-1;
 let exRepPhase='up';       // 'up'(서있음) | 'down'(스쿼트 진행중) 2단계 히스테리시스 상태머신
 let exMinAngleThisRep=null;
+let exTorsoStandingAngle=null; // 이번 렙이 'up'이었을 때 마지막으로 측정된 허리(상체) 각도 — 사람마다 다른 기준 자세를 보정하기 위한 개인 기준선
+let exMinTorsoAngleThisRep=null; // 이번 렙 동안 허리가 가장 많이 숙여졌을 때의 각도
 let exMediaRecorder=null;
 let exRecordedChunks=[];
+// 정렬(ready) 단계 상태
+let exAlignedSince=null;      // 모든 정렬 조건을 처음으로 만족한 시각(performance.now())
+let exLastGuideSpeakTs=0;     // 마지막으로 안내 음성을 말한 시각(반복 스팸 방지)
+let exFinalCountdownActive=false;
 
+function exAngleAt(a,b,c){
+  const v1x=a.x-b.x, v1y=a.y-b.y, v2x=c.x-b.x, v2y=c.y-b.y;
+  const m1=Math.hypot(v1x,v1y), m2=Math.hypot(v2x,v2y);
+  if(!m1||!m2) return null;
+  let cos=(v1x*v2x+v1y*v2y)/(m1*m2);
+  cos=Math.max(-1,Math.min(1,cos));
+  return Math.acos(cos)*180/Math.PI;
+}
 function exKneeAngle(landmarks){
   const idx=CAL_KEYPOINT_IDX;
   const need=[idx.lhip,idx.rhip,idx.lknee,idx.rknee,idx.lank,idx.rank];
   if(need.some(i=>!landmarks[i] || (landmarks[i].visibility??1)<CAL_VIS_THRESHOLD)) return null;
-  const angleAt=(a,b,c)=>{
-    const v1x=a.x-b.x, v1y=a.y-b.y, v2x=c.x-b.x, v2y=c.y-b.y;
-    const m1=Math.hypot(v1x,v1y), m2=Math.hypot(v2x,v2y);
-    if(!m1||!m2) return null;
-    let cos=(v1x*v2x+v1y*v2y)/(m1*m2);
-    cos=Math.max(-1,Math.min(1,cos));
-    return Math.acos(cos)*180/Math.PI;
-  };
-  const l=angleAt(landmarks[idx.lhip],landmarks[idx.lknee],landmarks[idx.lank]);
-  const r=angleAt(landmarks[idx.rhip],landmarks[idx.rknee],landmarks[idx.rank]);
+  const l=exAngleAt(landmarks[idx.lhip],landmarks[idx.lknee],landmarks[idx.lank]);
+  const r=exAngleAt(landmarks[idx.rhip],landmarks[idx.rknee],landmarks[idx.rank]);
   if(l==null && r==null) return null;
   if(l==null) return r;
   if(r==null) return l;
   return (l+r)/2;
 }
-// 저장된 내 체형 캘리브레이션 실루엣을 캠 화면 위에 반투명 고스트로 고정 오버레이한다
-// (calEditRender의 좌표·본 연결 방식을 재사용, 실시간으로 움직이지 않는 정지 가이드).
+// 허리(상체) 각도: 어깨-엉덩이-무릎 사이 각도로, 상체가 얼마나 앞으로 숙여졌는지의 근사치.
+// 척추 굴곡 자체를 재는 건 아니지만(landmark가 어깨·엉덩이·무릎뿐이라), 렙 시작 시점(서있는
+// 자세) 각도를 개인 기준선으로 잡고 거기서 얼마나 더 숙여졌는지를 보는 상대적 방식이라
+// 사람마다 다른 체형·가동범위 차이는 어느 정도 상쇄된다.
+function exTorsoAngle(landmarks){
+  const idx=CAL_KEYPOINT_IDX;
+  const need=[idx.lsh,idx.rsh,idx.lhip,idx.rhip,idx.lknee,idx.rknee];
+  if(need.some(i=>!landmarks[i] || (landmarks[i].visibility??1)<CAL_VIS_THRESHOLD)) return null;
+  const l=exAngleAt(landmarks[idx.lsh],landmarks[idx.lhip],landmarks[idx.lknee]);
+  const r=exAngleAt(landmarks[idx.rsh],landmarks[idx.rhip],landmarks[idx.rknee]);
+  if(l==null && r==null) return null;
+  if(l==null) return r;
+  if(r==null) return l;
+  return (l+r)/2;
+}
+// 저장된 내 체형 캘리브레이션 실루엣을 캠 화면 위에 고정 오버레이해서 자리 잡을 때 맞춰 서는
+// 기준으로 쓴다. 얇은 뼈대선(해골 모양)이라 잘 안 보인다는 피드백에 흰색 캡슐+원으로 채운
+// 실루엣으로 바꿨었는데, 두께가 실제 체형보다 두꺼워 "뚱뚱해 보인다"는 피드백이 다시 있어
+// 두께 배율을 슬림하게 낮추고, 회원가입 때 입력한 키·몸무게(BMI)로 두께를 보정한다.
 function exDrawCalibrationGhost(ctx,w,h){
   const profile=state.user.calibration;
   if(!profile || !profile.landmarks) return;
   const pts=profile.landmarks;
+  const shoulderPx = pts.lsh&&pts.rsh ? Math.hypot((pts.lsh.x-pts.rsh.x)*w,(pts.lsh.y-pts.rsh.y)*h) : Math.min(w,h)*0.22;
+  const bi=profile.bodyInfo||{};
+  const {widthFactor} = bodyShapeFactorsFromBmi(bi.bmi, bi.heightCm);
+  const limbWidth = Math.max(10, shoulderPx*0.16*widthFactor);
+  const headR = Math.max(14, shoulderPx*0.28*widthFactor);
+
   ctx.save();
-  ctx.globalAlpha=0.35;
-  ctx.strokeStyle='#F0B93A'; ctx.lineWidth=3;
-  CAL_EDIT_BONES.forEach(([a,b])=>{
+  ctx.globalAlpha=0.55;
+  ctx.fillStyle='#FFFFFF';
+  ctx.strokeStyle='#FFFFFF';
+  ctx.lineCap='round'; ctx.lineJoin='round';
+
+  // 팔다리: 두꺼운 선(캡슐)으로 채워서 뭉실하게
+  const limbBones=[['lsh','lelbow'],['lelbow','lwrist'],['rsh','relbow'],['relbow','rwrist'],
+                    ['lhip','lknee'],['lknee','lank'],['rhip','rknee'],['rknee','rank']];
+  ctx.lineWidth=limbWidth;
+  limbBones.forEach(([a,b])=>{
     if(!pts[a]||!pts[b]) return;
     ctx.beginPath(); ctx.moveTo(pts[a].x*w, pts[a].y*h); ctx.lineTo(pts[b].x*w, pts[b].y*h); ctx.stroke();
   });
-  ctx.fillStyle='#F0B93A';
-  Object.values(pts).forEach(p=>{ ctx.beginPath(); ctx.arc(p.x*w, p.y*h, 5, 0, Math.PI*2); ctx.fill(); });
+
+  // 몸통: 어깨-엉덩이 사각형을 채움
+  if(pts.lsh&&pts.rsh&&pts.lhip&&pts.rhip){
+    ctx.beginPath();
+    ctx.moveTo(pts.lsh.x*w, pts.lsh.y*h);
+    ctx.lineTo(pts.rsh.x*w, pts.rsh.y*h);
+    ctx.lineTo(pts.rhip.x*w, pts.rhip.y*h);
+    ctx.lineTo(pts.lhip.x*w, pts.lhip.y*h);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // 관절 부위를 원으로 채워 이음매를 매끄럽게 이어붙인다
+  const jointR = limbWidth*0.5;
+  ['lsh','rsh','lelbow','relbow','lwrist','rwrist','lhip','rhip','lknee','rknee','lank','rank'].forEach(key=>{
+    const p=pts[key]; if(!p) return;
+    ctx.beginPath(); ctx.arc(p.x*w, p.y*h, jointR, 0, Math.PI*2); ctx.fill();
+  });
+
+  // 머리: 눈사람 윗덩이처럼 큰 원 하나
+  if(pts.nose){
+    ctx.beginPath(); ctx.arc(pts.nose.x*w, pts.nose.y*h, headR, 0, Math.PI*2); ctx.fill();
+  }
+
   ctx.restore();
 }
+// 촬영 시작 직후 'ready' 단계에서 매 프레임 호출: 튜토리얼 촬영 각도(카메라 12시, 몸 2시 방향)와
+// 비슷한 조건으로 설 때까지 사람이 뭘 고쳐야 하는지 하나씩 안내한다. 우선순위대로 검사해서
+// 가장 먼저 걸리는 문제 하나만 반환 — 한 번에 여러 지적을 쏟아내면 오히려 헷갈리기 때문.
+function exCheckAlignment(landmarks){
+  const idx=CAL_KEYPOINT_IDX;
+  const need=[idx.nose,idx.lsh,idx.rsh,idx.lhip,idx.rhip,idx.lknee,idx.rknee,idx.lank,idx.rank];
+  if(need.some(i=>!landmarks[i] || (landmarks[i].visibility??1)<CAL_VIS_THRESHOLD)){
+    return {ok:false, msg:'화면에 머리부터 발끝까지 전신이 다 나오게 서주세요'};
+  }
+  const topY=landmarks[idx.nose].y;
+  const botY=(landmarks[idx.lank].y+landmarks[idx.rank].y)/2;
+  const bodyHeightRatio=botY-topY;
+  if(bodyHeightRatio>CAL_DIST_MAX) return {ok:false, msg:'카메라에서 한 걸음 뒤로 물러나주세요'};
+  if(bodyHeightRatio<CAL_DIST_MIN) return {ok:false, msg:'카메라 쪽으로 조금 더 다가와주세요'};
+
+  const hipCenterX=(landmarks[idx.lhip].x+landmarks[idx.rhip].x)/2;
+  if(Math.abs(hipCenterX-0.5)>CAL_CENTER_TOL) return {ok:false, msg:'화면 중앙으로 자리를 옮겨주세요'};
+
+  // (2시 방향 회전 자동 체크는 뺐다 — 어깨너비 축소 비율만으로는 "왼쪽으로 돌았는지 오른쪽으로
+  // 돌았는지"를 구분할 수 없어서, 반대 방향으로 서도 통과되는 문제가 있었다. 방향은 위쪽 안내
+  // 문구로만 알려주고, 자동 판정은 거리·중앙·다리너비·허리자세만 본다.)
+  const shoulderW=Math.hypot(landmarks[idx.lsh].x-landmarks[idx.rsh].x, landmarks[idx.lsh].y-landmarks[idx.rsh].y);
+  const ankleDist=Math.hypot(landmarks[idx.lank].x-landmarks[idx.rank].x, landmarks[idx.lank].y-landmarks[idx.rank].y);
+  if(ankleDist < shoulderW*0.7) return {ok:false, msg:'다리를 어깨너비로 벌려주세요'};
+
+  const torsoAngle=exTorsoAngle(landmarks);
+  if(torsoAngle!=null && torsoAngle<TORSO_STANDING_MIN_ANGLE) return {ok:false, msg:'허리를 곧게 펴고 서주세요'};
+
+  return {ok:true, msg:'좋아요! 이 자세를 유지해주세요', torsoAngle};
+}
 const GRADE_VOICE_LINES = { PERFECT:'퍼펙트!', GREAT:'그레이트!', GOOD:'굿!' };
-function exGradeRep(bottomAngle){
+// 무릎 각도(깊이)와 허리(상체) 각도를 함께 본다. 허리가 기준보다 많이 숙여졌으면(부상 위험)
+// 무릎 각도가 아무리 좋아도 안전을 우선해 MISS로 처리하고 교정 멘트를 준다.
+function exGradeRep(bottomAngle, torsoDrop){
+  if(torsoDrop!=null && torsoDrop>TORSO_LEAN_WARN_DEG){
+    return {
+      grade:'MISS', angle:Math.round(bottomAngle),
+      reason:`허리가 서있을 때보다 ${Math.round(torsoDrop)}° 더 숙여짐(부상 위험, ${TORSO_LEAN_WARN_DEG}° 이내로 유지 필요)`,
+      failedJoint:'torso', voice:'허리가 너무 숙여졌어요, 가슴을 펴주세요',
+    };
+  }
   const ref=SQUAT_REFERENCE;
   const diff=Math.abs(bottomAngle-ref.bottomKneeAngle);
   const angle=Math.round(bottomAngle);
@@ -1466,8 +1605,9 @@ function exFlashGrade(grade){
 }
 // 한 렙(스쿼트 1회)이 끝났을 때: 판정하고 실시간 통계·플래시를 갱신한 뒤, 목표 횟수에
 // 도달하면 촬영을 자동 종료한다.
-function exRegisterRep(bottomAngle){
-  const result=exGradeRep(bottomAngle);
+function exRegisterRep(bottomAngle, torsoDrop){
+  const result=exGradeRep(bottomAngle, torsoDrop);
+  result.atSeconds=state.exercise.seconds; // 리플레이 화면에서 이 렙 순간의 촬영 영상 프레임을 다시 찾기 위한 타임스탬프
   state.exercise.liveReps.push(result);
   const rEl=document.getElementById('live-reps'); if(rEl) rEl.textContent=`${state.exercise.liveReps.length} / ${EXERCISE_REP_TARGET}`;
   const weight={PERFECT:100,GREAT:85,GOOD:70,MISS:0};
@@ -1496,6 +1636,7 @@ async function exStartPoseLoop(){
     });
   }
   exRepPhase='up'; exMinAngleThisRep=null; exLastVideoTime=-1;
+  exTorsoStandingAngle=null; exMinTorsoAngleThisRep=null;
   const ctx=canvas.getContext('2d');
   function loop(){
     if(!document.getElementById('cam-canvas')) return; // 화면 이동 시 자연 종료
@@ -1504,7 +1645,9 @@ async function exStartPoseLoop(){
     exLastVideoTime=video.currentTime;
     const res=exPoseLandmarker.detectForVideo(video, performance.now());
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    exDrawCalibrationGhost(ctx, canvas.width, canvas.height);
+    // 자리 잡을 때(대기·정렬 단계)만 가이드 실루엣을 보여주고, 실제 측정이 시작되면(recording)
+    // 화면을 가리지 않도록 치운다 — 이미 자리를 맞췄으니 더 필요 없다.
+    if(state.exercise.camPhase!=='recording') exDrawCalibrationGhost(ctx, canvas.width, canvas.height);
     const landmarks=res.landmarks && res.landmarks[0];
     if(landmarks){
       ctx.strokeStyle='#6FBBEE'; ctx.lineWidth=3;
@@ -1521,16 +1664,46 @@ async function exStartPoseLoop(){
 
       if(state.exercise.camPhase==='recording'){
         const angle=exKneeAngle(landmarks);
+        const torsoAngle=exTorsoAngle(landmarks);
         if(angle!=null){
           const standing=SQUAT_REFERENCE.standingKneeAngle;
           if(exRepPhase==='up'){
-            if(angle < standing-20){ exRepPhase='down'; exMinAngleThisRep=angle; }
+            if(torsoAngle!=null) exTorsoStandingAngle=torsoAngle; // 서있는 동안 계속 갱신 → 렙 시작 직전 값이 개인 기준선이 됨
+            if(angle < standing-20){
+              exRepPhase='down';
+              exMinAngleThisRep=angle;
+              exMinTorsoAngleThisRep=torsoAngle;
+            }
           } else {
             if(angle<exMinAngleThisRep) exMinAngleThisRep=angle;
+            if(torsoAngle!=null && (exMinTorsoAngleThisRep==null || torsoAngle<exMinTorsoAngleThisRep)) exMinTorsoAngleThisRep=torsoAngle;
             if(angle > standing-10){
-              exRegisterRep(exMinAngleThisRep);
-              exRepPhase='up'; exMinAngleThisRep=null;
+              const torsoDrop = (exTorsoStandingAngle!=null && exMinTorsoAngleThisRep!=null)
+                ? exTorsoStandingAngle-exMinTorsoAngleThisRep : null;
+              exRegisterRep(exMinAngleThisRep, torsoDrop);
+              exRepPhase='up'; exMinAngleThisRep=null; exMinTorsoAngleThisRep=null;
             }
+          }
+        }
+      } else if(state.exercise.camPhase==='ready' && !exFinalCountdownActive){
+        // 카운트다운이 이미 시작된 뒤엔 다시 검사·안내하지 않는다 — 안 그러면 "5,4,3..." 발화 중간에
+        // 미세한 흔들림 때문에 교정 멘트가 끼어들어 카운트다운이 끊길 수 있다.
+        const result=exCheckAlignment(landmarks);
+        const msgEl=document.getElementById('cam-ready-msg');
+        if(result.ok){
+          if(msgEl) msgEl.textContent=result.msg;
+          if(exAlignedSince==null) exAlignedSince=performance.now();
+          if(!exFinalCountdownActive && performance.now()-exAlignedSince>=CAM_ALIGN_HOLD_MS){
+            exFinalCountdownActive=true;
+            startFinalCountdown();
+          }
+        } else {
+          exAlignedSince=null;
+          if(msgEl) msgEl.textContent=result.msg;
+          const now=performance.now();
+          if(now-exLastGuideSpeakTs>CAM_GUIDE_SPEAK_INTERVAL_MS){
+            exLastGuideSpeakTs=now;
+            speakFeedback(result.msg);
           }
         }
       }
@@ -1539,44 +1712,61 @@ async function exStartPoseLoop(){
   loop();
 }
 
-// "촬영 시작"을 눌러도 곧바로 판정하지 않고, CAM_READY_SECONDS초 동안 스켈레톤·캘리브레이션
-// 고스트를 보면서 거리·각도를 맞출 시간을 준 뒤 beginRecording()으로 넘어간다. (준비 안 된
-// 상태에서 바로 판정을 시작하면 첫 렙이 무조건 MISS로 잘못 찍히는 문제 때문에 추가)
+// "촬영 시작"을 눌러도 곧바로 판정하지 않는다. exStartPoseLoop의 'ready' 분기(exCheckAlignment)가
+// 매 프레임 거리·중앙정렬·방향(2시)·다리너비·허리자세를 확인하면서 음성으로 안내하고, 그 조건이
+// CAM_ALIGN_HOLD_MS 이상 계속 유지되면 startFinalCountdown()이 5초 음성 카운트다운을 한 뒤
+// beginRecording()으로 넘어간다. (준비 안 된 상태에서 바로 판정을 시작하면 첫 렙이 무조건
+// MISS로 잘못 찍히는 문제 때문에 추가)
 function toggleRecording(){
   const isSquat = state.exercise.picked==='squat';
   if(state.exercise.camPhase==='idle'){
-    if(isSquat) startReadyCountdown();
+    if(isSquat) startAlignmentGuide();
     else beginRecording();
     return;
   }
   if(state.exercise.camPhase!=='recording') return; // 'ready' 중엔 버튼이 비활성화돼 있어 여기 안 옴
   stopRecording();
 }
-function startReadyCountdown(){
+function startAlignmentGuide(){
   const btn=document.getElementById('cam-toggle');
   const statusEl=document.getElementById('cam-status');
   const overlay=document.getElementById('cam-ready-overlay');
   const countEl=document.getElementById('cam-ready-count');
+  const msgEl=document.getElementById('cam-ready-msg');
   state.exercise.camPhase='ready';
+  exAlignedSince=null; exLastGuideSpeakTs=0; exFinalCountdownActive=false;
   if(btn){ btn.disabled=true; btn.textContent='준비중...'; btn.style.opacity='.5'; btn.style.cursor='not-allowed'; }
   if(statusEl) statusEl.textContent='준비중';
   if(overlay) overlay.classList.add('show');
-  let left=CAM_READY_SECONDS;
-  if(countEl) countEl.textContent=left;
-  clearInterval(state.exercise.readyTimerId);
-  state.exercise.readyTimerId=setInterval(()=>{
-    if(!document.getElementById('cam-ready-overlay')){ clearInterval(state.exercise.readyTimerId); return; } // 화면 이동 시 중단
-    left--;
-    const c=document.getElementById('cam-ready-count');
-    if(c) c.textContent=left>0?left:'시작!';
-    if(left<=0){
-      clearInterval(state.exercise.readyTimerId);
-      const ov=document.getElementById('cam-ready-overlay'); if(ov) ov.classList.remove('show');
-      const b=document.getElementById('cam-toggle');
-      if(b){ b.disabled=false; b.style.opacity='1'; b.style.cursor='pointer'; }
+  if(countEl) countEl.textContent='';
+  if(msgEl) msgEl.textContent='화면 속 스켈레톤에 맞춰 자리를 잡아주세요';
+  speakFeedback('카메라 각도와 거리에 맞춰 자리를 잡아주세요');
+}
+// 정렬이 완료된 뒤 호출: "5,4,3,2,1,시작!"을 화면·음성으로 동시에 보여주고 beginRecording()으로
+// 넘어간다. 아라비아 숫자를 그대로 읽히면 TTS 엔진에 따라 발음이 흔들릴 수 있어 한글 숫자로 읽는다.
+const CAM_COUNTDOWN_WORDS = ['오','사','삼','이','일'];
+function startFinalCountdown(){
+  const msgEl=document.getElementById('cam-ready-msg');
+  if(msgEl) msgEl.textContent='자세가 완벽해요! 이대로 유지해주세요';
+  let left=CAM_FINAL_COUNTDOWN_SECONDS;
+  const tick=()=>{
+    if(!document.getElementById('cam-ready-overlay')) return; // 화면 이동 시 자연 종료
+    const countEl=document.getElementById('cam-ready-count');
+    if(left>0){
+      if(countEl) countEl.textContent=left;
+      speakFeedback(CAM_COUNTDOWN_WORDS[CAM_FINAL_COUNTDOWN_SECONDS-left] || String(left));
+      left--;
+      setTimeout(tick,1000);
+    } else {
+      if(countEl) countEl.textContent='START!';
+      speakFeedback('시작!');
+      const overlay=document.getElementById('cam-ready-overlay'); if(overlay) overlay.classList.remove('show');
+      const btn=document.getElementById('cam-toggle');
+      if(btn){ btn.disabled=false; btn.style.opacity='1'; btn.style.cursor='pointer'; }
       beginRecording();
     }
-  },1000);
+  };
+  tick();
 }
 function beginRecording(){
   const btn=document.getElementById('cam-toggle');
@@ -1586,7 +1776,7 @@ function beginRecording(){
   state.exercise.camPhase='recording';
   state.exercise.seconds=0;
   state.exercise.liveReps=[];
-  exRepPhase='up'; exMinAngleThisRep=null; // 준비 시간 동안 잘못 쌓였을 수 있는 렙 상태 초기화
+  exRepPhase='up'; exMinAngleThisRep=null; exTorsoStandingAngle=null; exMinTorsoAngleThisRep=null; // 준비 시간 동안 잘못 쌓였을 수 있는 렙 상태 초기화
   if(btn) btn.textContent='촬영 종료';
   if(statusEl) statusEl.textContent='촬영중';
   let reps=0, accBase=82;
@@ -1634,7 +1824,7 @@ function stopRecording(){
 }
 function generateResult(){
   if(state.exercise.picked==='squat' && state.exercise.liveReps.length>0){
-    const reps=state.exercise.liveReps.map((r,i)=>({idx:i+1, grade:r.grade, angle:r.angle}));
+    const reps=state.exercise.liveReps.map((r,i)=>({idx:i+1, grade:r.grade, angle:r.angle, atSeconds:r.atSeconds, failedJoint:r.failedJoint||null}));
     const missCount=reps.filter(r=>r.grade==='MISS').length;
     const total=reps.length;
     const valid=total-missCount;
@@ -1643,7 +1833,9 @@ function generateResult(){
     const score=valid*10 + acc*3;
     const dur=Math.max(state.exercise.seconds,1);
     const ex=EXS.find(e=>e.id==='squat');
-    state.exercise.result={ex:ex.name, dur, total, valid, missCount, acc, score, reps, myVideoUrl: state.exercise._pendingVideoUrl||null};
+    // 리플레이 비교에 쓸 렙 하나를 고른다: 문제가 있었던 렙(MISS)을 우선하고, 없으면 첫 렙으로.
+    const compareRep = reps.find(r=>r.grade==='MISS') || reps[0] || null;
+    state.exercise.result={ex:ex.name, dur, total, valid, missCount, acc, score, reps, compareRep, myVideoUrl: state.exercise._pendingVideoUrl||null};
     state.exercise._pendingVideoUrl=null;
     return;
   }
@@ -1667,12 +1859,119 @@ function generateResult(){
   state.exercise.result={ex:ex.name, dur, total, valid, missCount, acc, score, reps};
 }
 
+/* ---------- 리플레이 화면: 내 영상 vs 레퍼런스 정자세 스켈레톤 비교 ---------- */
+let exImageLandmarker=null; // 정지 프레임 1장씩 분석하는 용도(IMAGE 모드) — 실시간 루프의 VIDEO 모드 인스턴스와 별개
+async function loadImageLandmarker(){
+  if(exImageLandmarker) return exImageLandmarker;
+  const {PoseLandmarker, FilesetResolver} = await loadMediaPipe();
+  const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+  exImageLandmarker = await PoseLandmarker.createFromOptions(vision, {
+    baseOptions:{
+      modelAssetPath:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+      delegate:'GPU',
+    },
+    runningMode:'IMAGE', numPoses:1,
+  });
+  return exImageLandmarker;
+}
+// 판정에서 문제가 된 관절(무릎/허리) 쪽 뼈대만 빨갛게, 나머지는 기본색으로 그린다.
+const REP_HIGHLIGHT_BONES = {
+  knee: [[23,25],[25,27],[24,26],[26,28]],
+  torso: [[11,23],[12,24]],
+};
+function replayDrawSkeleton(ctx, w, h, landmarks, highlightBones){
+  const highlightSet=new Set((highlightBones||[]).map(b=>b.join('-')));
+  ctx.lineCap='round';
+  CAL_CONNECTIONS.forEach(([a,b])=>{
+    const pa=landmarks[a], pb=landmarks[b];
+    if(!pa||!pb) return;
+    const isBad=highlightSet.has(a+'-'+b)||highlightSet.has(b+'-'+a);
+    ctx.strokeStyle=isBad?'#E5645A':'#6FBBEE';
+    ctx.lineWidth=isBad?5:3;
+    ctx.beginPath(); ctx.moveTo(pa.x*w,pa.y*h); ctx.lineTo(pb.x*w,pb.y*h); ctx.stroke();
+  });
+  ctx.fillStyle='#fff';
+  landmarks.forEach(p=>{
+    if(p.visibility!==undefined && p.visibility<CAL_VIS_THRESHOLD) return;
+    ctx.beginPath(); ctx.arc(p.x*w,p.y*h,4,0,Math.PI*2); ctx.fill();
+  });
+}
+// 내 영상 쪽 실시간 추적용 인스턴스(VIDEO 모드) — exPoseLandmarker(실시간 촬영용)와는 별개 인스턴스.
+let replayMyLandmarker=null;
+let replayRAF=null;
+let replayLastVideoTime=-1;
+async function loadReplayVideoLandmarker(){
+  if(replayMyLandmarker) return replayMyLandmarker;
+  const {PoseLandmarker, FilesetResolver} = await loadMediaPipe();
+  const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+  replayMyLandmarker = await PoseLandmarker.createFromOptions(vision, {
+    baseOptions:{
+      modelAssetPath:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+      delegate:'GPU',
+    },
+    runningMode:'VIDEO', numPoses:1,
+  });
+  return replayMyLandmarker;
+}
+// 촬영이 끝나고 리플레이 화면에 들어오면: 내 촬영 영상은 재생되는 동안(또는 스크럽할 때마다)
+// 계속 스켈레톤이 프레임을 따라가도록 매 프레임 추적한다(레퍼런스 GIF 쪽은 스켈레톤 없이
+// 원본만 보여준다). 문제가 있었던 렙 시점 근처(±0.4초)에서는 걸렸던 관절(무릎/허리)만
+// 빨간 선으로 표시한다.
+async function setupReplayComparison(){
+  const r=state.exercise.result;
+  if(!r || !r.myVideoUrl) return;
+  cancelAnimationFrame(replayRAF);
+
+  const video=document.getElementById('replay-my-video');
+  const myCanvas=document.getElementById('replay-my-canvas');
+  const myStatus=document.getElementById('replay-my-status');
+  if(video && myCanvas){
+    let landmarker;
+    try{ landmarker=await loadReplayVideoLandmarker(); }catch(err){ console.error('리플레이 자세 분석 로딩 실패', err); return; }
+    if(!document.getElementById('replay-my-canvas')) return; // 로딩 중 화면 이동했을 수 있음
+    replayLastVideoTime=-1;
+    const resizeMy=()=>{ myCanvas.width=video.videoWidth||myCanvas.clientWidth; myCanvas.height=video.videoHeight||myCanvas.clientHeight; };
+    resizeMy();
+    video.addEventListener('loadedmetadata', resizeMy);
+
+    function loopMy(){
+      if(!document.getElementById('replay-my-canvas')) return; // 화면 이동 시 자연 종료
+      replayRAF=requestAnimationFrame(loopMy);
+      if(video.readyState<2 || video.currentTime===replayLastVideoTime) return;
+      replayLastVideoTime=video.currentTime;
+      const res=landmarker.detectForVideo(video, performance.now());
+      const ctx=myCanvas.getContext('2d');
+      ctx.clearRect(0,0,myCanvas.width,myCanvas.height);
+      const landmarks=res.landmarks && res.landmarks[0];
+      if(!landmarks){ if(myStatus) myStatus.textContent='자세가 인식되지 않는 구간이에요'; return; }
+      const nearRep = r.compareRep && Math.abs(video.currentTime-(r.compareRep.atSeconds||0))<0.4;
+      const highlight = (nearRep && r.compareRep.failedJoint) ? (REP_HIGHLIGHT_BONES[r.compareRep.failedJoint]||[]) : [];
+      replayDrawSkeleton(ctx, myCanvas.width, myCanvas.height, landmarks, highlight);
+      if(myStatus){
+        myStatus.textContent = nearRep
+          ? (r.compareRep.failedJoint
+              ? `#${r.compareRep.idx}번 자세 · ${r.compareRep.grade} — 빨간 선이 기준과 어긋난 관절이에요`
+              : `#${r.compareRep.idx}번 자세 · ${r.compareRep.grade} — 기준과 잘 맞았어요`)
+          : '영상을 재생하면 스켈레톤이 계속 따라갑니다';
+      }
+    }
+    loopMy();
+    if(r.compareRep){ // 처음 들어왔을 때 문제 됐던 지점으로 자동으로 이동해서 보여준다
+      const seekTo=Math.max(0, (r.compareRep.atSeconds||0)-0.15);
+      try{ video.currentTime=video.duration ? Math.min(seekTo, video.duration) : seekTo; }catch(e){}
+    }
+  }
+
+  // 레퍼런스 쪽은 스켈레톤 오버레이 없이 GIF 원본만 보여준다 — "정답"인 원본 영상 그대로 보는 게
+  // 더 명확하다는 피드백에 따라 뺐다. (내 촬영 영상 쪽만 스켈레톤/빨간 표시로 비교해준다.)
+}
+
 function renderExStepReplay(){
   const r=state.exercise.result;
   if(!r) return `<div class="empty-note">촬영 데이터가 없습니다.</div>`;
   return `
   ${r.myVideoUrl ? `
-  <div class="grid grid-2" style="margin-bottom:20px;">
+  <div class="grid grid-2" style="margin-bottom:8px;">
     <div>
       <p class="section-label">레퍼런스 정자세</p>
       <div class="cam-stage" style="aspect-ratio:1/1;">
@@ -1682,10 +1981,13 @@ function renderExStepReplay(){
     <div>
       <p class="section-label">내 촬영 영상</p>
       <div class="cam-stage" style="aspect-ratio:1/1;">
-        <video src="${r.myVideoUrl}" controls style="width:100%;height:100%;object-fit:cover;"></video>
+        <video id="replay-my-video" src="${r.myVideoUrl}" controls style="width:100%;height:100%;object-fit:cover;"></video>
+        <canvas id="replay-my-canvas" class="cam-overlay-canvas" style="pointer-events:none;"></canvas>
       </div>
+      <p class="hint" id="replay-my-status" style="margin-top:6px;">자세 비교 분석 중...</p>
     </div>
-  </div>` : ''}
+  </div>
+  <p class="hint" style="margin-bottom:20px;">빨간 선으로 표시된 관절이 기준과 어긋난 부분이에요. 영상을 재생하면 그 시점 스켈레톤은 사라지니, 다시 보려면 새로고침해주세요.</p>` : ''}
   <div class="grid grid-2">
     <div class="card">
       <p class="section-label">${r.ex} · 리플레이 분석 결과</p>
@@ -1771,6 +2073,15 @@ function saveExerciseResult(){
   const gc={PERFECT:0,GREAT:0,GOOD:0,MISS:0};
   r.reps.forEach(rp=>gc[rp.grade]++);
   state.history.unshift({date:'오늘', ex:r.ex, reps:r.valid, acc:r.acc, score:r.score, grade:r.acc>90?'PERFECT':r.acc>78?'GREAT':r.acc>60?'GOOD':'MISS', gc});
+  // 일간/주간/월간 미션이 공유하는 누적 카운터 갱신 (스쿼트 세션 기준)
+  if(r.ex==='스쿼트'){
+    const c=state.missions.counters;
+    c.reps += r.valid;
+    c.perfect += gc.PERFECT;
+    c.sessions += 1;
+    if(gc.MISS===0) c.missFreeSession += 1;
+    if(r.acc>=90) c.accSession += 1;
+  }
   toast(`저장 완료! +${pts}P 획득`);
   if(r.myVideoUrl) URL.revokeObjectURL(r.myVideoUrl);
   state.exercise={step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0, liveReps:[]};
@@ -1781,17 +2092,12 @@ function saveExerciseResult(){
    2. 미션·포인트
    ======================================================================== */
 // (FR-MS-001) claimMission()에서 보상을 지급하는 지점부터 서버 연동이 필요합니다.
-//   미션 후보 5개 뽑기 > Java 미션 API(매일 자정 배치/스케줄러) > DB 연결 > SQL SELECT(랜덤 미션 후보)
-//   보상 수령(claimMission) > Java 미션 API > DB 연결 > SQL UPDATE(포인트 잔액, 미션 진행도)
-const MISSION_TABS=['미션 후보 5개','일·주·월 미션 선택'];
+//   세션 저장(saveExerciseResult) > Java 미션 API > DB 연결 > SQL UPDATE(미션 진행 카운터)
+//   보상 수령(claimMission) > Java 미션 API > DB 연결 > SQL UPDATE(포인트 잔액, 수령 여부)
 function renderMission(){
-  const i=state.subtabs.mission;
   return `
-  <div class="view-head"><h1>미션</h1><p>무작위 미션 후보 확인 → 기간별 선택 → 달성하고 포인트를 모아보세요</p></div>
-  <div class="subtabs">
-    ${MISSION_TABS.map((t,idx)=>`<div class="tab ${i===idx?'active':''}" onclick="setSub('mission',${idx})">${t}</div>`).join('')}
-  </div>
-  ${i===0?renderMissionCandidates():renderMissionPick()}`;
+  <div class="view-head"><h1>미션</h1><p>일간/주간/월간 미션 선택 → 스쿼트로 달성하고 포인트를 모아보세요</p></div>
+  ${renderMissionPick()}`;
 }
 const PROFILE_TABS=['프로필·캐릭터 꾸미기','미션 달성 현황','운동 히스토리','계정·프로필 관리','캘리브레이션 재설정','카메라·알림 설정','개인정보·공개범위','로그아웃·회원탈퇴'];
 function renderProfile(){
@@ -1817,58 +2123,64 @@ function renderShop(){
 }
 function setSub(key,idx){state.subtabs[key]=idx; render();}
 
-function renderMissionCandidates(){
-  return `
-  <div class="grid grid-3">
-    ${state.missions.candidates.map(m=>`
-      <div class="card">
-        <span class="pill pill-accent">${m.ex}</span>
-        <h3 style="margin-top:10px;">${m.name}</h3>
-        <p class="desc">달성 시 <span class="mono" style="color:var(--gold);font-weight:700;">+${m.reward}P</span> 지급</p>
-        <button class="btn btn-secondary btn-sm" onclick="toast('일·주·월 미션 선택 탭에서 등록할 수 있어요')">미션으로 등록</button>
-      </div>`).join('')}
-  </div>
-  <p class="hint" style="margin-top:14px;">매일 자정 무작위 후보 5개가 새로 제시됩니다.</p>`;
-}
+const MISSION_PERIOD_LABEL={daily:'일간',weekly:'주간',monthly:'월간'};
 function renderMissionPick(){
   const p=state.missions.period;
-  const list=state.missions.picked[p];
+  const list=state.missions.list[p];
   return `
   <div class="filter-bar">
     ${['daily','weekly','monthly'].map(k=>`
-      <button class="btn ${p===k?'btn-primary':'btn-secondary'} btn-sm" onclick="setMissionPeriod('${k}')">${k==='daily'?'일간':k==='weekly'?'주간':'월간'}</button>`).join('')}
+      <button class="btn ${p===k?'btn-primary':'btn-secondary'} btn-sm" onclick="setMissionPeriod('${k}')">${MISSION_PERIOD_LABEL[k]} 미션 (${state.missions.list[k].length}개)</button>`).join('')}
   </div>
-  <div class="grid grid-2">
-    ${list.map(name=>{
-      const prog=state.missions.progress[name]||0;
-      return `
-      <div class="card">
-        <div class="flex-between"><h3>${name}</h3><span class="pill ${prog>=100?'pill-accent':'pill-muted'}">${prog>=100?'완료':'진행중'}</span></div>
-        <div class="progress" style="margin:10px 0;"><span style="width:${prog}%"></span></div>
-        <p class="desc">달성률 ${prog}%</p>
-      </div>`;
-    }).join('')}
+  <div class="grid grid-2" style="margin-top:14px;">
+    ${list.map(m=>renderMissionCard(m)).join('')}
   </div>`;
 }
 function setMissionPeriod(k){state.missions.period=k; render();}
-function renderMissionProgress(){
-  const all=Object.entries(state.missions.progress);
+// 미션 카드 하나: 달성 전엔 "미션하러가기"로 바로 스쿼트 촬영으로 보내고, 달성했으면 보상 받기
+// 버튼으로 바뀐다. 진행도는 퍼센트가 아니라 실제 개수(cur/target)로 보여준다.
+function renderMissionCard(m){
+  const cur=Math.min(state.missions.counters[m.metric]||0, m.target);
+  const done=cur>=m.target;
+  const claimed=!!state.missions.claimed[m.id];
   return `
-  <div class="grid grid-2">
-    ${all.map(([name,prog])=>`
-      <div class="card">
-        <div class="flex-between"><h3>${name}</h3>${prog>=100?'<span class="pill pill-accent">달성</span>':''}</div>
-        <div class="progress" style="margin:10px 0;"><span style="width:${Math.min(prog,100)}%"></span></div>
-        <div class="flex-between">
-          <p class="desc" style="margin:0;">${Math.min(prog,100)}% 진행</p>
-          <button class="btn btn-sm ${prog>=100?'btn-primary':'btn-ghost'}" ${prog>=100?'':'disabled style="opacity:.4;cursor:not-allowed;"'} onclick="claimMission('${name}')">보상 받기</button>
-        </div>
-      </div>`).join('')}
+  <div class="card">
+    <div class="flex-between"><span class="pill pill-muted">${MISSION_PERIOD_LABEL[m.period]}</span><span class="pill ${done?'pill-accent':'pill-muted'}">${claimed?'수령완료':done?'달성':'진행중'}</span></div>
+    <h3 style="margin-top:8px;">${m.label}</h3>
+    <div class="progress" style="margin:10px 0;"><span style="width:${Math.min(100,cur/m.target*100)}%"></span></div>
+    <div class="flex-between">
+      <p class="desc mono" style="margin:0;">${cur}/${m.target} <span style="color:var(--gold);font-weight:700;">· +${m.reward}P</span></p>
+      ${done
+        ? `<button class="btn btn-sm ${claimed?'btn-ghost':'btn-primary'}" ${claimed?'disabled style="opacity:.4;cursor:not-allowed;"':''} onclick="claimMission('${m.id}')">${claimed?'수령완료':'보상 받기'}</button>`
+        : `<button class="btn btn-sm btn-secondary" onclick="goToMissionExercise()">미션하러가기</button>`}
+    </div>
   </div>`;
 }
-function claimMission(name){
-  toast(`'${name}' 보상을 수령했습니다`);
-  state.user.points += 50;
+// 모든 기간의 미션을 하나의 배열로 합쳐서 조회할 때 쓴다(미션 달성 현황 탭, 튜토리얼 옆 리스트 등).
+function allMissions(){
+  return [...state.missions.list.daily, ...state.missions.list.weekly, ...state.missions.list.monthly];
+}
+function goToMissionExercise(){
+  state.menu='exercise';
+  state.exercise.picked='squat';
+  state.exercise.step=0;
+  goToTutorial();
+}
+function renderMissionProgress(){
+  return `
+  <div class="grid grid-2">
+    ${allMissions().map(m=>renderMissionCard(m)).join('')}
+  </div>`;
+}
+function claimMission(id){
+  if(state.missions.claimed[id]) return;
+  const m=allMissions().find(x=>x.id===id);
+  if(!m) return;
+  const cur=state.missions.counters[m.metric]||0;
+  if(cur<m.target) return;
+  state.missions.claimed[id]=true;
+  state.user.points += m.reward;
+  toast(`'${m.label}' 보상으로 +${m.reward}P 받았습니다`);
   render();
 }
 const EXP_PER_LEVEL=1000;

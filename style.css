@@ -400,6 +400,6 @@ tr:last-child td{border-bottom:none;}
   .view{padding:18px 16px 90px;}
   .topbar{padding:14px 16px;}
   .cal-grid{grid-template-columns:1fr;}
-  .cal-grid .cam-stage{max-height:45vh;}
+  .cal-grid .cam-stage{max-height:none;aspect-ratio:3/4;}
   .confirm-box{max-height:92vh;overflow-y:auto;}
 }
