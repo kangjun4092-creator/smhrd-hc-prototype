@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>목업 · 오늘의 단체 미션</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="04-main.html">
+      <div class="brand-mark">홈</div>
+      <div class="brand-name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
+    </a>
+    <div class="navitem"><span class="navicon"></span>메인</div>
+    <div class="navitem"><span class="navicon"></span>운동</div>
+    <div class="navitem"><span class="navicon"></span>미션</div>
+    <div class="navitem"><span class="navicon"></span>마이페이지</div>
+    <div class="navitem"><span class="navicon"></span>포인트 상점</div>
+    <div class="navitem active"><span class="navicon"></span>홈크루</div>
+    <div class="navitem"><span class="navicon"></span>랭킹</div>
+    <div class="navitem"><span class="navicon"></span>고객센터</div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">홈크루</div>
+        <div class="topbar-sub">서울시 강남구 역삼동</div>
+      </div>
+      <div class="user-chip">
+        <div class="points-pill">P <span class="mono">3,140</span></div>
+        <span class="topbar-nick">써니핏</span>
+        <div class="topbar-avatar">
+          <div style="width:36px;height:36px;border-radius:50%;border:2px solid var(--outline);background:var(--surface-2);"></div>
+          <span class="mono">Lv.7</span>
+        </div>
+      </div>
+    </div>
+    <div class="view">
+      <div class="view-head"><h1>역삼동 스쿼트단</h1><p>크루 메인 → 크루공지 → 오늘의 단체 미션 → 크루원 정보</p></div>
+      <div class="subtabs">
+        <div class="tab">크루 메인</div>
+        <div class="tab">크루공지</div>
+        <div class="tab active">오늘의 단체 미션</div>
+        <div class="tab">크루원 정보</div>
+        <div class="tab">크루원관리</div>
+      </div>
+
+      <div class="card" style="max-width:560px;margin-bottom:16px;">
+        <p class="section-label">크루 일일미션</p>
+        <div class="filter-bar">
+          <button class="btn btn-sm btn-primary">일일</button>
+          <button class="btn btn-sm btn-secondary">주간</button>
+        </div>
+        <p class="desc">종목 <b style="color:var(--ink);">스쿼트</b> · 팀 전체 목표 <b style="color:var(--ink);">300회</b> — 크루원 레벨에 맞춰 개인 목표가 자동으로 조정됩니다.</p>
+        <div class="field"><label>종목 선택</label>
+          <select><option selected>스쿼트</option><option>런지</option><option>사이드 런지</option></select>
+        </div>
+      </div>
+      <p class="section-label">배분 현황</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>팀원</th><th>역할</th><th>배분된 종목</th><th>진행률</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>나 <span class="pill pill-accent">나</span></td>
+              <td><span class="pill pill-gold">팀장</span></td>
+              <td><select style="width:auto;padding:5px 8px;font-size:12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);"><option selected>스쿼트</option><option>런지</option></select></td>
+              <td style="min-width:130px;">
+                <div class="bar-track"><span style="width:45%;background:var(--gold)"></span></div>
+                <span class="hint" style="margin:3px 0 0;">45%</span>
+              </td>
+            </tr>
+            <tr>
+              <td>써니핏</td>
+              <td><span class="pill pill-muted">팀원</span></td>
+              <td><select style="width:auto;padding:5px 8px;font-size:12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);"><option selected>스쿼트</option><option>런지</option></select></td>
+              <td style="min-width:130px;">
+                <div class="bar-track"><span style="width:100%;background:var(--accent)"></span></div>
+                <span class="hint" style="margin:3px 0 0;">100% · 완료</span>
+              </td>
+            </tr>
+            <tr>
+              <td>런닝수달</td>
+              <td><span class="pill pill-muted">팀원</span></td>
+              <td><select style="width:auto;padding:5px 8px;font-size:12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);"><option selected>스쿼트</option><option>런지</option></select></td>
+              <td style="min-width:130px;">
+                <div class="bar-track"><span style="width:78%;background:var(--gold)"></span></div>
+                <span class="hint" style="margin:3px 0 0;">78%</span>
+              </td>
+            </tr>
+            <tr>
+              <td>단백질맨</td>
+              <td><span class="pill pill-muted">팀원</span></td>
+              <td><select style="width:auto;padding:5px 8px;font-size:12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);"><option selected>스쿼트</option><option>런지</option></select></td>
+              <td style="min-width:130px;">
+                <div class="bar-track"><span style="width:22%;background:var(--gold)"></span></div>
+                <span class="hint" style="margin:3px 0 0;">22%</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="hint" style="margin-top:10px;">테스트용 — <button class="btn btn-sm btn-ghost">내 역할(팀장) 전환해보기</button></p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

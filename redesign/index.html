@@ -1,0 +1,37 @@
+<!doctype html>
+<!-- ============================================================================
+     index.html — 우리동네홈트챌린지 프로토타입 (프론트엔드 전용 파일)
+     ----------------------------------------------------------------------------
+     [기술스택 요약 — 실제 구현 전환 시 참고]
+       - 프론트엔드(이 3개 파일: index.html / style.css / script.js)
+           HTML5 + CSS3 + JavaScript(ES6+, 순수 바닐라, 프레임워크 없음)
+           자세 인식: MediaPipe Pose (Tasks Vision, WASM) — script.js 안에서 CDN으로 로드,
+                      전부 브라우저에서 실행되며 서버로 영상이 전송되지 않음
+       - 백엔드(아직 없음 — 새로 만들어야 하는 부분)
+           제안 스택: Java 17+ / Spring Boot (Spring MVC 기반 REST API), Spring Security(로그인/JWT)
+       - 데이터베이스(아직 없음 — 새로 만들어야 하는 부분)
+           제안 스택: MySQL 8 + Spring Data JPA(또는 MyBatis)
+       - 실시간 기능(웹소켓)은 현재 버전 기준 불필요 — 크루 채팅 기능은 삭제되었고,
+         크루 공지/랭킹/미션은 전부 REST API(요청-응답)로 충분합니다.
+       위 스택 이름은 프로젝트 팀 표준에 맞게 자유롭게 바꿔도 되며, 이 주석과
+       script.js 안의 [백엔드 연동 필요 구간] 주석들이 "여기서부터 저기까지가
+       백엔드/DB가 필요한 지점"이라는 경계를 표시해줍니다.
+     ============================================================================ -->
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>우리동네홈트챌린지 — 종이 콜라주 워크숍</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- 화면 전체가 script.js의 render()에서 이 두 컨테이너 안으로 그려집니다 (SPA 구조). -->
+<div id="app"></div>
+<div id="toast" class="toast"></div>
+<script src="script.js"></script>
+</body>
+</html>

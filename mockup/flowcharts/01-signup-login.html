@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link rel="stylesheet" href="engine.css">
+</head>
+<body>
+<div id="root" class="fc-page"></div>
+<script src="engine.js"></script>
+<script>
+renderFlowchart('root', {
+  title: '플로우 차트(회원가입/로그인)',
+  cols: 9,
+  nodes: [
+    {id:'start', type:'start', col:4, row:1, label:'회원가입(시작)'},
+    {id:'dec_signup', type:'decision', col:4, row:2, label:'회원가입<br>유무'},
+
+    {id:'box_form', type:'process', col:2, row:3, label:'회원가입 폼'},
+    {id:'box_login_select', type:'process', col:4, row:3, label:'로그인 선택'},
+
+    {id:'sidebar_info', type:'sidebar', col:1, row:4, label:'<div class="head">회원정보 입력</div><div class="items"><div>기본 입력</div><div>아이디</div><div>비밀번호 / 비밀번호 확인</div><div>닉네임</div><div>이메일</div><div>활동 지역</div><div>캘리브레이션 등록</div></div>'},
+    {id:'box_info_input', type:'process', col:2, row:4, label:'회원 정보 입력'},
+    {id:'hdr_idpw', type:'process', className:'c-blue', col:5, row:4, label:'ID/PW 로그인'},
+    {id:'hdr_sns', type:'process', className:'c-yellow', col:6, row:4, label:'SNS 로그인'},
+    {id:'hdr_find', type:'process', className:'c-green', col:7, row:4, label:'ID/PW 찾기'},
+    {id:'note_find', type:'note', col:9, row:4, label:'<b>[시스템 알림]</b>아이디 또는 비밀번호를 잊으셨나요? ID/PW 찾기를 통해 계정을 확인하거나 비밀번호를 재설정할 수 있습니다.'},
+
+    {id:'dec_valid', type:'decision', col:2, row:5, label:'유효성<br>체크'},
+    {id:'box_idpw_input', type:'process', col:5, row:5, label:'ID/PW 입력'},
+    {id:'box_sns_select', type:'process', className:'c-yellow', col:6, row:5, label:'SNS 로그인 선택<br>(구글, 카카오톡, 애플)'},
+    {id:'box_auth', type:'process', col:7, row:5, label:'본인 인증<br>(이메일/휴대폰)'},
+    {id:'note_retry', type:'note', col:3, row:5, label:'<b>[시스템 알림]</b>입력한 정보를 한번 더 확인해주세요.'},
+
+    {id:'dec_idpw_check', type:'decision', col:5, row:6, label:'ID/PW<br>체크'},
+    {id:'box_sns_move', type:'process', className:'c-yellow', col:6, row:6, label:'SNS 인증 화면 이동'},
+    {id:'box_find_opt', type:'process', col:7, row:6, label:'ID/PW 찾기 옵션 선택<br>(ID 찾기 / PW 재설정)'},
+    {id:'note_loginfail', type:'note', col:4, row:6, label:'로그인 실패'},
+
+    {id:'box_signup_success', type:'process', col:2, row:6, label:'회원가입 성공'},
+    {id:'box_account_confirm', type:'process', className:'c-yellow', col:6, row:7, label:'계정 선택 및 인증<br>(사용자 동의)'},
+    {id:'box_id_find', type:'process', className:'c-green', col:8, row:7, label:'ID 찾기'},
+    {id:'box_pw_reset', type:'process', className:'c-green', col:9, row:7, label:'PW 재설정'},
+
+    {id:'box_login_process1', type:'process', col:5, row:7, label:'로그인 처리'},
+    {id:'dec_auth_ok', type:'decision', col:6, row:8, label:'인증<br>성공?'},
+    {id:'box_id_result', type:'process', className:'c-green', col:8, row:8, label:'가입 정보 확인 후<br>ID 안내 · 결과 확인'},
+    {id:'box_pw_result', type:'process', className:'c-green', col:9, row:8, label:'임시 비밀번호 발급 또는<br>비밀번호 변경 · 결과 확인'},
+    {id:'note_authfail', type:'note', col:4, row:8, label:'인증 실패'},
+
+    {id:'box_login_process2', type:'process', col:6, row:9, label:'로그인 처리'},
+
+    {id:'end', type:'end', col:4, row:10, label:'메인화면이동(종료)'},
+  ],
+  edges: [
+    {from:'start', to:'dec_signup'},
+    {from:'dec_signup', to:'box_form', fromSide:'left', toSide:'top', label:'No(신규회원)'},
+    {from:'dec_signup', to:'box_login_select', label:'Yes(기존회원)'},
+
+    {from:'box_form', to:'box_info_input'},
+    {from:'box_info_input', to:'dec_valid'},
+    {from:'dec_valid', to:'note_retry', fromSide:'right', toSide:'bottom', label:'No'},
+    {from:'note_retry', to:'box_info_input', fromSide:'top', toSide:'right'},
+    {from:'dec_valid', to:'box_signup_success', label:'Yes'},
+    {from:'box_signup_success', to:'end'},
+
+    {from:'box_login_select', to:'hdr_idpw', fromSide:'right', toSide:'top'},
+    {from:'box_login_select', to:'hdr_sns', fromSide:'right', toSide:'top'},
+    {from:'box_login_select', to:'hdr_find', fromSide:'right', toSide:'top'},
+
+    {from:'hdr_idpw', to:'box_idpw_input'},
+    {from:'box_idpw_input', to:'dec_idpw_check'},
+    {from:'dec_idpw_check', to:'note_loginfail', fromSide:'left', toSide:'right', label:'No'},
+    {from:'note_loginfail', to:'box_idpw_input', fromSide:'top', toSide:'left'},
+    {from:'dec_idpw_check', to:'box_login_process1', label:'Yes 로그인성공'},
+    {from:'box_login_process1', to:'end', fromSide:'left', toSide:'right'},
+
+    {from:'hdr_sns', to:'box_sns_select'},
+    {from:'box_sns_select', to:'box_sns_move'},
+    {from:'box_sns_move', to:'box_account_confirm'},
+    {from:'box_account_confirm', to:'dec_auth_ok'},
+    {from:'dec_auth_ok', to:'note_authfail', fromSide:'left', toSide:'right', label:'No'},
+    {from:'note_authfail', to:'box_sns_move', fromSide:'top', toSide:'left'},
+    {from:'dec_auth_ok', to:'box_login_process2', label:'Yes 로그인성공'},
+    {from:'box_login_process2', to:'end', fromSide:'left', toSide:'right'},
+
+    {from:'hdr_find', to:'box_auth'},
+    {from:'box_auth', to:'box_find_opt'},
+    {from:'box_find_opt', to:'box_id_find', fromSide:'right', toSide:'top', label:'ID 찾기'},
+    {from:'box_find_opt', to:'box_pw_reset', fromSide:'right', toSide:'top', label:'PW 재설정'},
+    {from:'box_id_find', to:'box_id_result'},
+    {from:'box_pw_reset', to:'box_pw_result'},
+    {from:'box_id_result', to:'end', fromSide:'left', toSide:'right'},
+    {from:'box_pw_result', to:'end', fromSide:'left', toSide:'right'},
+  ],
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link rel="stylesheet" href="engine.css">
+</head>
+<body>
+<div id="root" class="fc-page"></div>
+<script src="engine.js"></script>
+<script>
+renderFlowchart('root', {
+  title: '플로우 차트 (MediaPipe 운동 자세 인식 및 자동 기록) — 캘리브레이션 포함 통합안',
+  subtitle: '* 웹캠 캘리브레이션은 조회 및 재보정 흐름 포함, 신뢰도 검사·점수/보너스 지급까지 통합',
+  cols: 4,
+  nodes: [
+    {id:'start', type:'start', col:3, row:1, label:'시작'},
+    {id:'box_enter', type:'process', col:3, row:2, label:'운동 메뉴 진입'},
+    {id:'box_pick', type:'process', col:3, row:3, label:'운동 종목 선택'},
+    {id:'sidebar1', type:'sidebar', className:'c-green', col:1, row:3, label:'<div class="head">자동 기록 데이터</div><div class="items"><div>회원가입 폼</div><div>이메일</div><div>운동 종목 · 수행 시간</div><div>캘리브레이션 등록 여부</div></div>'},
+
+    {id:'dec_cal', type:'decision', col:3, row:4, label:'캘리브레이션 등록 여부<br>확인 (DB 조회)'},
+    {id:'box_cal_guide', type:'process', className:'c-yellow', col:2, row:5, label:'캘리브레이션 등록 안내<br>(현재 위치 보정)'},
+    {id:'box_cal_save', type:'process', col:2, row:6, label:'체형 정보 저장 (DB 등록)'},
+
+    {id:'dec_cam', type:'decision', col:3, row:7, label:'카메라 권한 확인'},
+    {id:'box_cam_deny', type:'process', className:'c-yellow', col:2, row:7, label:'카메라 이용 안내'},
+    {id:'box_cam_start', type:'process', className:'c-yellow', col:3, row:8, label:'카메라 캘리브레이션 &<br>준비운동 시작'},
+    {id:'box_capture', type:'process', col:3, row:9, label:'본 운동 시작 &<br>프레임 수집'},
+
+    {id:'dec_pose', type:'decision', col:3, row:10, label:'Pose 인지 신뢰도<br>정상?'},
+    {id:'box_frame_exclude', type:'process', className:'c-gray', col:2, row:10, label:'프레임 제외'},
+
+    {id:'box_extract', type:'process', col:3, row:11, label:'MediaPipe 관절 좌표 추출'},
+    {id:'box_judge', type:'process', col:3, row:12, label:'유효 반복 횟수 판별<br>및 자세 판정'},
+    {id:'sidebar2', type:'sidebar', className:'c-green', col:1, row:12, label:'<div class="head">자동 기록 데이터</div><div class="items"><div>세션별 반복 횟수</div><div>등급(PERFECT~MISS)</div><div>정확도 · 점수</div><div>보너스 포인트</div></div>'},
+    {id:'box_score', type:'process', col:3, row:13, label:'운동 점수 계산 & 보너스 합산'},
+
+    {id:'dec_save', type:'decision', col:3, row:14, label:'운동 영상 저장 동의?'},
+    {id:'box_video_save', type:'process', className:'c-yellow', col:4, row:14, label:'영상 검증 및 저장'},
+
+    {id:'box_result_save', type:'process', col:3, row:15, label:'운동 결과 DB 저장 및 결과 표시'},
+    {id:'end', type:'end', col:3, row:16, label:'결과 제공 & 종료'},
+  ],
+  edges: [
+    {from:'start', to:'box_enter'},
+    {from:'box_enter', to:'box_pick'},
+    {from:'box_pick', to:'dec_cal'},
+
+    {from:'dec_cal', to:'box_cal_guide', fromSide:'left', toSide:'top', label:'미등록'},
+    {from:'box_cal_guide', to:'box_cal_save'},
+    {from:'box_cal_save', to:'dec_cam', fromSide:'bottom', toSide:'left'},
+    {from:'dec_cal', to:'dec_cam', label:'등록됨'},
+
+    {from:'dec_cam', to:'box_cam_deny', fromSide:'left', toSide:'top', label:'거부'},
+    {from:'dec_cam', to:'box_cam_start', label:'허용'},
+    {from:'box_cam_start', to:'box_capture'},
+    {from:'box_capture', to:'dec_pose'},
+
+    {from:'dec_pose', to:'box_frame_exclude', fromSide:'left', toSide:'top', label:'이상'},
+    {from:'box_frame_exclude', to:'box_capture', fromSide:'top', toSide:'left', dashed:true},
+    {from:'dec_pose', to:'box_extract', label:'정상'},
+
+    {from:'box_extract', to:'box_judge'},
+    {from:'box_judge', to:'box_score'},
+    {from:'box_score', to:'dec_save'},
+
+    {from:'dec_save', to:'box_video_save', fromSide:'right', toSide:'top', label:'동의'},
+    {from:'box_video_save', to:'box_result_save', fromSide:'bottom', toSide:'right', dashed:true},
+    {from:'dec_save', to:'box_result_save', label:'미동의'},
+
+    {from:'box_result_save', to:'end'},
+  ],
+});
+</script>
+</body>
+</html>

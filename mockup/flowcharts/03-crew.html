@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link rel="stylesheet" href="engine.css">
+<style>.fc-process.c-navy{background:#2E4A6B;color:#fff;}</style>
+</head>
+<body>
+<div id="root" class="fc-page"></div>
+<script src="engine.js"></script>
+<script>
+renderFlowchart('root', {
+  title: '플로우 차트 (크루 팀장/원)',
+  subtitle: '* 기능 요구사항을 반영한 예외 처리 및 정산 기능 강화 흐름',
+  cols: 7,
+  zones: [
+    {color:'green', col:'2 / 4', row:'3 / 8'},
+    {color:'orange', col:'5 / 7', row:'3 / 8'},
+  ],
+  nodes: [
+    {id:'box_crew_main', type:'start', col:4, row:1, label:'크루 메인'},
+    {id:'dec_daily', type:'decision', col:4, row:2, label:'오늘의 단체 미션'},
+
+    {id:'sidebar_db', type:'sidebar', col:1, row:3, label:'<div class="head">자동 기록 데이터 (DB)</div><div class="items"><div>미션 목표</div><div>아이디</div><div>배정 정보 · 변동 확인</div><div>시작일 · 마감일</div><div>진행 기록</div><div>캘리브레이션 등록</div></div>'},
+    {id:'box_mission_target', type:'process', className:'c-yellow', col:'2 / 4', row:3, label:'미션 목표 · 스쿼트 300회'},
+    {id:'box_alloc_target', type:'process', className:'c-yellow', col:'5 / 7', row:3, label:'배분 목표가 개인 목표 100회'},
+
+    {id:'box_set_goal', type:'process', col:'2 / 4', row:4, label:'1. 미션 목표 설정<br>(종목 & 총 횟수)'},
+    {id:'box_check_alloc', type:'process', className:'c-yellow', col:'5 / 7', row:4, label:'3. 배분 현황 및<br>개인 목표 확인'},
+
+    {id:'dec_alloc_method', type:'decision', col:'2 / 4', row:5, label:'배분 방식<br>선택?'},
+    {id:'dashboard', type:'process', className:'c-navy', col:4, row:5, label:'실시간<br>대시보드 UI'},
+    {id:'box_do_exercise', type:'process', className:'c-yellow', col:'5 / 7', row:5, label:'4. 운동 수행 &<br>실시간 대시보드 반영'},
+
+    {id:'box_auto', type:'process', col:2, row:6, label:'[자동]<br>1/N 균등 배분'},
+    {id:'box_manual', type:'process', col:3, row:6, label:'[수동]<br>팀장 직접 지정<br>(개인 크루 수량)'},
+
+    {id:'box_verify', type:'process', col:'2 / 4', row:7, label:'2. 배분 현황 검증 및 확정<br>- 조건 충족 여부 확인'},
+    {id:'dec_achieve', type:'decision', col:5, row:7, label:'5. 달성 여부 &<br>예외 등록(Miss 제외)'},
+    {id:'box_miss', type:'process', className:'c-yellow', col:6, row:7, label:'Miss 제외<br>실제 성공 개수 등록'},
+    {id:'note_sys', type:'note', col:7, row:7, label:'<b>[시스템 알림]</b>성공 데이터를 실시간 대시보드에 반영합니다.'},
+
+    {id:'box_sys_close', type:'process', className:'c-green', col:'2 / 4', row:8, label:'[시스템] 미션 마감 & 전체 목표 검증<br>- 미달성자 예외 처리(제외/연장)'},
+    {id:'box_sys_settle', type:'process', className:'c-peach', col:'5 / 7', row:8, label:'[시스템] 기여도별 포인트 정산<br>- 개인 성공 개수 비례 보상'},
+
+    {id:'end', type:'end', col:4, row:9, label:'[결과] 포인트 반영 및<br>대시보드 업데이트 후 종료'},
+  ],
+  edges: [
+    {from:'box_crew_main', to:'dec_daily'},
+    {from:'dec_daily', to:'box_mission_target', fromSide:'left', toSide:'top', label:'오늘의 단체 신청 및 자동/수동 배분'},
+    {from:'dec_daily', to:'dashboard'},
+
+    {from:'box_mission_target', to:'box_set_goal'},
+    {from:'box_set_goal', to:'dec_alloc_method'},
+    {from:'dec_alloc_method', to:'box_auto', fromSide:'left', toSide:'top', label:'자동'},
+    {from:'dec_alloc_method', to:'box_manual', fromSide:'right', toSide:'top', label:'수동'},
+    {from:'box_auto', to:'box_verify'},
+    {from:'box_manual', to:'box_verify'},
+
+    {from:'box_alloc_target', to:'box_check_alloc'},
+    {from:'box_check_alloc', to:'box_do_exercise'},
+    {from:'dashboard', to:'box_do_exercise', fromSide:'right', toSide:'left'},
+
+    {from:'box_do_exercise', to:'dec_achieve'},
+    {from:'dec_achieve', to:'box_miss', fromSide:'right', toSide:'top', label:'미달성'},
+    {from:'box_miss', to:'note_sys', fromSide:'right', toSide:'left'},
+    {from:'dec_achieve', to:'box_sys_settle', label:'달성'},
+    {from:'box_miss', to:'box_sys_settle', fromSide:'bottom', toSide:'right'},
+
+    {from:'box_verify', to:'box_sys_close'},
+    {from:'box_sys_close', to:'end', fromSide:'right', toSide:'left'},
+    {from:'box_sys_settle', to:'end', fromSide:'left', toSide:'right'},
+  ],
+});
+</script>
+</body>
+</html>

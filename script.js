@@ -79,7 +79,7 @@ const state = {
     {name:'금빛 뱃지 프레임', price:450, owned:false, equipped:false, slot:'badge', effect:'미션 포인트 +10%', effectDesc:'모든 미션 달성 보상 포인트에 10% 추가 지급됩니다.'},
     {name:'챔피언 왕관', price:900, owned:false, equipped:false, slot:'crown', effect:'랭킹 점수 +5%', effectDesc:'지역·종목 랭킹에 반영되는 점수가 5% 가산됩니다.'},
     {name:'프로필 배경 - 새벽 러닝', price:250, owned:true, equipped:true, slot:'background', effect:'출석 보너스 +5P/일', effectDesc:'연속 출석일마다 기본 출석 포인트에 5P가 추가됩니다.'},
-    {name:'캐릭터 - 로봇 코치', price:600, owned:false, equipped:false, slot:'skin', effect:'스트레칭 시간 -15%', effectDesc:'운동 전 스트레칭 타이머가 15% 단축되어 표시됩니다.'},
+    {name:'캐릭터 - 로봇 코치', price:600, owned:false, equipped:false, slot:'skin', effect:'준비 카운트다운 -1초', effectDesc:'촬영 시작 전 정렬 확인 후 나오는 카운트다운이 1초 짧아집니다.'},
     {name:'닉네임 컬러 이펙트', price:180, owned:true, equipped:true, slot:'nickname', effect:'능력치 없음 · 외형 전용', effectDesc:'랭킹에서 닉네임 색상만 강조되며 점수에는 영향이 없습니다.'},
     {name:'닉네임 변경권', price:150, owned:false, consumable:true, effect:'닉네임 변경 1회', effectDesc:'설정에서 닉네임을 한 번 변경할 수 있습니다. 무분별한 닉네임 변경으로 랭킹 혼선이 생기는 것을 막기 위한 아이템이에요.'},
   ],
@@ -1120,7 +1120,6 @@ function renderFindPwModal(){
 
 /* ---------- 앱 셸 ---------- */
 const MENUS = [
-  {id:'main', label:'메인'},
   {id:'exercise', label:'운동'},
   {id:'mission', label:'미션'},
   {id:'profile', label:'마이페이지'},
@@ -1130,7 +1129,6 @@ const MENUS = [
   {id:'support', label:'고객센터'},
 ];
 function renderApp(){
-  const menuLabel = MENUS.find(m=>m.id===state.menu).label;
   return `
   <div class="app-shell">
     <aside class="sidebar">
@@ -1146,8 +1144,7 @@ function renderApp(){
     <div class="main">
       <div class="topbar">
         <div>
-          <div class="topbar-title">${menuLabel}</div>
-          <div class="topbar-sub">${state.user.region}</div>
+          <div class="topbar-title">${state.user.region}</div>
         </div>
         <div class="user-chip">
           <div class="points-pill">P <span class="mono">${state.user.points.toLocaleString()}</span></div>
@@ -1176,7 +1173,7 @@ function setMenu(id){state.menu=id; render();}
 function goHome(){ state.menu='main'; render(); }
 function renderMain(){
   return `
-  <div class="view-head"><h1>메인</h1><p>우리동네 홈트챌린지가 어떤 서비스인지 한눈에 확인하세요.</p></div>
+  <div class="view-head"><p>우리동네 홈트챌린지가 어떤 서비스인지 한눈에 확인하세요.</p></div>
   <div class="card" style="text-align:center;margin-bottom:24px;">
     <h2 style="margin:0 0 8px;">집에서, 우리 동네 사람들과 함께 운동해요</h2>
     <p class="desc" style="max-width:56ch;margin:0 auto 16px;">웹캠으로 자세를 실시간 판정하고, 미션과 랭킹으로 이웃과 함께 성장하는 홈트레이닝 서비스예요.</p>
@@ -1222,7 +1219,7 @@ function exerciseStepHead(){
   return `
   <div class="view-head">
     <h1>운동</h1>
-    <p>운동 종목 선택 → 튜토리얼·스트레칭 → 웹캠 촬영 → 리플레이 자세 분석 → 결과·점수 저장</p>
+    <p>운동 종목 선택 → 튜토리얼 → 웹캠 촬영 → 리플레이 자세 분석 → 결과·점수 저장</p>
   </div>
   <div class="subtabs">
     ${EX_STEPS.map((s,i)=>`<div class="tab ${state.exercise.step===i?'active':''}">${i+1}. ${s}</div>`).join('')}
