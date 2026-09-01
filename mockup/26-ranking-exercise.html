@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>목업 · 랭킹(운동 종목별)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="04-main.html">
+      <div class="brand-mark">홈</div>
+      <div class="brand-name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
+    </a>
+    <div class="navitem"><span class="navicon"></span>메인</div>
+    <div class="navitem"><span class="navicon"></span>운동</div>
+    <div class="navitem"><span class="navicon"></span>미션</div>
+    <div class="navitem"><span class="navicon"></span>마이페이지</div>
+    <div class="navitem"><span class="navicon"></span>포인트 상점</div>
+    <div class="navitem"><span class="navicon"></span>홈크루</div>
+    <div class="navitem active"><span class="navicon"></span>랭킹</div>
+    <div class="navitem"><span class="navicon"></span>고객센터</div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">랭킹</div>
+        <div class="topbar-sub">서울시 강남구 역삼동</div>
+      </div>
+      <div class="user-chip">
+        <div class="points-pill">P <span class="mono">3,240</span></div>
+        <span class="topbar-nick">써니핏</span>
+        <div class="topbar-avatar">
+          <div style="width:36px;height:36px;border-radius:50%;border:2px solid var(--outline);background:var(--surface-2);"></div>
+          <span class="mono">Lv.7</span>
+        </div>
+      </div>
+    </div>
+    <div class="view">
+      <div class="view-head"><h1>랭킹</h1><p>지역별 랭킹 → 운동 종목별 랭킹 → 크루 랭킹</p></div>
+      <div class="subtabs">
+        <div class="tab">지역별 랭킹</div>
+        <div class="tab active">운동 종목별 랭킹</div>
+        <div class="tab">크루 랭킹</div>
+      </div>
+
+      <div class="filter-bar">
+        <select><option selected>서울시</option><option>부산시</option></select>
+        <select><option selected>강남구</option><option>마포구</option></select>
+        <select><option selected>역삼동</option><option>삼성동</option></select>
+        <select><option selected>스쿼트</option></select>
+      </div>
+      <p class="hint" style="margin:-6px 0 14px;">점수는 스쿼트 종목의 누적 점수 기준입니다.</p>
+
+      <div class="podium">
+        <div class="podium-step rank2">
+          <div class="podium-canvas" style="width:52px;height:63px;border-radius:10px;border:2px solid var(--outline);background:var(--surface-2);"></div>
+          <div class="podium-name">배드민턴킹</div>
+          <div class="podium-lv mono">Lv.8</div>
+          <div class="podium-score mono">450</div>
+          <div class="podium-stand">2</div>
+        </div>
+        <div class="podium-step rank1">
+          <div class="podium-canvas" style="width:66px;height:80px;border-radius:10px;border:2px solid var(--outline);background:var(--gold-soft);"></div>
+          <div class="podium-name">헬린이탈출</div>
+          <div class="podium-lv mono">Lv.10</div>
+          <div class="podium-score mono">480</div>
+          <div class="podium-stand">1</div>
+        </div>
+        <div class="podium-step rank3">
+          <div class="podium-canvas" style="width:52px;height:63px;border-radius:10px;border:2px solid var(--outline);background:var(--coral-soft);"></div>
+          <div class="podium-name">조깅단장</div>
+          <div class="podium-lv mono">Lv.6</div>
+          <div class="podium-score mono">420</div>
+          <div class="podium-stand">3</div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>순위</th><th>닉네임</th><th>스쿼트 누적점수</th></tr></thead>
+          <tbody>
+            <tr><td><span class="rank-num">4</span></td><td>써니핏 <span class="pill pill-accent">나</span></td><td class="mono">412</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

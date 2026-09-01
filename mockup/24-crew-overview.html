@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>목업 · 홈크루 메인</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="04-main.html">
+      <div class="brand-mark">홈</div>
+      <div class="brand-name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
+    </a>
+    <div class="navitem"><span class="navicon"></span>메인</div>
+    <div class="navitem"><span class="navicon"></span>운동</div>
+    <div class="navitem"><span class="navicon"></span>미션</div>
+    <div class="navitem"><span class="navicon"></span>마이페이지</div>
+    <div class="navitem"><span class="navicon"></span>포인트 상점</div>
+    <div class="navitem active"><span class="navicon"></span>홈크루</div>
+    <div class="navitem"><span class="navicon"></span>랭킹</div>
+    <div class="navitem"><span class="navicon"></span>고객센터</div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">홈크루</div>
+        <div class="topbar-sub">서울시 강남구 역삼동</div>
+      </div>
+      <div class="user-chip">
+        <div class="points-pill">P <span class="mono">3,140</span></div>
+        <span class="topbar-nick">써니핏</span>
+        <div class="topbar-avatar">
+          <div style="width:36px;height:36px;border-radius:50%;border:2px solid var(--outline);background:var(--surface-2);"></div>
+          <span class="mono">Lv.7</span>
+        </div>
+      </div>
+    </div>
+    <div class="view">
+      <div class="view-head"><h1>역삼동 스쿼트단</h1><p>크루 메인 → 크루공지 → 오늘의 단체 미션 → 크루원 정보</p></div>
+      <div class="subtabs">
+        <div class="tab active">크루 메인</div>
+        <div class="tab">크루공지</div>
+        <div class="tab">오늘의 단체 미션</div>
+        <div class="tab">크루원 정보</div>
+        <div class="tab">크루원관리</div>
+      </div>
+
+      <div class="grid grid-2" style="align-items:start;">
+        <div class="card">
+          <p class="section-label">크루 레벨 · 누적 경험치</p>
+          <div class="stat-row">
+            <div class="stat-box"><div class="num mono">Lv.1</div><div class="lbl">크루 레벨</div></div>
+            <div class="stat-box"><div class="num mono">120</div><div class="lbl">누적 경험치</div></div>
+            <div class="stat-box"><div class="num mono">#2</div><div class="lbl">역삼동 순위</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <p class="section-label">크루 미션 누적점수</p>
+          <div class="rep-row">
+            <span class="rank-num top" style="min-width:24px;height:22px;">1</span>
+            <span class="user-avatar" style="width:22px;height:22px;font-size:10px;flex:none;background:var(--accent)">런</span>
+            <span style="width:64px;">런닝수달</span>
+            <div class="bar-track"><span style="width:37%;background:var(--accent)"></span></div>
+            <span class="angle mono">3,800점</span>
+          </div>
+          <div class="rep-row">
+            <span class="rank-num" style="min-width:24px;height:22px;">2</span>
+            <span class="user-avatar" style="width:22px;height:22px;font-size:10px;flex:none;background:var(--coral)">써</span>
+            <span style="width:64px;">써니핏</span>
+            <div class="bar-track"><span style="width:31%;background:var(--accent)"></span></div>
+            <span class="angle mono">3,200점</span>
+          </div>
+          <div class="rep-row">
+            <span class="rank-num" style="min-width:24px;height:22px;">3</span>
+            <span class="user-avatar" style="width:22px;height:22px;font-size:10px;flex:none;background:var(--gold)">단</span>
+            <span style="width:64px;">단백질맨</span>
+            <div class="bar-track"><span style="width:20%;background:var(--accent)"></span></div>
+            <span class="angle mono">2,100점</span>
+          </div>
+          <div class="rep-row">
+            <span class="rank-num" style="min-width:24px;height:22px;">4</span>
+            <span class="user-avatar" style="width:22px;height:22px;font-size:10px;flex:none;background:var(--sky)">나</span>
+            <span style="width:64px;">나 <span class="pill pill-accent">나</span></span>
+            <div class="bar-track"><span style="width:13%;background:var(--accent)"></span></div>
+            <span class="angle mono">1,310점</span>
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-2" style="align-items:start;margin-top:14px;">
+        <div class="card">
+          <p class="section-label">팀미션 진행률</p>
+          <div class="progress" style="height:14px;margin:10px 0;"><span style="width:64%"></span></div>
+          <p class="desc">전체 목표 대비 64% 달성</p>
+        </div>
+        <div class="card">
+          <p class="section-label">내게 배분된 미션</p>
+          <div class="flex-between"><h3 style="margin:0;">스쿼트</h3><span class="pill pill-accent">일일</span></div>
+          <p class="desc" style="margin:8px 0;">목표 70회</p>
+          <div class="progress" style="margin:6px 0;"><span style="width:45%"></span></div>
+          <p class="hint" style="margin:0;">진행률 45% · 자세한 배분 현황은 '오늘의 단체 미션' 탭에서 확인하세요.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

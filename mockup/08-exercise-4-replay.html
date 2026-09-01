@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>목업 · 운동 4.리플레이 분석</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="04-main.html">
+      <div class="brand-mark">홈</div>
+      <div class="brand-name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
+    </a>
+    <div class="navitem"><span class="navicon"></span>메인</div>
+    <div class="navitem active"><span class="navicon"></span>운동</div>
+    <div class="navitem"><span class="navicon"></span>미션</div>
+    <div class="navitem"><span class="navicon"></span>마이페이지</div>
+    <div class="navitem"><span class="navicon"></span>포인트 상점</div>
+    <div class="navitem"><span class="navicon"></span>홈크루</div>
+    <div class="navitem"><span class="navicon"></span>랭킹</div>
+    <div class="navitem"><span class="navicon"></span>고객센터</div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">운동</div>
+        <div class="topbar-sub">서울시 강남구 역삼동</div>
+      </div>
+      <div class="user-chip">
+        <div class="points-pill">P <span class="mono">3,240</span></div>
+        <span class="topbar-nick">써니핏</span>
+        <div class="topbar-avatar">
+          <div style="width:36px;height:36px;border-radius:50%;border:2px solid var(--outline);background:var(--surface-2);"></div>
+          <span class="mono">Lv.7</span>
+        </div>
+      </div>
+    </div>
+    <div class="view">
+      <div class="view-head">
+        <h1>운동</h1>
+        <p>운동 종목 선택 → 튜토리얼·스트레칭 → 웹캠 촬영 → 리플레이 자세 분석 → 결과·점수 저장</p>
+      </div>
+      <div class="subtabs">
+        <div class="tab">1. 종목 선택</div>
+        <div class="tab">2. 튜토리얼</div>
+        <div class="tab">3. 웹캠 촬영</div>
+        <div class="tab active">4. 리플레이 분석</div>
+        <div class="tab">5. 결과 저장</div>
+      </div>
+
+      <div class="grid grid-2" style="margin-bottom:8px;">
+        <div>
+          <p class="section-label">레퍼런스 정자세</p>
+          <div class="cam-stage" style="aspect-ratio:1/1;">
+            <img src="../Bodyweight_Squats.gif" alt="레퍼런스 스쿼트" style="width:100%;height:100%;object-fit:cover;">
+          </div>
+        </div>
+        <div>
+          <p class="section-label">내 촬영 영상</p>
+          <div class="cam-stage" style="aspect-ratio:1/1;">
+            <div class="cam-placeholder">내 촬영 영상 재생<br>(관절 오차 오버레이 표시)</div>
+          </div>
+          <p class="hint" style="margin-top:6px;">자세 비교 분석 완료</p>
+        </div>
+      </div>
+      <p class="hint" style="margin-bottom:20px;">빨간 선으로 표시된 관절이 기준과 어긋난 부분이에요. 영상을 재생하면 그 시점 스켈레톤은 사라지니, 다시 보려면 새로고침해주세요.</p>
+      <div class="grid grid-2">
+        <div class="card">
+          <p class="section-label">스쿼트 · 리플레이 분석 결과</p>
+          <div class="stat-row">
+            <div class="stat-box"><div class="num mono">10</div><div class="lbl">총 횟수</div></div>
+            <div class="stat-box"><div class="num mono" style="color:var(--accent)">9</div><div class="lbl">유효 횟수</div></div>
+            <div class="stat-box"><div class="num mono" style="color:var(--danger)">1</div><div class="lbl">MISS</div></div>
+            <div class="stat-box"><div class="num mono">92%</div><div class="lbl">정확도</div></div>
+          </div>
+          <p class="section-label">관절 각도 오차 구간</p>
+          <div class="progress" style="height:14px;margin-bottom:6px;"><span style="width:92%;background:var(--accent)"></span></div>
+          <p class="desc">촬영 시간 1분 12초 · 평균 정확도 92%</p>
+        </div>
+        <div class="card">
+          <p class="section-label">반복별 판정 (10회)</p>
+          <div class="rep-list">
+            <div class="rep-row"><span class="idx">#1</span><span class="pill pill-accent">PERFECT</span><div class="bar-track"><span style="width:96%;background:var(--accent)"></span></div><span class="angle">96°</span></div>
+            <div class="rep-row"><span class="idx">#2</span><span class="pill pill-gold">GREAT</span><div class="bar-track"><span style="width:88%;background:var(--gold)"></span></div><span class="angle">88°</span></div>
+            <div class="rep-row"><span class="idx">#3</span><span class="pill pill-accent">PERFECT</span><div class="bar-track"><span style="width:95%;background:var(--accent)"></span></div><span class="angle">95°</span></div>
+            <div class="rep-row"><span class="idx">#4</span><span class="pill pill-muted">GOOD</span><div class="bar-track"><span style="width:74%;background:#4A7CFF"></span></div><span class="angle">74°</span></div>
+            <div class="rep-row"><span class="idx">#5</span><span class="pill pill-gold">GREAT</span><div class="bar-track"><span style="width:85%;background:var(--gold)"></span></div><span class="angle">85°</span></div>
+            <div class="rep-row"><span class="idx">#6</span><span class="pill pill-accent">PERFECT</span><div class="bar-track"><span style="width:97%;background:var(--accent)"></span></div><span class="angle">97°</span></div>
+            <div class="rep-row"><span class="idx">#7</span><span class="pill pill-danger">MISS</span><div class="bar-track"><span style="width:38%;background:var(--danger)"></span></div><span class="angle">38°</span></div>
+            <div class="rep-row"><span class="idx">#8</span><span class="pill pill-gold">GREAT</span><div class="bar-track"><span style="width:87%;background:var(--gold)"></span></div><span class="angle">87°</span></div>
+            <div class="rep-row"><span class="idx">#9</span><span class="pill pill-accent">PERFECT</span><div class="bar-track"><span style="width:94%;background:var(--accent)"></span></div><span class="angle">94°</span></div>
+            <div class="rep-row"><span class="idx">#10</span><span class="pill pill-gold">GREAT</span><div class="bar-track"><span style="width:86%;background:var(--gold)"></span></div><span class="angle">86°</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:20px;display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-ghost">다시 촬영 (무료 2회 남음)</button>
+        <button class="btn btn-primary">결과 저장하기</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

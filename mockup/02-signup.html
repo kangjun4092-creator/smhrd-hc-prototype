@@ -19,33 +19,46 @@
 
     <div class="field">
       <label for="su-id">아이디</label>
-      <input id="su-id" type="text" placeholder="영문/숫자 4자 이상">
+      <div class="field-row">
+        <input id="su-id" type="text" placeholder="영문/숫자 4자 이상" style="flex:1;min-width:0;" value="hometrainer02">
+        <button type="button" class="btn btn-secondary btn-sm" style="flex:none;white-space:nowrap;">중복확인</button>
+      </div>
+      <p class="hint" style="color:var(--accent);">사용 가능한 아이디입니다</p>
     </div>
     <div class="field-row">
       <div class="field">
         <label for="su-pw">비밀번호</label>
-        <input id="su-pw" type="password" placeholder="••••••••">
+        <input id="su-pw" type="password" placeholder="••••••••" value="••••••••">
       </div>
       <div class="field">
         <label for="su-pw2">비밀번호 확인</label>
-        <input id="su-pw2" type="password" placeholder="••••••••">
+        <input id="su-pw2" type="password" placeholder="••••••••" value="•••••••">
+        <p class="hint" style="color:var(--danger);">비밀번호가 일치하지 않습니다</p>
       </div>
     </div>
     <div class="field">
       <label for="su-nick">닉네임</label>
-      <input id="su-nick" type="text" placeholder="홈트에서 사용할 닉네임">
+      <div class="field-row">
+        <input id="su-nick" type="text" placeholder="홈트에서 사용할 닉네임" style="flex:1;min-width:0;" value="써니핏">
+        <button type="button" class="btn btn-secondary btn-sm" style="flex:none;white-space:nowrap;">중복확인</button>
+      </div>
+      <p class="hint" style="color:var(--danger);">이미 사용중인 닉네임입니다</p>
     </div>
     <div class="field">
-      <label for="su-ref">추천인 코드 (선택)</label>
+      <label for="su-ref">추천인 아이디 (선택)</label>
       <input id="su-ref" type="text" placeholder="추천인 아이디 입력 시 포인트 지급">
       <p class="hint">가입자와 추천인 모두에게 포인트가 지급됩니다.</p>
     </div>
     <div class="field">
+      <label for="su-email">이메일</label>
+      <input id="su-email" type="email" placeholder="example@email.com" value="sunnyfit@example.com">
+    </div>
+    <div class="field">
       <label>활동 지역 (랭킹 산정 기준)</label>
       <div class="field-row">
-        <select style="flex:1;min-width:0;"><option>서울시</option></select>
-        <select style="flex:1;min-width:0;"><option>강남구</option></select>
-        <select style="flex:1;min-width:0;"><option>역삼동</option></select>
+        <select style="flex:1;min-width:0;"><option>서울시</option><option>부산시</option><option>대전시</option></select>
+        <select style="flex:1;min-width:0;"><option>강남구</option><option>마포구</option><option>성동구</option></select>
+        <select style="flex:1;min-width:0;"><option>역삼동</option><option>삼성동</option></select>
       </div>
       <p class="hint">랭킹은 동 단위로 집계됩니다.</p>
     </div>

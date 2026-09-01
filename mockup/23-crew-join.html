@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>목업 · 홈크루 가입</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="04-main.html">
+      <div class="brand-mark">홈</div>
+      <div class="brand-name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
+    </a>
+    <div class="navitem"><span class="navicon"></span>메인</div>
+    <div class="navitem"><span class="navicon"></span>운동</div>
+    <div class="navitem"><span class="navicon"></span>미션</div>
+    <div class="navitem"><span class="navicon"></span>마이페이지</div>
+    <div class="navitem"><span class="navicon"></span>포인트 상점</div>
+    <div class="navitem active"><span class="navicon"></span>홈크루</div>
+    <div class="navitem"><span class="navicon"></span>랭킹</div>
+    <div class="navitem"><span class="navicon"></span>고객센터</div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">홈크루</div>
+        <div class="topbar-sub">서울시 강남구 역삼동</div>
+      </div>
+      <div class="user-chip">
+        <div class="points-pill">P <span class="mono">3,240</span></div>
+        <span class="topbar-nick">써니핏</span>
+        <div class="topbar-avatar">
+          <div style="width:36px;height:36px;border-radius:50%;border:2px solid var(--outline);background:var(--surface-2);"></div>
+          <span class="mono">Lv.7</span>
+        </div>
+      </div>
+    </div>
+    <div class="view">
+      <div class="view-head"><h1>홈크루</h1><p>크루를 새로 만들거나 우리동네 크루에 가입해보세요</p></div>
+      <div class="subtabs">
+        <div class="tab">크루 생성</div>
+        <div class="tab active">우리동네 크루 가입하기</div>
+      </div>
+
+      <div class="field" style="max-width:360px;"><label for="crew-search-input">크루명 검색</label><input id="crew-search-input" placeholder="크루 이름으로 검색"></div>
+      <div class="filter-bar">
+        <select><option value="">시 전체</option><option selected>서울시</option><option>부산시</option></select>
+        <select><option value="">구 전체</option><option selected>강남구</option><option>마포구</option></select>
+        <select><option value="">동 전체</option><option>역삼동</option><option>삼성동</option></select>
+      </div>
+      <div class="grid grid-3">
+        <div class="card">
+          <div class="flex-between"><h3 style="margin:0;">역삼동 러너스</h3><span class="pill pill-gold">Lv.11</span></div>
+          <p class="desc" style="margin-top:8px;">매일 아침 6시 인증 러닝 크루입니다.</p>
+          <p class="hint" style="margin:0 0 10px;">서울시 강남구 역삼동</p>
+          <div class="stat-row" style="margin-top:0;">
+            <div class="stat-box"><div class="num mono">4,820</div><div class="lbl">누적 점수</div></div>
+            <div class="stat-box"><div class="num mono">써니핏</div><div class="lbl">크루장</div></div>
+          </div>
+          <button class="btn btn-primary btn-block" style="margin-top:12px;">가입하기</button>
+        </div>
+        <div class="card">
+          <div class="flex-between"><h3 style="margin:0;">삼성동 스쿼트클럽</h3><span class="pill pill-gold">Lv.6</span></div>
+          <p class="desc" style="margin-top:8px;">스쿼트 하나만 파는 크루예요.</p>
+          <p class="hint" style="margin:0 0 10px;">서울시 강남구 삼성동</p>
+          <div class="stat-row" style="margin-top:0;">
+            <div class="stat-box"><div class="num mono">2,400</div><div class="lbl">누적 점수</div></div>
+            <div class="stat-box"><div class="num mono">헬스왕</div><div class="lbl">크루장</div></div>
+          </div>
+          <button class="btn btn-primary btn-block" style="margin-top:12px;">가입하기</button>
+        </div>
+        <div class="card">
+          <div class="flex-between"><h3 style="margin:0;">합정 플랭커즈</h3><span class="pill pill-gold">Lv.9</span></div>
+          <p class="desc" style="margin-top:8px;">플랭크 최강자를 가립니다.</p>
+          <p class="hint" style="margin:0 0 10px;">서울시 마포구 합정동</p>
+          <div class="stat-row" style="margin-top:0;">
+            <div class="stat-box"><div class="num mono">3,990</div><div class="lbl">누적 점수</div></div>
+            <div class="stat-box"><div class="num mono">런닝수달</div><div class="lbl">크루장</div></div>
+          </div>
+          <button class="btn btn-primary btn-block" style="margin-top:12px;">가입하기</button>
+        </div>
+        <div class="card">
+          <div class="flex-between"><h3 style="margin:0;">망원 버피팀</h3><span class="pill pill-gold">Lv.7</span></div>
+          <p class="desc" style="margin-top:8px;">버피로 체지방 태우는 크루.</p>
+          <p class="hint" style="margin:0 0 10px;">서울시 마포구 망원동</p>
+          <div class="stat-row" style="margin-top:0;">
+            <div class="stat-box"><div class="num mono">2,950</div><div class="lbl">누적 점수</div></div>
+            <div class="stat-box"><div class="num mono">버피장인</div><div class="lbl">크루장</div></div>
+          </div>
+          <button class="btn btn-primary btn-block" style="margin-top:12px;">가입하기</button>
+        </div>
+      </div>
+      <div class="flex-between" style="margin-top:16px;justify-content:center;gap:14px;">
+        <button class="btn btn-sm btn-ghost" disabled style="opacity:.4;cursor:not-allowed;">이전</button>
+        <span class="hint" style="margin:0;">1 / 2 페이지</span>
+        <button class="btn btn-sm btn-ghost">다음</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

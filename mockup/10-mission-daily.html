@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>목업 · 미션(일간)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="04-main.html">
+      <div class="brand-mark">홈</div>
+      <div class="brand-name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
+    </a>
+    <div class="navitem"><span class="navicon"></span>메인</div>
+    <div class="navitem"><span class="navicon"></span>운동</div>
+    <div class="navitem active"><span class="navicon"></span>미션</div>
+    <div class="navitem"><span class="navicon"></span>마이페이지</div>
+    <div class="navitem"><span class="navicon"></span>포인트 상점</div>
+    <div class="navitem"><span class="navicon"></span>홈크루</div>
+    <div class="navitem"><span class="navicon"></span>랭킹</div>
+    <div class="navitem"><span class="navicon"></span>고객센터</div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">미션</div>
+        <div class="topbar-sub">서울시 강남구 역삼동</div>
+      </div>
+      <div class="user-chip">
+        <div class="points-pill">P <span class="mono">3,240</span></div>
+        <span class="topbar-nick">써니핏</span>
+        <div class="topbar-avatar">
+          <div style="width:36px;height:36px;border-radius:50%;border:2px solid var(--outline);background:var(--surface-2);"></div>
+          <span class="mono">Lv.7</span>
+        </div>
+      </div>
+    </div>
+    <div class="view">
+      <div class="view-head"><h1>미션</h1><p>일간/주간/월간 미션 선택 → 스쿼트로 달성하고 포인트를 모아보세요</p></div>
+      <div class="filter-bar">
+        <button class="btn btn-primary btn-sm">일간 미션 (3개)</button>
+        <button class="btn btn-secondary btn-sm">주간 미션 (7개)</button>
+        <button class="btn btn-secondary btn-sm">월간 미션 (15개)</button>
+      </div>
+      <div class="grid grid-2" style="margin-top:14px;">
+        <div class="card">
+          <div class="flex-between"><span class="pill pill-muted">일간</span><span class="pill pill-accent">달성</span></div>
+          <h3 style="margin-top:8px;">스쿼트 22회 달성</h3>
+          <div class="progress" style="margin:10px 0;"><span style="width:100%"></span></div>
+          <div class="flex-between">
+            <p class="desc mono" style="margin:0;">22/22 <span style="color:var(--gold);font-weight:700;">· +55P</span></p>
+            <button class="btn btn-sm btn-primary">보상 받기</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="flex-between"><span class="pill pill-muted">일간</span><span class="pill pill-muted">진행중</span></div>
+          <h3 style="margin-top:8px;">스쿼트 퍼펙트 5개 만들기</h3>
+          <div class="progress" style="margin:10px 0;"><span style="width:40%"></span></div>
+          <div class="flex-between">
+            <p class="desc mono" style="margin:0;">2/5 <span style="color:var(--gold);font-weight:700;">· +20P</span></p>
+            <button class="btn btn-sm btn-secondary">미션하러가기</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="flex-between"><span class="pill pill-muted">일간</span><span class="pill pill-muted">진행중</span></div>
+          <h3 style="margin-top:8px;">MISS 0회 세트 1회 달성</h3>
+          <div class="progress" style="margin:10px 0;"><span style="width:0%"></span></div>
+          <div class="flex-between">
+            <p class="desc mono" style="margin:0;">0/1 <span style="color:var(--gold);font-weight:700;">· +45P</span></p>
+            <button class="btn btn-sm btn-secondary">미션하러가기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

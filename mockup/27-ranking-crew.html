@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>목업 · 랭킹(크루)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="04-main.html">
+      <div class="brand-mark">홈</div>
+      <div class="brand-name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
+    </a>
+    <div class="navitem"><span class="navicon"></span>메인</div>
+    <div class="navitem"><span class="navicon"></span>운동</div>
+    <div class="navitem"><span class="navicon"></span>미션</div>
+    <div class="navitem"><span class="navicon"></span>마이페이지</div>
+    <div class="navitem"><span class="navicon"></span>포인트 상점</div>
+    <div class="navitem"><span class="navicon"></span>홈크루</div>
+    <div class="navitem active"><span class="navicon"></span>랭킹</div>
+    <div class="navitem"><span class="navicon"></span>고객센터</div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">랭킹</div>
+        <div class="topbar-sub">서울시 강남구 역삼동</div>
+      </div>
+      <div class="user-chip">
+        <div class="points-pill">P <span class="mono">3,240</span></div>
+        <span class="topbar-nick">써니핏</span>
+        <div class="topbar-avatar">
+          <div style="width:36px;height:36px;border-radius:50%;border:2px solid var(--outline);background:var(--surface-2);"></div>
+          <span class="mono">Lv.7</span>
+        </div>
+      </div>
+    </div>
+    <div class="view">
+      <div class="view-head"><h1>랭킹</h1><p>지역별 랭킹 → 운동 종목별 랭킹 → 크루 랭킹</p></div>
+      <div class="subtabs">
+        <div class="tab">지역별 랭킹</div>
+        <div class="tab">운동 종목별 랭킹</div>
+        <div class="tab active">크루 랭킹</div>
+      </div>
+
+      <div class="grid grid-2" style="align-items:start;">
+        <div>
+          <p class="section-label">동네별 크루 랭킹</p>
+          <div class="filter-bar">
+            <select><option selected>서울시</option><option>부산시</option></select>
+            <select><option selected>강남구</option><option>마포구</option></select>
+            <select><option selected>역삼동</option><option>삼성동</option></select>
+          </div>
+          <div class="podium">
+            <div class="podium-step rank2">
+              <div class="podium-canvas" style="width:52px;height:63px;border-radius:10px;border:2px solid var(--outline);background:var(--surface-2);"></div>
+              <div class="podium-name">역삼동 스쿼트단 <span class="pill pill-accent">나</span></div>
+              <div class="podium-lv mono">Lv.1</div>
+              <div class="podium-score mono">10,410</div>
+              <div class="podium-stand">2</div>
+            </div>
+            <div class="podium-step rank1">
+              <div class="podium-canvas" style="width:66px;height:80px;border-radius:10px;border:2px solid var(--outline);background:var(--gold-soft);"></div>
+              <div class="podium-name">역삼동 러너스</div>
+              <div class="podium-lv mono">Lv.11</div>
+              <div class="podium-score mono">19,280</div>
+              <div class="podium-stand">1</div>
+            </div>
+            <div class="podium-step rank3">
+              <div class="podium-canvas" style="width:52px;height:63px;border-radius:10px;border:2px solid var(--outline);background:var(--coral-soft);"></div>
+              <div class="podium-name">역삼동 버피즈</div>
+              <div class="podium-lv mono">Lv.4</div>
+              <div class="podium-score mono">6,120</div>
+              <div class="podium-stand">3</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p class="section-label">동네별 1위 크루 지도</p>
+          <div class="filter-bar">
+            <select><option selected>서울시</option><option>부산시</option></select>
+            <select><option selected>강남구</option><option>마포구</option></select>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+            <div style="border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--surface-2);">
+              <div class="flex-between"><b style="font-size:13px;">역삼동</b><span class="pill pill-gold">1위</span></div>
+              <p class="desc" style="margin:6px 0 0;">역삼동 러너스</p>
+              <p class="hint" style="margin-top:2px;">Lv.11 · 19,280점</p>
+            </div>
+            <div style="border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--surface-2);">
+              <div class="flex-between"><b style="font-size:13px;">삼성동</b><span class="pill pill-gold">1위</span></div>
+              <p class="desc" style="margin:6px 0 0;">삼성동 스쿼트클럽</p>
+              <p class="hint" style="margin-top:2px;">Lv.6 · 8,900점</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

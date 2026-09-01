@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>목업 · 마이페이지 1.캐릭터 꾸미기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="04-main.html">
+      <div class="brand-mark">홈</div>
+      <div class="brand-name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
+    </a>
+    <div class="navitem"><span class="navicon"></span>메인</div>
+    <div class="navitem"><span class="navicon"></span>운동</div>
+    <div class="navitem"><span class="navicon"></span>미션</div>
+    <div class="navitem active"><span class="navicon"></span>마이페이지</div>
+    <div class="navitem"><span class="navicon"></span>포인트 상점</div>
+    <div class="navitem"><span class="navicon"></span>홈크루</div>
+    <div class="navitem"><span class="navicon"></span>랭킹</div>
+    <div class="navitem"><span class="navicon"></span>고객센터</div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">마이페이지</div>
+        <div class="topbar-sub">서울시 강남구 역삼동</div>
+      </div>
+      <div class="user-chip">
+        <div class="points-pill">P <span class="mono">3,240</span></div>
+        <span class="topbar-nick">써니핏</span>
+        <div class="topbar-avatar">
+          <div style="width:36px;height:36px;border-radius:50%;border:2px solid var(--outline);background:var(--surface-2);"></div>
+          <span class="mono">Lv.7</span>
+        </div>
+      </div>
+    </div>
+    <div class="view">
+      <div class="view-head"><h1>마이페이지</h1><p>캐릭터 꾸미기·미션·운동 기록부터 계정·설정 관리까지 한 곳에서 확인하세요.</p></div>
+      <div class="subtabs">
+        <div class="tab active">프로필·캐릭터 꾸미기</div>
+        <div class="tab">미션 달성 현황</div>
+        <div class="tab">운동 히스토리</div>
+        <div class="tab">계정·프로필 관리</div>
+        <div class="tab">캘리브레이션 재설정</div>
+        <div class="tab">카메라·알림 설정</div>
+        <div class="tab">개인정보·공개범위</div>
+        <div class="tab">로그아웃·회원탈퇴</div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card" style="text-align:center;">
+          <p class="section-label">내 캐릭터</p>
+          <div style="width:144px;height:176px;margin:10px auto;border-radius:10px;background:linear-gradient(180deg,#3b2f63,#c06b4f 55%,#f0b35c);border:2px solid var(--outline);"></div>
+          <h3 style="color:var(--gold);">써니핏</h3>
+          <span class="pill pill-gold">Lv.7</span>
+          <div class="field" style="margin-top:14px;text-align:left;">
+            <label for="profile-bio-input">자기소개</label>
+            <textarea id="profile-bio-input" rows="3" maxlength="80" placeholder="나를 소개하는 한마디를 남겨보세요">매일 저녁 스쿼트 10개! 같이 하실 분 구해요 🏋️</textarea>
+            <button class="btn btn-sm btn-secondary" style="margin-top:6px;width:100%;">자기소개 저장</button>
+          </div>
+          <div style="text-align:left;margin-top:18px;">
+            <p class="section-label">누적 성과</p>
+            <div class="stat-row">
+              <div class="stat-box"><div class="num mono">1,310</div><div class="lbl">누적 점수</div></div>
+              <div class="stat-box"><div class="num mono">#3</div><div class="lbl">동네 랭킹</div></div>
+              <div class="stat-box"><div class="num mono">380</div><div class="lbl">레벨업까지 남은 점수</div></div>
+            </div>
+            <div class="progress" style="margin-top:12px;"><span style="width:62%"></span></div>
+            <p class="hint" style="margin-top:4px;">Lv.7 진행도 62%</p>
+            <p class="section-label" style="margin-top:16px;">등급 비율 (전체 세션 기준)</p>
+            <div class="stat-row">
+              <div class="stat-box"><div class="num mono" style="color:var(--accent)">44%</div><div class="lbl">PERFECT</div></div>
+              <div class="stat-box"><div class="num mono" style="color:var(--gold)">34%</div><div class="lbl">GREAT</div></div>
+              <div class="stat-box"><div class="num mono" style="color:var(--danger)">5%</div><div class="lbl">MISS</div></div>
+            </div>
+            <p class="section-label" style="margin-top:16px;">운동 종류별 누적 횟수</p>
+            <div class="rep-row" style="justify-content:space-between;"><span>스쿼트</span><span class="mono">32회</span></div>
+            <div class="rep-row" style="justify-content:space-between;"><span>런지</span><span class="mono">42회</span></div>
+            <div class="rep-row" style="justify-content:space-between;"><span>플랭크</span><span class="mono">1회</span></div>
+            <p class="section-label" style="margin-top:16px;">장착 아이템 보정 효과</p>
+            <span class="pill pill-accent" style="margin:0 6px 6px 0;display:inline-block;">프로필 배경 - 새벽 러닝 · 출석 보너스 +5P/일</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="section-label">보유 아이템</p>
+          <div class="grid" style="grid-template-columns:repeat(2,1fr);">
+            <div style="border:1px solid var(--line);border-radius:10px;padding:12px;">
+              <div style="width:48px;height:48px;border-radius:6px;margin:0 auto 8px;background:var(--sky-soft);"></div>
+              <div class="flex-between"><b style="font-size:12.5px;">프로필 배경 - 새벽 러닝</b><span class="pill pill-accent">착용중</span></div>
+              <span class="pill pill-accent" style="margin-top:6px;">효과 · 출석 보너스 +5P/일</span>
+              <p class="desc" style="margin-top:6px;font-size:11.5px;">연속 출석일마다 기본 출석 포인트에 5P가 추가됩니다.</p>
+              <button class="btn btn-sm btn-ghost" style="margin-top:8px;width:100%;">착용 해제</button>
+            </div>
+            <div style="border:1px solid var(--line);border-radius:10px;padding:12px;">
+              <div style="width:48px;height:48px;border-radius:6px;margin:0 auto 8px;background:var(--coral-soft);"></div>
+              <div class="flex-between"><b style="font-size:12.5px;">닉네임 컬러 이펙트</b><span class="pill pill-accent">착용중</span></div>
+              <span class="pill pill-muted" style="margin-top:6px;">효과 · 능력치 없음 · 외형 전용</span>
+              <p class="desc" style="margin-top:6px;font-size:11.5px;">랭킹에서 닉네임 색상만 강조되며 점수에는 영향이 없습니다.</p>
+              <button class="btn btn-sm btn-ghost" style="margin-top:8px;width:100%;">착용 해제</button>
+            </div>
+          </div>
+          <p class="section-label" style="margin-top:18px;">미보유 아이템</p>
+          <div class="grid" style="grid-template-columns:repeat(2,1fr);">
+            <div style="border:1px solid var(--line);border-radius:10px;padding:12px;">
+              <div style="width:48px;height:48px;border-radius:6px;margin:0 auto 8px;background:var(--surface-2);"></div>
+              <div class="flex-between"><b style="font-size:12.5px;">네온 트레이닝복</b><span class="pill pill-gold">300P</span></div>
+              <span class="pill pill-accent" style="margin-top:6px;">효과 · 판정 관대도 +3%</span>
+              <p class="desc" style="margin-top:6px;font-size:11.5px;">경계선 각도의 자세를 GOOD 이상으로 인정할 확률이 올라갑니다.</p>
+              <button class="btn btn-sm btn-secondary" style="margin-top:8px;width:100%;">상점에서 구매</button>
+            </div>
+            <div style="border:1px solid var(--line);border-radius:10px;padding:12px;">
+              <div style="width:48px;height:48px;border-radius:6px;margin:0 auto 8px;background:var(--surface-2);"></div>
+              <div class="flex-between"><b style="font-size:12.5px;">금빛 뱃지 프레임</b><span class="pill pill-gold">450P</span></div>
+              <span class="pill pill-accent" style="margin-top:6px;">효과 · 미션 포인트 +10%</span>
+              <p class="desc" style="margin-top:6px;font-size:11.5px;">모든 미션 달성 보상 포인트에 10% 추가 지급됩니다.</p>
+              <button class="btn btn-sm btn-secondary" style="margin-top:8px;width:100%;">상점에서 구매</button>
+            </div>
+            <div style="border:1px solid var(--line);border-radius:10px;padding:12px;">
+              <div style="width:48px;height:48px;border-radius:6px;margin:0 auto 8px;background:var(--surface-2);"></div>
+              <div class="flex-between"><b style="font-size:12.5px;">챔피언 왕관</b><span class="pill pill-gold">900P</span></div>
+              <span class="pill pill-accent" style="margin-top:6px;">효과 · 랭킹 점수 +5%</span>
+              <p class="desc" style="margin-top:6px;font-size:11.5px;">지역·종목 랭킹에 반영되는 점수가 5% 가산됩니다.</p>
+              <button class="btn btn-sm btn-secondary" style="margin-top:8px;width:100%;">상점에서 구매</button>
+            </div>
+            <div style="border:1px solid var(--line);border-radius:10px;padding:12px;">
+              <div style="width:48px;height:48px;border-radius:6px;margin:0 auto 8px;background:var(--surface-2);"></div>
+              <div class="flex-between"><b style="font-size:12.5px;">캐릭터 - 로봇 코치</b><span class="pill pill-gold">600P</span></div>
+              <span class="pill pill-accent" style="margin-top:6px;">효과 · 스트레칭 시간 -15%</span>
+              <p class="desc" style="margin-top:6px;font-size:11.5px;">운동 전 스트레칭 타이머가 15% 단축되어 표시됩니다.</p>
+              <button class="btn btn-sm btn-secondary" style="margin-top:8px;width:100%;">상점에서 구매</button>
+            </div>
+          </div>
+          <p class="hint" style="margin-top:14px;">보유 아이템을 착용/해제하면 캐릭터에 바로 반영됩니다.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

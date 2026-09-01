@@ -14,7 +14,9 @@
   .page-head{margin-bottom:28px;}
   .page-head h1{font-size:24px;margin:0 0 6px;}
   .page-head p{color:var(--ink-dim);font-size:13.5px;margin:0;max-width:70ch;line-height:1.6;}
-  ul.list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;max-width:1000px;}
+  h2.group-title{font-size:15px;margin:36px 0 12px;padding-top:8px;border-top:2px dashed var(--line);}
+  h2.group-title:first-of-type{border-top:none;padding-top:0;margin-top:0;}
+  ul.list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;max-width:1200px;}
   ul.list a{display:block;text-decoration:none;color:inherit;}
   ul.list .card{margin:0;}
   ul.list .card h3{margin-bottom:4px;}
@@ -23,19 +25,72 @@
 <body>
 <div class="page-head">
   <h1>홈챌린지 프로토타입 · 목업 디자인</h1>
-  <p>실제 index.html / style.css / script.js의 디자인 시스템(색상·폰트·컴포넌트)을 그대로 사용한 정적 목업입니다. 각 화면은 비상호작용 스냅샷이며, 실제 동작은 상위 폴더의 프로토타입(index.html)에서 확인할 수 있습니다.</p>
+  <p>실제 index.html / style.css / script.js의 디자인 시스템(색상·폰트·컴포넌트)을 그대로 사용한 정적 목업입니다. 각 화면은 비상호작용 스냅샷이며, 실제 동작은 상위 폴더의 프로토타입(index.html)에서 확인할 수 있습니다. 사이드바 메뉴는 script.js의 MENUS 배열과 동일하게 메인·운동·미션·마이페이지·포인트 상점·홈크루·랭킹·고객센터 8개로 통일되어 있습니다(자랑 게시판 제거, 계정 및 설정은 마이페이지 하위 탭으로 통합됨).</p>
 </div>
+
+<h2 class="group-title">로그인 · 가입</h2>
 <ul class="list">
+  <li><a href="00-intro.html"><div class="card"><h3>00. 소개(랜딩)</h3><p class="desc">로그인 전 첫 진입 화면 · 서비스 소개 · 이용 흐름</p></div></a></li>
   <li><a href="01-login.html"><div class="card"><h3>01. 로그인</h3><p class="desc">아이디/비밀번호 · 소셜 로그인</p></div></a></li>
-  <li><a href="02-signup.html"><div class="card"><h3>02. 회원가입</h3><p class="desc">계정정보 · 활동지역 · 캘리브레이션 진입</p></div></a></li>
-  <li><a href="03-calibration-modal.html"><div class="card"><h3>03. 웹캠 캘리브레이션</h3><p class="desc">MediaPipe Pose 기반 체형 측정 모달</p></div></a></li>
-  <li><a href="04-app-exercise.html"><div class="card"><h3>04. 운동</h3><p class="desc">종목 선택 · 웹캠 촬영 화면</p></div></a></li>
-  <li><a href="05-app-mission.html"><div class="card"><h3>05. 미션</h3><p class="desc">미션 후보 · 진행중인 미션</p></div></a></li>
-  <li><a href="06-app-profile.html"><div class="card"><h3>06. 나의 프로필</h3><p class="desc">캐릭터 꾸미기 · 누적 성과</p></div></a></li>
-  <li><a href="07-app-shop.html"><div class="card"><h3>07. 포인트 상점</h3><p class="desc">아이템 구매</p></div></a></li>
-  <li><a href="08-app-ranking.html"><div class="card"><h3>08. 랭킹</h3><p class="desc">포디움 · 지역 랭킹 테이블</p></div></a></li>
-  <li><a href="09-app-board.html"><div class="card"><h3>09. 자랑 게시판</h3><p class="desc">운동 인증 피드</p></div></a></li>
-  <li><a href="10-app-settings.html"><div class="card"><h3>10. 계정 및 설정</h3><p class="desc">프로필 · 카메라/알림 토글</p></div></a></li>
+  <li><a href="02-signup.html"><div class="card"><h3>02. 회원가입</h3><p class="desc">이메일 · 아이디/닉네임 중복확인 · 비밀번호 확인 불일치 표시 · 캘리브레이션 진입</p></div></a></li>
+  <li><a href="03-calibration-modal.html"><div class="card"><h3>03. 웹캠 캘리브레이션</h3><p class="desc">MediaPipe Pose 기반 체형 측정 모달 (확대된 레이아웃)</p></div></a></li>
+</ul>
+
+<h2 class="group-title">메인</h2>
+<ul class="list">
+  <li><a href="04-main.html"><div class="card"><h3>04. 메인</h3><p class="desc">서비스 소개 4카드(AI 판정·미션·홈크루·운동 히스토리) · 이용 흐름</p></div></a></li>
+</ul>
+
+<h2 class="group-title">운동</h2>
+<ul class="list">
+  <li><a href="05-exercise-1-pick.html"><div class="card"><h3>05. 운동 1 · 종목 선택</h3><p class="desc">스쿼트 (현재 실시간 판정 지원 종목)</p></div></a></li>
+  <li><a href="06-exercise-2-tutorial.html"><div class="card"><h3>06. 운동 2 · 튜토리얼</h3><p class="desc">정자세 가이드 · 진행 중인 스쿼트 미션</p></div></a></li>
+  <li><a href="07-exercise-3-webcam.html"><div class="card"><h3>07. 운동 3 · 웹캠 촬영</h3><p class="desc">정렬 카운트다운 · 실시간 인식 상태</p></div></a></li>
+  <li><a href="08-exercise-4-replay.html"><div class="card"><h3>08. 운동 4 · 리플레이 분석</h3><p class="desc">레퍼런스 비교 · 반복별 판정 리스트</p></div></a></li>
+  <li><a href="09-exercise-5-result.html"><div class="card"><h3>09. 운동 5 · 결과 저장</h3><p class="desc">획득 점수·포인트·정확도 요약</p></div></a></li>
+</ul>
+
+<h2 class="group-title">미션</h2>
+<ul class="list">
+  <li><a href="10-mission-daily.html"><div class="card"><h3>10. 미션 · 일간</h3><p class="desc">일간 미션 후보 (3개)</p></div></a></li>
+  <li><a href="11-mission-weekly.html"><div class="card"><h3>11. 미션 · 주간</h3><p class="desc">주간 미션 후보 (7개)</p></div></a></li>
+  <li><a href="12-mission-monthly.html"><div class="card"><h3>12. 미션 · 월간</h3><p class="desc">월간 미션 후보 (15개)</p></div></a></li>
+</ul>
+
+<h2 class="group-title">마이페이지</h2>
+<ul class="list">
+  <li><a href="13-mypage-1-avatar.html"><div class="card"><h3>13. 프로필·캐릭터 꾸미기</h3><p class="desc">캐릭터 미리보기 · 누적 성과 · 보유/미보유 아이템</p></div></a></li>
+  <li><a href="14-mypage-2-missions.html"><div class="card"><h3>14. 미션 달성 현황</h3><p class="desc">일간·주간·월간 미션 통합 뷰</p></div></a></li>
+  <li><a href="15-mypage-3-history.html"><div class="card"><h3>15. 운동 히스토리</h3><p class="desc">날짜별 세션 기록 · 등급 비율</p></div></a></li>
+  <li><a href="16-mypage-4-account.html"><div class="card"><h3>16. 계정·프로필 관리</h3><p class="desc">닉네임 · 활동 지역 변경</p></div></a></li>
+  <li><a href="17-mypage-5-calibration.html"><div class="card"><h3>17. 캘리브레이션 재설정</h3><p class="desc">체형 보정 다시 진행</p></div></a></li>
+  <li><a href="18-mypage-6-camera-alerts.html"><div class="card"><h3>18. 카메라·알림 설정</h3><p class="desc">알림·효과음·해상도 토글</p></div></a></li>
+  <li><a href="19-mypage-7-privacy.html"><div class="card"><h3>19. 개인정보·공개범위</h3><p class="desc">프로필/기록 공개 범위 설정</p></div></a></li>
+  <li><a href="20-mypage-8-logout-withdraw.html"><div class="card"><h3>20. 로그아웃·회원탈퇴</h3><p class="desc">로그아웃 · 회원 탈퇴</p></div></a></li>
+</ul>
+
+<h2 class="group-title">포인트 상점</h2>
+<ul class="list">
+  <li><a href="21-shop.html"><div class="card"><h3>21. 포인트 상점</h3><p class="desc">소모품·꾸미기 아이템 구매</p></div></a></li>
+</ul>
+
+<h2 class="group-title">홈크루</h2>
+<ul class="list">
+  <li><a href="22-crew-create.html"><div class="card"><h3>22. 크루 생성</h3><p class="desc">새 크루 만들기 (포인트 100 소모)</p></div></a></li>
+  <li><a href="23-crew-join.html"><div class="card"><h3>23. 우리동네 크루 가입하기</h3><p class="desc">검색·지역 필터·페이지네이션</p></div></a></li>
+  <li><a href="24-crew-overview.html"><div class="card"><h3>24. 크루 메인</h3><p class="desc">크루 레벨 · 미션 누적점수 · 팀미션 진행률 · 내 배분 미션</p></div></a></li>
+</ul>
+
+<h2 class="group-title">랭킹</h2>
+<ul class="list">
+  <li><a href="25-ranking-region.html"><div class="card"><h3>25. 지역별 랭킹</h3><p class="desc">포디움 · 지역 랭킹 테이블</p></div></a></li>
+  <li><a href="26-ranking-exercise.html"><div class="card"><h3>26. 운동 종목별 랭킹</h3><p class="desc">스쿼트 누적점수 기준</p></div></a></li>
+  <li><a href="27-ranking-crew.html"><div class="card"><h3>27. 크루 랭킹</h3><p class="desc">동네별 크루 랭킹 · 1위 크루 지도</p></div></a></li>
+</ul>
+
+<h2 class="group-title">고객센터</h2>
+<ul class="list">
+  <li><a href="28-support.html"><div class="card"><h3>28. 고객센터</h3><p class="desc">신고 관리 · 불편사항접수 게시판</p></div></a></li>
 </ul>
 </body>
 </html>

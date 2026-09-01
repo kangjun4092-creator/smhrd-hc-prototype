@@ -28,13 +28,13 @@
 </div>
 
 <div class="confirm-backdrop">
-  <div class="confirm-box" style="max-width:760px;width:100%;">
+  <div class="confirm-box" style="max-width:min(1080px,94vw);width:100%;">
     <h3>카메라 캘리브레이션</h3>
     <p style="color:var(--ink-dim);font-size:13px;line-height:1.55;margin:0 0 16px;">전신이 화면에 들어오도록 서서, 화면의 점선 실루엣에 맞춰 2초간 자세를 유지하면 자동으로 체형이 저장됩니다.</p>
 
-    <div class="grid grid-2" style="align-items:start;">
+    <div class="grid cal-grid">
       <div>
-        <div class="cam-stage" style="aspect-ratio:4/3;">
+        <div class="cam-stage" style="aspect-ratio:3/4;max-height:70vh;">
           <div class="cam-placeholder">카메라 미리보기<br>(MediaPipe Pose 실시간 분석)</div>
           <div class="cam-badge"><span class="rec-dot"></span><span>측정중</span></div>
         </div>
@@ -56,10 +56,10 @@
           </div>
         </div>
         <div class="field-row" style="margin-top:16px;">
-          <div class="field"><label>키 (cm)</label><input type="number" placeholder="예: 170"></div>
-          <div class="field"><label>몸무게 (kg)</label><input type="number" placeholder="예: 65"></div>
+          <div class="field"><label>키 (cm)</label><input type="number" placeholder="예: 170" value="172"></div>
+          <div class="field"><label>몸무게 (kg)</label><input type="number" placeholder="예: 65" value="64"></div>
         </div>
-        <p class="hint">체형 정보를 입력하면 가이드 실루엣이 내 체형에 맞게 조정돼요.</p>
+        <p class="hint">BMI 21.6 · 표준 기준으로 실루엣을 보정했어요.</p>
         <button class="btn btn-ghost btn-block" style="margin-top:14px;">닫기</button>
       </div>
     </div>
