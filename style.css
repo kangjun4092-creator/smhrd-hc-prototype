@@ -146,8 +146,24 @@ button{font-family:inherit;}
 .landing-hero h1{font-size:34px;margin:0 0 14px;line-height:1.35;}
 .landing-hero p{color:var(--ink-dim);font-size:14.5px;max-width:52ch;margin:0 auto 28px;line-height:1.6;}
 .cta-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
-.landing-body{max-width:1040px;margin:0 auto;padding:0 24px 72px;}
+.landing-body{max-width:1040px;margin:0 auto;padding:0 24px 96px;}
 .landing-section-title{text-align:center;font-size:21px;margin:0 0 24px;}
+
+/* 참고 화면(모바일 쇼핑몰 앱)의 하단 고정 서브 카테고리 바를 본떠, 스크롤과 무관하게 항상
+   보이는 랜딩 전용 하단 내비게이션 — 클릭하면 해당 섹션으로 부드럽게 스크롤된다. */
+.landing-bottomnav{
+  position:fixed;left:0;right:0;bottom:0;z-index:30;
+  display:flex;justify-content:space-around;
+  background:var(--surface);border-top:2.5px solid var(--outline);
+  padding:8px 4px calc(8px + env(safe-area-inset-bottom));
+}
+.landing-bottomnav-item{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  font-size:10.5px;color:var(--ink-dim);font-weight:700;cursor:pointer;
+  padding:4px 6px;flex:1;text-align:center;
+}
+.landing-bottomnav-item .icon{font-size:18px;}
+.landing-bottomnav-item:hover{color:var(--ink);}
 
 .field{margin-bottom:14px;}
 .field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-dim);margin-bottom:6px;}
@@ -203,6 +219,7 @@ button{font-family:inherit;}
 .navitem.active{background:var(--accent-soft);color:var(--accent);border-color:var(--outline);}
 .navicon{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.5;flex:none;}
 .navitem.active .navicon{opacity:1;}
+.navicon-emoji{display:none;} /* 데스크톱은 점 아이콘(.navicon) 유지, 모바일 하단 탭에서만 이모지 아이콘을 보여준다 */
 .sidebar-footer{margin-top:auto;padding-top:14px;border-top:2px dashed var(--line);}
 
 .topbar{
@@ -389,17 +406,58 @@ tr:last-child td{border-bottom:none;}
 }
 .map-badge{width:52px;height:52px;border-radius:50%;background:var(--gold);color:#2b1c02;border:2px solid var(--outline);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:20px;}
 
+/* ---------- 5vs5 크루대전: 팀원 캐릭터가 자동으로 스쿼트하는 것처럼 보이는 반복 애니메이션과,
+   개수가 오를 때마다 뜨는 "+1" 팝업 ---------- */
+.battle-char-wrap{display:inline-block;animation-name:battle-squat;animation-timing-function:ease-in-out;animation-iteration-count:infinite;}
+@keyframes battle-squat{
+  0%,100%{ transform:scaleY(1) translateY(0); }
+  50%{ transform:scaleY(.86) translateY(8px); }
+}
+.battle-pop{
+  position:absolute;left:50%;top:-4px;transform:translateX(-50%);
+  font-family:var(--font-mono);font-weight:700;font-size:14px;color:var(--gold);
+  animation:battle-pop-float .9s ease-out forwards;pointer-events:none;white-space:nowrap;
+}
+@keyframes battle-pop-float{
+  0%{ opacity:0; transform:translate(-50%,4px) scale(.8); }
+  20%{ opacity:1; transform:translate(-50%,-2px) scale(1.1); }
+  100%{ opacity:0; transform:translate(-50%,-26px) scale(1); }
+}
+
 @media (max-width:860px){
   .sidebar{position:fixed;left:0;bottom:0;top:auto;width:100%;height:auto;flex-direction:row;
-    justify-content:space-around;padding:8px;border-right:none;border-top:2.5px solid var(--outline);z-index:20;}
+    justify-content:space-around;padding:6px 4px;border-right:none;border-top:2.5px solid var(--outline);z-index:20;}
   .brand,.sidebar-footer{display:none;}
-  .navitem{flex-direction:column;gap:3px;font-size:10px;padding:6px 4px;border-color:transparent;}
-  .navitem.active{border-color:var(--outline);}
+  /* 하단 탭바: 6개 항목이 균등하게 채우고, 이모지 아이콘 + 라벨 + 뚜렷한 활성 표시로
+     한눈에 지금 어디에 있는지 알아보기 쉽게 한다. */
+  .navitem{flex:1;flex-direction:column;gap:2px;font-size:10px;padding:6px 2px;border:none;border-radius:12px;
+    color:var(--ink-faint);}
+  .navitem.active{background:var(--accent-soft);color:var(--accent);}
   .navicon{display:none;}
+  .navicon-emoji{display:block;font-size:19px;line-height:1;filter:grayscale(1) opacity(.55);}
+  .navitem.active .navicon-emoji{filter:none;}
+  .navlabel{font-size:9.5px;font-weight:700;white-space:nowrap;}
   .main{padding-bottom:70px;}
   .view{padding:18px 16px 90px;}
-  .topbar{padding:14px 16px;}
+  .topbar{padding:14px 16px;flex-wrap:wrap;gap:10px;row-gap:8px;}
+  .user-chip{flex-wrap:wrap;gap:8px;}
+  .cta-row{flex-wrap:wrap;}
   .cal-grid{grid-template-columns:1fr;}
   .cal-grid .cam-stage{max-height:none;aspect-ratio:3/4;}
   .confirm-box{max-height:92vh;overflow-y:auto;}
+}
+/* 폰 화면(대략 세로 모드 스마트폰 폭) — 카드 그리드·통계 박스가 최소폭 때문에 잘리지 않도록
+   컬럼을 더 줄이고, 큰 제목 글자도 살짝 낮춘다. */
+@media (max-width:540px){
+  .landing-hero{padding:44px 16px 28px;}
+  .landing-hero h1{font-size:25px;}
+  .landing-hero p{font-size:13.5px;}
+  .auth-title{font-size:23px;}
+  .topbar-title{font-size:17px;}
+  .view-head h1{font-size:18px;}
+  .grid-2,.grid-3{grid-template-columns:1fr;}
+  .stat-row{grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px;}
+  .stat-box{padding:10px;}
+  .stat-box .num{font-size:18px;}
+  .cta-row .btn,.landing-actions .btn{padding:10px 18px;font-size:13px;}
 }

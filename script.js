@@ -17,21 +17,19 @@ const EXS = [
 ];
 
 // 스쿼트만 등록된 상태라 미션도 스쿼트 지표로만 구성한다. metric은 saveExerciseResult()에서
-// 세션이 끝날 때마다 누적되는 공용 카운터(state.missions.counters)를 가리키고, 일간/주간/월간
-// 미션이 전부 이 같은 카운터를 공유해서 스쿼트 한 번으로 세 기간 미션이 동시에 올라간다
-// (기간별로 카운터가 따로 리셋되는 실제 날짜 배치는 없는 프론트 목업이라, "겹쳐서 카운트"되는
-// 쪽이 오히려 지금 요구사항과 맞다).
+// 세션이 끝날 때마다 누적되는 공용 카운터(state.missions.counters)를 가리킨다.
+// 미션은 일간만 운영한다(주간/월간 폐지) — 운동 탭 종목선택 화면에서 바로 진행 상황을
+// 보여주는 구조로 바뀌면서, 여러 기간을 동시에 굴릴 필요가 없어졌다.
 const SQUAT_MISSION_TEMPLATES = [
-  {metric:'reps', label:t=>`스쿼트 ${t}회 달성`, ranges:{daily:[15,30], weekly:[60,140], monthly:[200,450]}, rewardPerUnit:2.5},
-  {metric:'perfect', label:t=>`스쿼트 퍼펙트 ${t}개 만들기`, ranges:{daily:[3,8], weekly:[15,40], monthly:[60,150]}, rewardPerUnit:4},
-  {metric:'sessions', label:t=>`스쿼트 세트 ${t}회 완료`, ranges:{daily:[1,2], weekly:[3,6], monthly:[10,20]}, rewardPerUnit:35},
-  {metric:'missFreeSession', label:t=>`MISS 0회 세트 ${t}회 달성`, ranges:{daily:[1,1], weekly:[2,3], monthly:[5,10]}, rewardPerUnit:45},
-  {metric:'accSession', label:t=>`정확도 90% 이상 세트 ${t}회`, ranges:{daily:[1,2], weekly:[3,5], monthly:[8,15]}, rewardPerUnit:38},
+  {metric:'reps', label:t=>`스쿼트 ${t}회 달성`, ranges:{daily:[15,30]}, rewardPerUnit:2.5},
+  {metric:'perfect', label:t=>`스쿼트 퍼펙트 ${t}개 만들기`, ranges:{daily:[3,8]}, rewardPerUnit:4},
+  {metric:'sessions', label:t=>`스쿼트 세트 ${t}회 완료`, ranges:{daily:[1,2]}, rewardPerUnit:35},
+  {metric:'missFreeSession', label:t=>`MISS 0회 세트 ${t}회 달성`, ranges:{daily:[1,1]}, rewardPerUnit:45},
+  {metric:'accSession', label:t=>`정확도 90% 이상 세트 ${t}회`, ranges:{daily:[1,2]}, rewardPerUnit:38},
 ];
 function randInt(a,b){ return a+Math.floor(Math.random()*(b-a+1)); }
-// 후보 템플릿 중 무작위로 count개를 뽑아 기간에 맞는 목표치를 굴려서 미션 인스턴스를 만든다.
-// 템플릿(5개)보다 뽑아야 할 개수(주간 7개·월간 15개)가 많을 수 있어 중복 템플릿 허용(목표치는
-// 매번 다시 굴리므로 완전히 같은 미션이 되진 않는다).
+// 후보 템플릿 중 무작위로 count개를 뽑아 목표치를 굴려서 미션 인스턴스를 만든다(중복 템플릿
+// 허용 — 목표치는 매번 다시 굴리므로 완전히 같은 미션이 되진 않는다).
 function generateSquatMissions(period, count){
   const list=[];
   for(let i=0;i<count;i++){
@@ -52,6 +50,8 @@ const EXISTING_USERS = [
 ];
 const state = {
   screen: 'intro', // intro | signup | login | app
+  trial: false, // 로그인 전 "미션 체험" 모드 — true면 screen과 무관하게 renderTrial()이 화면을 그린다
+  crewPreview: false, // 로그인 전 "홈크루 둘러보기" 모드 — true면 renderCrewPreview()가 화면을 그린다
   signup: {
     id:'', pw:'', pw2:'', nickname:'', email:'',
     regionCity:'서울시', regionGu:'강남구', regionDong:'역삼동', gender:'male', calibrated:false,
@@ -60,16 +60,14 @@ const state = {
   user: {nickname:'', avatar:0, gender:'male', points:1240, exp:62, level:7, region:'서울시 강남구 역삼동', retakeTickets:0, nicknameTickets:0, bio:''},
   menu: 'exercise',
   subtabs: {mission:0, profile:0, crew:0, ranking:0},
-  exercise: {step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0, liveReps:[]},
+  exercise: {step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0, liveReps:[], replayOpen:false},
+  crewBattle: null, // 5vs5 크루대전 진행 중 상태 — startCrewBattle() 참고
+  crewParty: {open:false, statusOpen:false, selected:[], invites:null, ready:false, tickId:null}, // 크루대전 파티맺기 — openPartyInvite() 참고
   missions: {
-    period:'daily',
     list: {
       daily: generateSquatMissions('daily',3),
-      weekly: generateSquatMissions('weekly',7),
-      monthly: generateSquatMissions('monthly',15),
     },
-    // 일간/주간/월간 미션이 공유하는 누적 카운터. saveExerciseResult()에서 스쿼트 세션이
-    // 저장될 때마다 갱신된다.
+    // 미션이 공유하는 누적 카운터. saveExerciseResult()에서 스쿼트 세션이 저장될 때마다 갱신된다.
     counters: {reps:0, perfect:0, sessions:0, missFreeSession:0, accSession:0},
     claimed: {}, // {missionId: true} — 보상 중복 수령 방지
   },
@@ -86,7 +84,7 @@ const state = {
   shopFilter: '전체',
   itemPreview: {open:false, idx:null},
   crew: {
-    created:false, name:'', desc:'', region:'',
+    created:false, name:'', desc:'', region:'', concept:null,
     members:[],
     notices:[
       {who:'써니핏', title:'우리 크루 단톡방 안내', body:"카카오톡 오픈채팅방에서 '123' 검색해서 들어와주세요!", date:'08.20'},
@@ -95,6 +93,12 @@ const state = {
       {n:'배드민턴킹', level:5, score:1800, msg:'매일 저녁 운동 인증하려고 합니다. 잘 부탁드려요!'},
       {n:'헬린이탈출', level:3, score:960, msg:'초보인데 열심히 하겠습니다!'},
     ],
+    chat: {
+      messages:[
+        {who:'써니핏', mine:false, text:'다들 오늘 미션 화이팅!', time:'09:12'},
+        {who:'헬스왕', mine:false, text:'저 방금 완료했어요 💪', time:'09:20'},
+      ],
+    },
     groupMission: {period:'daily', ex:'스쿼트', totalTarget:300},
     teamProgress:64,
     level:1, exp:0,
@@ -180,7 +184,9 @@ function gradePill(g){
    ======================================================================== */
 function render(){
   const root=document.getElementById('app');
-  if(state.screen==='intro') root.innerHTML=renderIntro();
+  if(state.trial) root.innerHTML=renderTrial();
+  else if(state.crewPreview) root.innerHTML=renderCrewPreview();
+  else if(state.screen==='intro') root.innerHTML=renderIntro();
   else if(state.screen==='signup') root.innerHTML=renderSignup();
   else if(state.screen==='login') root.innerHTML=renderLogin();
   else root.innerHTML=renderApp();
@@ -189,6 +195,9 @@ function render(){
   if(state.findIdModal.open) root.innerHTML += renderFindIdModal();
   if(state.findPwModal.open) root.innerHTML += renderFindPwModal();
   if(state.itemPreview.open) root.innerHTML += renderItemPreviewModal();
+  if(state.crewParty.open) root.innerHTML += renderPartyInviteModal();
+  if(state.crewParty.statusOpen) root.innerHTML += renderPartyStatusModal();
+  if(state.exercise.replayOpen) root.innerHTML += renderReplayPopup();
   // 캘리브레이션 모달은 회원가입 화면뿐 아니라, 운동 탭에서 "캘리브레이션 필수" 조건에 걸려
   // 열릴 수도 있으므로 화면(screen)과 무관하게 calModalOpen 플래그만 본다.
   if(state.signup.calModalOpen) root.innerHTML += renderCalibrationModal();
@@ -197,10 +206,23 @@ function render(){
     setTimeout(calSetupEditCanvas,0);
   }
 
-  if(state.screen==='app' && state.menu==='exercise' && state.exercise.step===2){
+  // 이미 촬영 결과(result)가 있으면 팝업이 열려있든 닫혀있든 촬영이 끝난 상태라 카메라를
+  // 다시 잡을 필요가 없다 — 결과가 있는 채로 render()가 다시 불릴 때마다(팝업 열기/닫기 등)
+  // 카메라가 매번 재시작돼버리는 걸 막는다. 다시 촬영하려면 retakeExercise()가 result를
+  // null로 비우고 나서 이 조건을 다시 통과하게 된다.
+  if((state.screen==='app' || state.trial) && state.menu==='exercise' && state.exercise.step===2 && !state.exercise.result){
     setTimeout(setupCamera,0);
   }
-  if(state.screen==='app' && state.menu==='exercise' && state.exercise.step===3){
+  // 크루대전: 대결이 끝나기 전까지는(카메라 화면이 떠 있는 동안) 매 렙·매 틱마다 여기(render)를
+  // 다시 타지 않고 updateBattleUI()로 DOM만 직접 갱신한다 — 그래야 실시간 포즈 인식 루프가
+  // 물고 있는 cam-video/cam-canvas가 매번 새로 만들어지며 끊기는 걸 막을 수 있다. 이 훅은
+  // 대전 화면에 처음 진입하거나(카메라 준비) 대전이 끝났을 때(결과 화면 전환) 같은, render()가
+  // 실제로 호출되는 몇 안 되는 시점에만 카메라를 (재)연결한다.
+  if(state.screen==='app' && state.menu==='crewBattle' && state.crewBattle && !state.crewBattle.result){
+    setTimeout(setupCamera,0);
+    setTimeout(drawBattleTeammates,0);
+  }
+  if((state.screen==='app' || state.trial) && state.menu==='exercise' && state.exercise.replayOpen){
     setTimeout(setupReplayComparison,0);
   }
   if(state.screen==='app' && state.menu==='profile' && state.subtabs.profile===0){
@@ -208,6 +230,9 @@ function render(){
   }
   if(state.itemPreview.open){
     setTimeout(drawItemPreviewCanvas,0);
+  }
+  if(state.screen==='app' && state.menu==='crew' && getCrewPageTabs()[state.subtabs.crew]==='크루채팅'){
+    setTimeout(scrollCrewChatToBottom,0);
   }
   if(state.screen==='app'){
     setTimeout(drawTopbarAvatar,0);
@@ -248,6 +273,59 @@ function renderIntroSteps(){
     ${INTRO_STEPS.map((s,idx)=>`<li><span class="num">${idx+1}</span>${s}</li>`).join('')}
   </ol>`;
 }
+// 로그인 전 방문자에게 "운동하면 이렇게 기록이 쌓인다"를 미리 보여주는 예시 이미지 —
+// 실제 내 기록은 회원가입 후에나 생기므로, 임의의 샘플 히스토리 화면 이미지를 보여준다.
+function renderHistoryPreview(){
+  return `
+  <div class="card" style="max-width:640px;margin:0 auto;text-align:center;">
+    <img src="assets/history-demo-preview.png" alt="날짜별 운동 점수·정확도가 정리된 운동 히스토리 화면 예시" style="width:100%;border-radius:12px;border:2px solid var(--outline);display:block;">
+    <p class="hint" style="margin-top:12px;">회원가입하면 내가 운동할 때마다 이렇게 날짜별로 점수·정확도가 자동으로 쌓여요.</p>
+  </div>`;
+}
+// 랜딩 페이지 전용 카드 — 로그인 후 "메인" 카테고리가 쓰는 INTRO_FEATURES/renderIntroFeatures와는
+// 별개다(그쪽은 순수 소개용, 이쪽은 클릭하면 바로 동작하는 액션 카드라 문구·동작이 다름).
+// action이 있는 카드만 클릭 가능하다 — 직접 함수 호출(예: 체험 시작)일 수도, 페이지 내 다른
+// 섹션으로 스크롤 이동일 수도 있어 문자열로 받는다.
+const LANDING_FEATURES = [
+  {icon:'🎯', title:'AI 자세 판정 및 운동', desc:'웹캠만으로 스쿼트 같은 운동 자세를 실시간으로 분석하고 정확도를 채점해요.', action:'startTrial()', cta:'지금 체험하기',
+   image:'assets/ai-demo-preview.png', imageAlt:'캘리브레이션 실루엣 위에 스켈레톤이 겹쳐 스쿼트 자세를 실시간으로 판정하는 화면 예시'},
+  {icon:'⚔️', title:'실시간 크루대전', desc:'우리 크루와 다른 동네 크루가 실시간으로 스쿼트 점수 대결을 펼쳐요.', action:'startCrewPreview()', cta:'우리 동네 크루확인하기',
+   image:'assets/crew-battle-demo-preview.png', imageAlt:'앉은 자세 스쿼트 판정 웹캠 화면과 팀별 실시간 점수·팀원 캐릭터가 함께 표시되는 5vs5 크루대전 화면 예시'},
+  {icon:'📋', title:'운동 히스토리 관리', desc:'날짜별 운동 기록과 점수·정확도를 한눈에 모아서 관리해요.', action:"scrollToSection('history-preview')", cta:'예시 보기 ↓',
+   image:'assets/history-demo-preview.png', imageAlt:'날짜별 운동 점수·정확도가 정리된 운동 히스토리 화면 예시'},
+];
+function renderLandingFeatures(){
+  return `
+  <div class="grid grid-3">
+    ${LANDING_FEATURES.map(f=>`
+      <div class="card exercise-card" style="text-align:center;" onclick="${f.action}">
+        ${f.image ? `<img src="${f.image}" alt="${f.imageAlt||''}" style="width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:12px;border:2px solid var(--outline);margin-bottom:12px;display:block;">` : ''}
+        <div class="ex-badge" style="margin:0 auto 10px;">${f.icon}</div>
+        <h3 style="margin:0 0 6px;font-size:15px;">${f.title}</h3>
+        <p class="desc" style="margin:0;">${f.desc}</p>
+        <span class="pill pill-accent" style="margin-top:8px;">${f.cta}</span>
+      </div>`).join('')}
+  </div>`;
+}
+function scrollToSection(id){
+  const el=document.getElementById(id);
+  if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+}
+function renderLandingBottomNav(){
+  const items=[
+    {icon:'🏠', label:'홈', action:"window.scrollTo({top:0,behavior:'smooth'})"},
+    {icon:'🎯', label:'AI 자세판정', action:'startTrial()'},
+    {icon:'⚔️', label:'크루대전', action:'startCrewPreview()'},
+    {icon:'📖', label:'이용안내', action:"scrollToSection('how-it-works')"},
+  ];
+  return `
+  <nav class="landing-bottomnav">
+    ${items.map(it=>`
+      <div class="landing-bottomnav-item" onclick="${it.action}">
+        <span class="icon">${it.icon}</span><span class="label">${it.label}</span>
+      </div>`).join('')}
+  </nav>`;
+}
 function renderIntro(){
   return `
   <div class="landing-shell">
@@ -257,7 +335,7 @@ function renderIntro(){
         <div class="brand-name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
       </div>
     </div>
-    <div class="landing-hero">
+    <div class="landing-hero" id="home">
       <p class="auth-eyebrow" style="text-align:center;">우리동네 홈트챌린지</p>
       <h1>집에서, 우리 동네 사람들과 함께 운동해요</h1>
       <p>웹캠으로 자세를 실시간 판정하고, 미션과 랭킹으로 이웃과 함께 성장하는 홈트레이닝 서비스예요.</p>
@@ -268,9 +346,113 @@ function renderIntro(){
     </div>
     <div class="landing-body">
       <h2 class="landing-section-title">이런 걸 할 수 있어요</h2>
-      ${renderIntroFeatures()}
-      <h2 class="landing-section-title" style="margin-top:52px;">이용 흐름</h2>
-      ${renderIntroSteps()}
+      ${renderLandingFeatures()}
+
+      <div id="history-preview" style="margin-top:52px;">
+        <h2 class="landing-section-title">운동 히스토리 예시</h2>
+        ${renderHistoryPreview()}
+      </div>
+
+      <div id="how-it-works" style="margin-top:52px;">
+        <h2 class="landing-section-title">이용 흐름</h2>
+        ${renderIntroSteps()}
+      </div>
+    </div>
+  </div>
+  ${renderLandingBottomNav()}`;
+}
+
+/* ---------- 로그인 전 "미션 체험" 모드 ----------
+   회원가입을 강요하지 않고, 미션 하나를 골라 캘리브레이션→웹캠 촬영→판정까지 실제로 체험해볼
+   수 있게 한다. 화면 라우팅은 state.screen과 별개인 state.trial 플래그로 하고(render() 참고),
+   기존 운동 위저드(renderExercise 등)를 그대로 재사용한다 — 다른 점은 "기록 저장" 단계에서
+   실제 저장 대신 회원가입을 유도한다는 것뿐(renderExStepSave 참고). */
+function startTrial(){
+  state.trial=true;
+  state.menu='exercise';
+  state.exercise={step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0, liveReps:[], replayOpen:false};
+  render();
+}
+function exitTrial(){
+  state.trial=false;
+  state.exercise={step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0, liveReps:[], replayOpen:false};
+  render();
+}
+function pickTrialMission(id){
+  const m=state.missions.list.daily.find(x=>x.id===id);
+  if(!m) return;
+  state.exercise.picked='squat'; // 지금은 모든 미션이 스쿼트 기준이라 종목이 자동으로 정해진다
+  goToTutorial(); // 캘리브레이션이 없으면 모달부터 자동으로 띄운다
+}
+function renderTrialMissionPick(){
+  const missions=state.missions.list.daily;
+  return `
+  <div class="view-head"><h1>미션 체험하기</h1><p>회원가입 없이 미션 하나를 골라 웹캠 판정까지 그대로 체험해볼 수 있어요. 기록을 저장하려면 마지막에 회원가입만 하면 돼요.</p></div>
+  <div class="grid grid-2">
+    ${missions.map(m=>`
+      <div class="card">
+        <div class="flex-between"><span class="pill pill-muted">${MISSION_PERIOD_LABEL[m.period]}</span><span class="pill pill-gold">+${m.reward}P</span></div>
+        <h3 style="margin-top:8px;">${m.label}</h3>
+        <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="pickTrialMission('${m.id}')">이 미션 체험하기</button>
+      </div>`).join('')}
+  </div>`;
+}
+function renderTrial(){
+  return `
+  <div class="app-shell">
+    <div class="main" style="width:100%;">
+      <div class="topbar">
+        <div>
+          <div class="topbar-title">미션 체험</div>
+          <div class="topbar-sub">로그인 없이 체험 중이에요 · 기록은 저장되지 않아요</div>
+        </div>
+        <div class="user-chip">
+          <button class="btn btn-primary btn-sm" onclick="goto('signup')">회원가입</button>
+          <button class="btn btn-ghost btn-sm" onclick="exitTrial()">나가기</button>
+        </div>
+      </div>
+      <div class="view">
+        ${state.exercise.picked ? renderExercise() : renderTrialMissionPick()}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---------- 로그인 전 "홈크루 둘러보기" 모드 ----------
+   실제 크루 가입요청 목록(renderCrewJoin)을 로그인 없이 그대로 보여준다 — 검색·지역/컨셉
+   필터까지 전부 동작한다. state.crew는 로그인 여부와 무관하게 항상 존재하는 top-level
+   상태라 renderCrewJoin()을 그대로 재사용할 수 있다. 다만 "가입요청하기" 버튼이나 "크루
+   생성"처럼 실제 계정에 뭔가를 남기는 액션만은 state.crewPreview를 보고 회원가입으로
+   유도한다(renderCrewJoin의 가입요청 버튼 분기 참고). */
+function startCrewPreview(){
+  state.crewPreview=true;
+  render();
+}
+function exitCrewPreview(){
+  state.crewPreview=false;
+  render();
+}
+function renderCrewPreview(){
+  return `
+  <div class="app-shell">
+    <div class="main" style="width:100%;">
+      <div class="topbar">
+        <div>
+          <div class="topbar-title">홈크루 둘러보기</div>
+          <div class="topbar-sub">로그인 없이 둘러보는 중이에요 · 가입하려면 회원가입이 필요해요</div>
+        </div>
+        <div class="user-chip">
+          <button class="btn btn-primary btn-sm" onclick="goto('signup')">회원가입</button>
+          <button class="btn btn-ghost btn-sm" onclick="exitCrewPreview()">나가기</button>
+        </div>
+      </div>
+      <div class="view">
+        <div class="view-head flex-between">
+          <div><h1>홈크루</h1><p>우리동네 크루에 가입해보세요</p></div>
+          <button class="btn btn-secondary btn-sm" onclick="goto('signup')">크루 생성</button>
+        </div>
+        ${renderCrewJoin()}
+      </div>
     </div>
   </div>`;
 }
@@ -480,9 +662,9 @@ function calApply(){
   state.signup.calibrated = true;
   state.signup.calModalOpen = false;
   toast('체형 보정이 저장되었습니다');
-  // 이미 로그인된 상태(운동 탭에서 필수 캘리브레이션으로 진입한 경우)라면 여기서 바로
-  // 계정에 보정값을 반영해서, 다시 회원가입을 거치지 않아도 곧장 튜토리얼로 넘어가게 한다.
-  if(state.screen==='app'){
+  // 이미 로그인된 상태(운동 탭에서 필수 캘리브레이션으로 진입한 경우)이거나 로그인 전
+  // "미션 체험" 모드라면 여기서 바로 보정값을 반영해서, 곧장 튜토리얼로 넘어가게 한다.
+  if(state.screen==='app' || state.trial){
     state.user.calibration = state.signup.calProfile;
     if(state.menu==='exercise' && state.exercise.step===0 && state.exercise.picked){
       goExStep(1);
@@ -1124,13 +1306,12 @@ function renderFindPwModal(){
 
 /* ---------- 앱 셸 ---------- */
 const MENUS = [
-  {id:'exercise', label:'운동'},
-  {id:'mission', label:'미션'},
-  {id:'profile', label:'마이페이지'},
-  {id:'shop', label:'포인트 상점'},
-  {id:'crew', label:'홈크루'},
-  {id:'ranking', label:'랭킹'},
-  {id:'support', label:'고객센터'},
+  {id:'exercise', label:'운동', icon:'🏋️'},
+  {id:'profile', label:'마이페이지', icon:'👤'},
+  {id:'shop', label:'포인트 상점', icon:'🛍️'},
+  {id:'crew', label:'홈크루', icon:'🏘️'},
+  {id:'ranking', label:'랭킹', icon:'🏆'},
+  {id:'support', label:'고객센터', icon:'💬'},
 ];
 function renderApp(){
   return `
@@ -1142,7 +1323,7 @@ function renderApp(){
       </div>
       ${MENUS.map(m=>`
         <div class="navitem ${state.menu===m.id?'active':''}" onclick="setMenu('${m.id}')">
-          <span class="navicon"></span>${m.label}
+          <span class="navicon"></span><span class="navicon-emoji">${m.icon}</span><span class="navlabel">${m.label}</span>
         </div>`).join('')}
     </aside>
     <div class="main">
@@ -1162,10 +1343,10 @@ function renderApp(){
       <div class="view">
         ${state.menu==='main' ? renderMain() :
           state.menu==='exercise' ? renderExercise() :
-          state.menu==='mission' ? renderMission() :
           state.menu==='profile' ? renderProfile() :
           state.menu==='shop' ? renderShop() :
           state.menu==='crew' ? renderCrew() :
+          state.menu==='crewBattle' ? renderCrewBattle() :
           state.menu==='ranking' ? renderRanking() :
           renderSupport()}
       </div>
@@ -1188,7 +1369,10 @@ function renderMain(){
   <p class="section-label" style="margin-top:32px;">이용 흐름</p>
   ${renderIntroSteps()}`;
 }
-function goto(screen){state.screen=screen; render();}
+// 체험 모드 중 회원가입/로그인으로 넘어갈 수도 있으므로(renderTrial, renderExStepSave 참고),
+// 화면을 명시적으로 바꿀 때는 항상 체험 모드를 함께 꺼서 render()가 다시 renderTrial()로
+// 되돌아가지 않게 한다.
+function goto(screen){state.trial=false; state.crewPreview=false; state.screen=screen; render();}
 
 /* ========================================================================
    1. 운동 (EXERCISE WIZARD)
@@ -1201,7 +1385,10 @@ function goto(screen){state.screen=screen; render();}
 // 아래처럼 서버 연동이 필요합니다.
 //   촬영 결과 저장(saveExerciseResult) > Java 운동기록 API > DB 연결 > SQL INSERT/UPDATE
 //   (운동 기록 테이블 INSERT, 포인트·경험치는 계정 테이블 UPDATE — 트랜잭션 처리 권장)
-const EX_STEPS=['종목 선택','튜토리얼','웹캠 촬영','리플레이 분석','결과 저장'];
+// 리플레이 분석은 더 이상 별도 단계가 아니다 — 웹캠 촬영이 끝나면 그 화면 위에 바로 팝업으로
+// 뜬다(renderReplayPopup 참고). 촬영 중이던 카메라 화면 그대로 뒤에 남아있는 게 자연스러워서
+// 단계를 옮기지 않고 팝업으로 처리했다.
+const EX_STEPS=['종목 선택','튜토리얼','웹캠 촬영','결과 저장'];
 // 스쿼트 실시간 판정 기준. tools/extract-exercise-reference.html(종목별 캡처 이미지로
 // 관절 각도를 뽑는 공용 도구, 스쿼트 항목)로 분석해서 나온 값으로 교체한다
 // (지금은 일반적인 스쿼트 각도로 잡은 임시값).
@@ -1223,7 +1410,7 @@ function exerciseStepHead(){
   return `
   <div class="view-head">
     <h1>운동</h1>
-    <p>운동 종목 선택 → 튜토리얼 → 웹캠 촬영 → 리플레이 자세 분석 → 결과·점수 저장</p>
+    <p>운동 종목 선택 → 튜토리얼 → 웹캠 촬영(리플레이 분석 포함) → 결과·점수 저장</p>
   </div>
   <div class="subtabs">
     ${EX_STEPS.map((s,i)=>`<div class="tab ${state.exercise.step===i?'active':''}">${i+1}. ${s}</div>`).join('')}
@@ -1235,7 +1422,6 @@ function renderExercise(){
   if(st===0) body=renderExStepPick();
   else if(st===1) body=renderExStepTutorial();
   else if(st===2) body=renderExStepCam();
-  else if(st===3) body=renderExStepReplay();
   else body=renderExStepSave();
   return exerciseStepHead()+body;
 }
@@ -1250,6 +1436,9 @@ function renderExStepPick(){
         <p class="desc">타겟: ${e.target}</p>
         <span class="pill pill-accent">${e.level}</span>
       </div>`).join('')}
+  </div>
+  <div style="margin-top:20px;max-width:420px;">
+    ${renderTutorialMissionList()}
   </div>
   <div style="margin-top:20px;">
     <button class="btn btn-primary" ${state.exercise.picked?'':'disabled'} style="${state.exercise.picked?'':'opacity:.4;cursor:not-allowed;'}" onclick="goToTutorial()">운동 시작하기</button>
@@ -1294,13 +1483,13 @@ function renderExStepTutorial(){
     <button class="btn btn-primary" onclick="goExStep(2)">웹캠 촬영 시작</button>
   </div>`;
 }
-// 튜토리얼 화면에서 정자세 가이드 옆에, 지금 진행 중인 스쿼트 미션들과 각각의 진행 개수를
-// 같이 보여준다 — 튜토리얼을 보다가 바로 "아, 이만큼 더 하면 되는구나"를 알 수 있게.
+// 종목선택·튜토리얼 화면에 개인 일일 미션과 각각의 진행 개수·보상 포인트를 보여준다 —
+// 운동을 시작하기 전에 바로 "아, 이만큼 더 하면 얼마 받는구나"를 알 수 있게.
 function renderTutorialMissionList(){
   const missions=allMissions();
   return `
   <div class="card">
-    <p class="section-label">진행 중인 스쿼트 미션</p>
+    <p class="section-label">개인 일일 미션</p>
     <div style="display:flex;flex-direction:column;gap:8px;max-height:460px;overflow-y:auto;">
       ${missions.map(m=>{
         const cur=Math.min(state.missions.counters[m.metric]||0, m.target);
@@ -1308,7 +1497,7 @@ function renderTutorialMissionList(){
         return `
         <div style="border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;">
           <div class="flex-between">
-            <span class="pill pill-muted" style="font-size:10px;">${MISSION_PERIOD_LABEL[m.period]}</span>
+            <span class="mono" style="font-size:11px;color:var(--gold);font-weight:700;">+${m.reward}P</span>
             <span class="mono" style="font-size:12px;color:${done?'var(--accent)':'var(--ink-dim)'};">${cur}/${m.target}</span>
           </div>
           <p style="margin:6px 0 0;font-size:12.5px;">${m.label}</p>
@@ -1320,6 +1509,7 @@ function renderTutorialMissionList(){
 }
 function renderExStepCam(){
   const isSquat = state.exercise.picked==='squat';
+  const hasResult = !!state.exercise.result;
   return `
   <div class="grid cal-grid">
     <div>
@@ -1336,7 +1526,9 @@ function renderExStepCam(){
         </div>
       </div>
       <div style="margin-top:14px;display:flex;gap:8px;">
-        <button class="btn btn-primary" id="cam-toggle" onclick="toggleRecording()">촬영 시작</button>
+        ${hasResult
+          ? `<button class="btn btn-primary" onclick="openReplayPopup()">분석 결과 다시 보기</button>`
+          : `<button class="btn btn-primary" id="cam-toggle" onclick="toggleRecording()">촬영 시작</button>`}
         <button class="btn btn-ghost" onclick="goExStep(1)">이전</button>
       </div>
     </div>
@@ -1345,10 +1537,10 @@ function renderExStepCam(){
       <ul class="steplist">
         <li><span class="num">·</span>전신이 프레임에 들어오도록 카메라와 2~3m 거리를 둡니다.</li>
         ${isSquat
-          ? `<li><span class="num">·</span><strong>카메라는 12시 방향에 두고, 다리 방향은 2시 방향을 향하도록 살짝 틀어 서주세요.</strong> (각도 판정 정확도를 위해 정면보다는 대각선 자세가 필요해요)</li>
+          ? `<li><span class="num">·</span><span><strong>카메라는 12시 방향에 두고, 다리 방향은 2시 방향을 향하도록 살짝 틀어 서주세요.</strong> (각도 판정 정확도를 위해 정면보다는 대각선 자세가 필요해요)</span></li>
              <li><span class="num">·</span>"촬영 시작"을 누르면 바로 측정되지 않고, 거리·방향·자세를 맞추라는 음성 안내가 나와요. 다 맞으면 자동으로 ${CAM_FINAL_COUNTDOWN_SECONDS}초 카운트다운 후 측정이 시작됩니다.</li>
-             <li><span class="num">·</span>내 체형 캘리브레이션 실루엣이 화면에 고스트로 표시됩니다.</li>
-             <li><span class="num">·</span>무릎 각도뿐 아니라 <strong>허리(상체) 각도</strong>도 함께 판정해 부상 위험이 있으면 알려드려요.</li>
+             <li><span class="num">·</span><span>자리를 잡을 때는 <strong>서있는 내 체형 고스트</strong>가, 측정이 시작되면 <strong>목표 앉은 자세(스쿼트 최저점) 고스트</strong>로 바뀌어 계속 표시됩니다.</span></li>
+             <li><span class="num">·</span><span>무릎 각도뿐 아니라 <strong>허리(상체) 각도</strong>도 함께 판정해 부상 위험이 있으면 알려드려요.</span></li>
              <li><span class="num">·</span>동작마다 PERFECT/GREAT/GOOD/MISS가 실시간으로 표시됩니다.</li>
              <li><span class="num">·</span>${EXERCISE_REP_TARGET}회를 채우면 자동으로 촬영이 종료됩니다.</li>`
           : `<li><span class="num">·</span>YOLO-Pose가 관절 keypoint를 실시간 추적합니다.</li>
@@ -1533,6 +1725,77 @@ function exDrawCalibrationGhost(ctx,w,h){
 
   ctx.restore();
 }
+// 실제 측정(recording)이 시작되면 서있는 고스트 대신 "앉은(스쿼트 최저점) 자세" 고스트를
+// 보여준다 — 정확도 판정 자체가 무릎이 목표 각도(SQUAT_REFERENCE.bottomKneeAngle)까지
+// 굽혀졌는지를 보는 것이라, 서있는 자세보다 이쪽이 실제로 맞춰야 할 목표에 훨씬 가깝다.
+// 실제 캘리브레이션 landmark를 IK로 구부리는 대신(작은 오차에도 실루엣이 뒤틀려 보일 위험),
+// 발 위치·몸 크기·기울어진 방향만 캘리브레이션에서 그대로 가져오고 나머지 관절은 "허벅지가
+// 바닥과 수평이 되는" 전형적인 스쿼트 최저점 비율로 배치하는 방식으로 안정적으로 그린다.
+function exDrawSquatBottomGhost(ctx,w,h){
+  const profile=state.user.calibration;
+  if(!profile || !profile.landmarks) return;
+  const pts=profile.landmarks;
+  if(!pts.lank||!pts.rank||!pts.lhip||!pts.rhip||!pts.lsh||!pts.rsh||!pts.nose) return;
+  const footY=(pts.lank.y+pts.rank.y)/2*h;
+  const footCX=(pts.lank.x+pts.rank.x)/2*w;
+  const bodyH=Math.max(20, footY-pts.nose.y*h); // 코~발목 세로 길이(px) — 서있는 캘리브레이션 기준 스케일
+  const shoulderPx=Math.hypot((pts.lsh.x-pts.rsh.x)*w,(pts.lsh.y-pts.rsh.y)*h);
+  const bi=profile.bodyInfo||{};
+  const {widthFactor}=bodyShapeFactorsFromBmi(bi.bmi, bi.heightCm);
+  const limbWidth=Math.max(10, shoulderPx*0.16*widthFactor);
+  const headR=Math.max(14, shoulderPx*0.28*widthFactor);
+  const jointR=limbWidth*0.5;
+
+  // 상체가 기울어지는 방향은 서있을 때 어깨중심 대비 엉덩이중심의 좌우 위치를 그대로 따른다
+  // (사람마다 카메라 앞에서 도는 방향이 다를 수 있어, 캘리브레이션에서 실제로 쓴 방향을 재사용).
+  const hipCX0=(pts.lhip.x+pts.rhip.x)/2*w, shCX0=(pts.lsh.x+pts.rsh.x)/2*w;
+  const leanSign = (shCX0-hipCX0)>=0 ? 1 : -1;
+
+  const footHalfW=shoulderPx*0.42, kneeHalfW=shoulderPx*0.46, hipHalfW=shoulderPx*0.34, shoulderHalfW=shoulderPx*0.5;
+  const kneeY=footY-bodyH*0.22;
+  const hipY=footY-bodyH*0.30; // 무릎보다 살짝 높은 정도 — "허벅지가 바닥과 수평" 스쿼트 최저점 기준
+  const shoulderY=hipY-bodyH*0.30;
+  const shoulderCX=footCX+leanSign*bodyH*0.05;
+  const headCY=shoulderY-bodyH*0.11;
+  const handY=shoulderY+bodyH*0.20;
+  const handHalfW=shoulderPx*0.55;
+
+  ctx.save();
+  ctx.globalAlpha=0.55;
+  ctx.fillStyle='#FFFFFF';
+  ctx.strokeStyle='#FFFFFF';
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.lineWidth=limbWidth;
+
+  [-1,1].forEach(side=>{ // 다리: 발 → 무릎(앞으로) → 엉덩이(낮게)
+    ctx.beginPath();
+    ctx.moveTo(footCX+side*footHalfW, footY);
+    ctx.lineTo(footCX+side*kneeHalfW, kneeY);
+    ctx.lineTo(footCX+side*hipHalfW*0.7, hipY);
+    ctx.stroke();
+  });
+  [-1,1].forEach(side=>{ // 팔: 어깨 → 균형을 잡기 위해 앞으로 뻗은 손
+    ctx.beginPath();
+    ctx.moveTo(shoulderCX+side*shoulderHalfW, shoulderY);
+    ctx.lineTo(shoulderCX+leanSign*bodyH*0.18+side*handHalfW*0.5, handY);
+    ctx.stroke();
+  });
+  ctx.beginPath(); // 몸통: 앞으로 기운 사각형
+  ctx.moveTo(shoulderCX-shoulderHalfW, shoulderY);
+  ctx.lineTo(shoulderCX+shoulderHalfW, shoulderY);
+  ctx.lineTo(footCX+hipHalfW*0.7, hipY);
+  ctx.lineTo(footCX-hipHalfW*0.7, hipY);
+  ctx.closePath(); ctx.fill();
+
+  [[footCX-footHalfW,footY],[footCX+footHalfW,footY],
+   [footCX-kneeHalfW,kneeY],[footCX+kneeHalfW,kneeY],
+   [footCX-hipHalfW*0.7,hipY],[footCX+hipHalfW*0.7,hipY],
+   [shoulderCX-shoulderHalfW,shoulderY],[shoulderCX+shoulderHalfW,shoulderY]]
+   .forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(x,y,jointR,0,Math.PI*2); ctx.fill(); });
+
+  ctx.beginPath(); ctx.arc(shoulderCX, headCY, headR, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
 // 촬영 시작 직후 'ready' 단계에서 매 프레임 호출: 튜토리얼 촬영 각도(카메라 12시, 몸 2시 방향)와
 // 비슷한 조건으로 설 때까지 사람이 뭘 고쳐야 하는지 하나씩 안내한다. 우선순위대로 검사해서
 // 가장 먼저 걸리는 문제 하나만 반환 — 한 번에 여러 지적을 쏟아내면 오히려 헷갈리기 때문.
@@ -1617,6 +1880,16 @@ function exRegisterRep(bottomAngle, torsoDrop){
   const aEl=document.getElementById('live-acc'); if(aEl) aEl.textContent=acc+'%';
   exFlashGrade(result.grade);
   speakFeedback(result.voice);
+  // 크루대전 중이면 일반 미션 카운터 대신 대전 스코어보드를 갱신한다. 여기서 render()를 부르면
+  // 이 콜백을 부른 포즈 인식 루프 자체가 물고 있는 cam-video/cam-canvas가 통째로 새로
+  // 그려지며 스트림 연결이 끊기므로, DOM을 직접 패치하는 updateBattleUI()만 쓴다.
+  if(state.crewBattle){
+    const pts=BATTLE_GRADE_POINTS[result.grade] ?? 0;
+    state.crewBattle.myScore+=pts;
+    updateBattleUI('me', pts);
+    checkBattleEnd();
+    return;
+  }
   if(state.exercise.liveReps.length>=EXERCISE_REP_TARGET) toggleRecording();
 }
 async function exStartPoseLoop(){
@@ -1647,9 +1920,11 @@ async function exStartPoseLoop(){
     exLastVideoTime=video.currentTime;
     const res=exPoseLandmarker.detectForVideo(video, performance.now());
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    // 자리 잡을 때(대기·정렬 단계)만 가이드 실루엣을 보여주고, 실제 측정이 시작되면(recording)
-    // 화면을 가리지 않도록 치운다 — 이미 자리를 맞췄으니 더 필요 없다.
-    if(state.exercise.camPhase!=='recording') exDrawCalibrationGhost(ctx, canvas.width, canvas.height);
+    // 자리 잡을 때(대기·정렬 단계)는 서있는 캘리브레이션 고스트를, 실제 측정이 시작되면
+    // (recording) 무릎을 목표 각도까지 굽힌 "앉은 자세" 고스트로 바꿔서 계속 보여준다 —
+    // 정확도 판정 자체가 이 각도를 재는 것이라, 무엇을 맞춰야 하는지 계속 보이는 게 낫다.
+    if(state.exercise.camPhase==='recording') exDrawSquatBottomGhost(ctx, canvas.width, canvas.height);
+    else exDrawCalibrationGhost(ctx, canvas.width, canvas.height);
     const landmarks=res.landmarks && res.landmarks[0];
     if(landmarks){
       ctx.strokeStyle='#6FBBEE'; ctx.lineWidth=3;
@@ -1810,8 +2085,15 @@ function stopRecording(){
   const finish=()=>{
     state.exercise.camPhase='idle';
     if(state.exercise.camStream){state.exercise.camStream.getTracks().forEach(t=>t.stop()); state.exercise.camStream=null;}
+    // 리플레이 팝업으로 바뀐 뒤에도 웹캠 촬영 화면(cam-canvas)이 그대로 DOM에 남아있어서
+    // (자연 종료 조건이던 "cam-canvas가 사라짐"이 더 이상 발생하지 않는다), 실시간 포즈
+    // 인식 루프를 명시적으로 멈추지 않으면 화면 뒤에서 계속 빈 프레임을 돌게 된다.
+    cancelAnimationFrame(exRAF);
     generateResult();
-    goExStep(3);
+    // 예전엔 별도의 "리플레이 분석" 단계(step 3)로 넘어갔지만, 지금은 웹캠 촬영 화면에 그대로
+    // 남은 채로 결과를 팝업으로 띄운다 — 단계(step)는 그대로 2(웹캠 촬영)를 유지한다.
+    state.exercise.replayOpen=true;
+    render();
   };
   if(isSquat && exMediaRecorder && exMediaRecorder.state!=='inactive'){
     exMediaRecorder.onstop=()=>{
@@ -1968,11 +2250,22 @@ async function setupReplayComparison(){
   // 더 명확하다는 피드백에 따라 뺐다. (내 촬영 영상 쪽만 스켈레톤/빨간 표시로 비교해준다.)
 }
 
-function renderExStepReplay(){
+// 예전엔 "리플레이 분석"이 웹캠 촬영 다음의 별도 단계(step)였지만, 촬영이 끝나면 카메라
+// 화면 위에 팝업으로 바로 띄우는 방식으로 바뀌었다(stopRecording→finish 참고). 촬영을 마친
+// 그 화면 그대로 결과를 이어서 보여주는 게 더 자연스럽다는 판단.
+function openReplayPopup(){ state.exercise.replayOpen=true; render(); }
+function closeReplayPopup(){ state.exercise.replayOpen=false; render(); }
+function renderReplayPopup(){
   const r=state.exercise.result;
-  if(!r) return `<div class="empty-note">촬영 데이터가 없습니다.</div>`;
+  if(!r) return '';
   return `
-  ${r.myVideoUrl ? `
+  <div class="confirm-backdrop">
+    <div class="confirm-box" style="max-width:760px;max-height:88vh;overflow-y:auto;text-align:left;">
+      <div class="flex-between" style="margin-bottom:4px;">
+        <h3 style="margin:0;">리플레이 자세 분석</h3>
+        <button class="btn btn-ghost btn-sm" onclick="closeReplayPopup()">닫기</button>
+      </div>
+      ${r.myVideoUrl ? `
   <div class="grid grid-2" style="margin-bottom:8px;">
     <div>
       <p class="section-label">레퍼런스 정자세</p>
@@ -2018,10 +2311,16 @@ function renderExStepReplay(){
       </div>
     </div>
   </div>
-  <div style="margin-top:20px;display:flex;gap:8px;align-items:center;">
-    ${renderRetakeButton()}
-    <button class="btn btn-primary" onclick="goExStep(4)">결과 저장하기</button>
+      <div style="margin-top:20px;display:flex;gap:8px;align-items:center;">
+        ${renderRetakeButton()}
+        <button class="btn btn-primary" onclick="saveReplayResult()">결과 저장하기</button>
+      </div>
+    </div>
   </div>`;
+}
+function saveReplayResult(){
+  state.exercise.replayOpen=false;
+  goExStep(3);
 }
 const FREE_RETAKES = 2;
 function renderRetakeButton(){
@@ -2048,6 +2347,7 @@ function retakeExercise(){
   if(ex.result && ex.result.myVideoUrl) URL.revokeObjectURL(ex.result.myVideoUrl);
   ex.result = null;
   ex.liveReps = [];
+  ex.replayOpen = false;
   goExStep(2);
 }
 
@@ -2063,7 +2363,11 @@ function renderExStepSave(){
       <div class="stat-box"><div class="num mono" style="color:var(--gold)">+${Math.round(r.score*0.4)}</div><div class="lbl">포인트</div></div>
       <div class="stat-box"><div class="num mono">${r.acc}%</div><div class="lbl">정확도</div></div>
     </div>
-    <button class="btn btn-primary btn-block" onclick="saveExerciseResult()">기록 저장</button>
+    ${state.trial ? `
+    <p class="hint" style="margin-bottom:10px;">체험판에서는 기록이 저장되지 않아요. 회원가입하면 방금 결과부터 정식으로 기록·포인트 적립이 시작돼요.</p>
+    <button class="btn btn-primary btn-block" onclick="goto('signup')">회원가입하고 기록 저장하기</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="exitTrial()">나중에 할게요</button>
+    ` : `<button class="btn btn-primary btn-block" onclick="saveExerciseResult()">기록 저장</button>`}
   </div>`;
 }
 // [백엔드 연동 필요 구간] saveExerciseResult() — 위 섹션 헤더 주석의 파이프라인이
@@ -2086,7 +2390,7 @@ function saveExerciseResult(){
   }
   toast(`저장 완료! +${pts}P 획득`);
   if(r.myVideoUrl) URL.revokeObjectURL(r.myVideoUrl);
-  state.exercise={step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0, liveReps:[]};
+  state.exercise={step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0, liveReps:[], replayOpen:false};
   render();
 }
 
@@ -2096,11 +2400,9 @@ function saveExerciseResult(){
 // (FR-MS-001) claimMission()에서 보상을 지급하는 지점부터 서버 연동이 필요합니다.
 //   세션 저장(saveExerciseResult) > Java 미션 API > DB 연결 > SQL UPDATE(미션 진행 카운터)
 //   보상 수령(claimMission) > Java 미션 API > DB 연결 > SQL UPDATE(포인트 잔액, 수령 여부)
-function renderMission(){
-  return `
-  <div class="view-head"><h1>미션</h1><p>일간/주간/월간 미션 선택 → 스쿼트로 달성하고 포인트를 모아보세요</p></div>
-  ${renderMissionPick()}`;
-}
+// 미션 카테고리는 폐지했다 — 운동 탭 종목선택 화면에 이미 진행 중인 미션이 리스트로 보이고
+// (renderTutorialMissionList), 보상 수령은 마이페이지 "미션 달성 현황" 탭(renderMissionProgress)
+// 에서 하므로 별도 메뉴가 중복이었다.
 const PROFILE_TABS=['프로필·캐릭터 꾸미기','미션 달성 현황','운동 히스토리','계정·프로필 관리'];
 function renderProfile(){
   const i=state.subtabs.profile;
@@ -2121,22 +2423,10 @@ function renderShop(){
 }
 function setSub(key,idx){state.subtabs[key]=idx; render();}
 
-const MISSION_PERIOD_LABEL={daily:'일간',weekly:'주간',monthly:'월간'};
-function renderMissionPick(){
-  const p=state.missions.period;
-  const list=state.missions.list[p];
-  return `
-  <div class="filter-bar">
-    ${['daily','weekly','monthly'].map(k=>`
-      <button class="btn ${p===k?'btn-primary':'btn-secondary'} btn-sm" onclick="setMissionPeriod('${k}')">${MISSION_PERIOD_LABEL[k]} 미션 (${state.missions.list[k].length}개)</button>`).join('')}
-  </div>
-  <div class="grid grid-2" style="margin-top:14px;">
-    ${list.map(m=>renderMissionCard(m)).join('')}
-  </div>`;
-}
-function setMissionPeriod(k){state.missions.period=k; render();}
-// 미션 카드 하나: 달성 전엔 "미션하러가기"로 바로 스쿼트 촬영으로 보내고, 달성했으면 보상 받기
-// 버튼으로 바뀐다. 진행도는 퍼센트가 아니라 실제 개수(cur/target)로 보여준다.
+const MISSION_PERIOD_LABEL={daily:'일간'};
+// 미션 카드 하나. 진행도는 퍼센트가 아니라 실제 개수(cur/target)로 보여준다. 미션을 진행하는
+// 동작(운동 시작)은 이제 운동 탭 종목선택 화면에 이 미션들이 직접 리스트로 보이므로(
+// renderTutorialMissionList 참고) 여기엔 달성 후 "보상 받기"만 남는다.
 function renderMissionCard(m){
   const cur=Math.min(state.missions.counters[m.metric]||0, m.target);
   const done=cur>=m.target;
@@ -2148,21 +2438,13 @@ function renderMissionCard(m){
     <div class="progress" style="margin:10px 0;"><span style="width:${Math.min(100,cur/m.target*100)}%"></span></div>
     <div class="flex-between">
       <p class="desc mono" style="margin:0;">${cur}/${m.target} <span style="color:var(--gold);font-weight:700;">· +${m.reward}P</span></p>
-      ${done
-        ? `<button class="btn btn-sm ${claimed?'btn-ghost':'btn-primary'}" ${claimed?'disabled style="opacity:.4;cursor:not-allowed;"':''} onclick="claimMission('${m.id}')">${claimed?'수령완료':'보상 받기'}</button>`
-        : `<button class="btn btn-sm btn-secondary" onclick="goToMissionExercise()">미션하러가기</button>`}
+      ${done ? `<button class="btn btn-sm ${claimed?'btn-ghost':'btn-primary'}" ${claimed?'disabled style="opacity:.4;cursor:not-allowed;"':''} onclick="claimMission('${m.id}')">${claimed?'수령완료':'보상 받기'}</button>` : ''}
     </div>
   </div>`;
 }
-// 모든 기간의 미션을 하나의 배열로 합쳐서 조회할 때 쓴다(미션 달성 현황 탭, 튜토리얼 옆 리스트 등).
+// 일간 미션을 조회할 때 쓴다(미션 달성 현황 탭, 운동 종목선택·튜토리얼 옆 리스트 등).
 function allMissions(){
-  return [...state.missions.list.daily, ...state.missions.list.weekly, ...state.missions.list.monthly];
-}
-function goToMissionExercise(){
-  state.menu='exercise';
-  state.exercise.picked='squat';
-  state.exercise.step=0;
-  goToTutorial();
+  return state.missions.list.daily;
 }
 function renderMissionProgress(){
   return `
@@ -2455,49 +2737,60 @@ function buyItem(idx){
 //   가입 요청 승인(approveJoinRequest) > Java 크루 API > DB 연결 > SQL INSERT(크루원) + DELETE(가입요청)
 //   크루원 강퇴(kickMember) > Java 크루 API > DB 연결 > SQL DELETE(크루원 테이블)
 //   크루공지 작성(postCrewNotice, 팀장 전용) > Java 크루 API(권한 확인) > DB 연결 > SQL INSERT(공지 테이블)
-// 참고: 기존에 있던 실시간 크루 채팅 기능은 삭제되었습니다 — 대신 크루공지에서 팀장이
-// 외부 메신저 채팅방 정보를 안내하는 방식으로 대체했습니다.
-const CREW_ENTRY_TABS=['크루 생성','우리동네 크루 가입하기'];
+//   크루채팅 전송(sendCrewChat) > WebSocket(크루 ID 채널 브로드캐스트) > DB 연결 > SQL INSERT(채팅 메시지)
+//   크루대전 파티 초대/수락(sendPartyInvites~acceptPartyInvite) > WebSocket(대상 사용자 알림) > DB 연결 > SQL INSERT/UPDATE(파티초대)
 const CREW_MISSION_EX_OPTIONS = EXS.map(e=>e.name);
 // 팀장일 때만 '크루원관리' 탭이 추가로 붙는다 (가입요청 승인·강퇴는 팀장 전용 화면으로 분리).
 function getCrewPageTabs(){
-  const tabs=['크루 메인','크루공지','오늘의 단체 미션','크루원 정보'];
+  const tabs=['크루 메인','크루채팅','크루공지','오늘의 단체 미션','크루원 정보'];
   if(getMyCrewRole()==='팀장') tabs.push('크루원관리');
   return tabs;
 }
+// 크루를 만들 때 반드시 하나 고르는 컨셉 태그. 가입 목록 카드와 크루 내부(view-head)에
+// 계속 노출해서, 이 크루가 어떤 성향인지 한눈에 알 수 있게 한다.
+const CREW_CONCEPTS=['다이어트','크루랭킹','친목','근육강화','건강유지'];
+const CREW_EXP_PER_LEVEL=2000; // 크루 레벨업에 필요한 경험치량 (레벨마다 동일하게 고정)
+function setCrewConcept(c){ state.crew.concept=c; render(); }
 // 우리동네 크루 가입하기 목록. 검색·지역 필터·페이지네이션 데모를 위해 여러 지역에 걸쳐 구성했다.
 const JOINABLE_CREWS=[
-  {name:'역삼동 러너스', level:11, score:4820, leader:'써니핏', regionCity:'서울시', regionGu:'강남구', regionDong:'역삼동', desc:'매일 아침 6시 인증 러닝 크루입니다.'},
-  {name:'삼성동 스쿼트클럽', level:6, score:2400, leader:'헬스왕', regionCity:'서울시', regionGu:'강남구', regionDong:'삼성동', desc:'스쿼트 하나만 파는 크루예요.'},
-  {name:'합정 플랭커즈', level:9, score:3990, leader:'런닝수달', regionCity:'서울시', regionGu:'마포구', regionDong:'합정동', desc:'플랭크 최강자를 가립니다.'},
-  {name:'망원 버피팀', level:7, score:2950, leader:'버피장인', regionCity:'서울시', regionGu:'마포구', regionDong:'망원동', desc:'버피로 체지방 태우는 크루.'},
-  {name:'성수 스쿼트단', level:8, score:3650, leader:'단백질맨', regionCity:'서울시', regionGu:'성동구', regionDong:'성수동', desc:'단백질 챙겨먹고 스쿼트하는 사람들.'},
-  {name:'해운대 러너스', level:10, score:4100, leader:'바다사나이', regionCity:'부산시', regionGu:'해운대구', regionDong:'우동', desc:'해변 따라 뛰는 부산 크루.'},
-  {name:'중동 조깅클럽', level:5, score:1800, leader:'조깅요정', regionCity:'부산시', regionGu:'해운대구', regionDong:'중동', desc:'가볍게 조깅부터 시작해요.'},
-  {name:'봉명 홈트팀', level:4, score:1300, leader:'대전홈트', regionCity:'대전시', regionGu:'유성구', regionDong:'봉명동', desc:'대전 유성구 홈트 초보 모임.'},
-  {name:'오룡 파워워커즈', level:9, score:3800, leader:'파워워커', regionCity:'전남광주통합특별시', regionGu:'북구', regionDong:'오룡동', desc:'빠르게 걷기부터 파워워킹까지.'},
-  {name:'상무 헬스메이트', level:8, score:3400, leader:'헬스메이트', regionCity:'전남광주통합특별시', regionGu:'서구', regionDong:'상무동', desc:'헬스 초보 환영하는 크루.'},
-  {name:'역삼 런지크루', level:6, score:2200, leader:'런지킹', regionCity:'서울시', regionGu:'강남구', regionDong:'역삼동', desc:'런지 100개 챌린지 진행중.'},
-  {name:'오룡 조깅단', level:5, score:1900, leader:'조깅단장', regionCity:'전남광주통합특별시', regionGu:'북구', regionDong:'오룡동', desc:'주말마다 함께 조깅해요.'},
+  {name:'역삼동 러너스', level:11, score:4820, leader:'써니핏', regionCity:'서울시', regionGu:'강남구', regionDong:'역삼동', desc:'매일 아침 6시 인증 러닝 크루입니다.', concept:'건강유지'},
+  {name:'삼성동 스쿼트클럽', level:6, score:2400, leader:'헬스왕', regionCity:'서울시', regionGu:'강남구', regionDong:'삼성동', desc:'스쿼트 하나만 파는 크루예요.', concept:'근육강화'},
+  {name:'합정 플랭커즈', level:9, score:3990, leader:'런닝수달', regionCity:'서울시', regionGu:'마포구', regionDong:'합정동', desc:'플랭크 최강자를 가립니다.', concept:'근육강화'},
+  {name:'망원 버피팀', level:7, score:2950, leader:'버피장인', regionCity:'서울시', regionGu:'마포구', regionDong:'망원동', desc:'버피로 체지방 태우는 크루.', concept:'다이어트'},
+  {name:'성수 스쿼트단', level:8, score:3650, leader:'단백질맨', regionCity:'서울시', regionGu:'성동구', regionDong:'성수동', desc:'단백질 챙겨먹고 스쿼트하는 사람들.', concept:'근육강화'},
+  {name:'해운대 러너스', level:10, score:4100, leader:'바다사나이', regionCity:'부산시', regionGu:'해운대구', regionDong:'우동', desc:'해변 따라 뛰는 부산 크루.', concept:'건강유지'},
+  {name:'중동 조깅클럽', level:5, score:1800, leader:'조깅요정', regionCity:'부산시', regionGu:'해운대구', regionDong:'중동', desc:'가볍게 조깅부터 시작해요.', concept:'친목'},
+  {name:'봉명 홈트팀', level:4, score:1300, leader:'대전홈트', regionCity:'대전시', regionGu:'유성구', regionDong:'봉명동', desc:'대전 유성구 홈트 초보 모임.', concept:'친목'},
+  {name:'오룡 파워워커즈', level:9, score:3800, leader:'파워워커', regionCity:'전남광주통합특별시', regionGu:'북구', regionDong:'오룡동', desc:'빠르게 걷기부터 파워워킹까지.', concept:'다이어트'},
+  {name:'상무 헬스메이트', level:8, score:3400, leader:'헬스메이트', regionCity:'전남광주통합특별시', regionGu:'서구', regionDong:'상무동', desc:'헬스 초보 환영하는 크루.', concept:'친목'},
+  {name:'역삼 런지크루', level:6, score:2200, leader:'런지킹', regionCity:'서울시', regionGu:'강남구', regionDong:'역삼동', desc:'런지 100개 챌린지 진행중.', concept:'크루랭킹'},
+  {name:'오룡 조깅단', level:5, score:1900, leader:'조깅단장', regionCity:'전남광주통합특별시', regionGu:'북구', regionDong:'오룡동', desc:'주말마다 함께 조깅해요.', concept:'친목'},
 ];
 function renderCrew(){
   const i=state.subtabs.crew;
   if(!state.crew.created){
+    // 크루가 아직 없을 때는 "우리동네 크루 가입하기"를 기본 화면으로 보여주고(가입이 더 흔한
+    // 시작점이라), 크루를 새로 만들고 싶은 사람만 오른쪽 위 버튼으로 생성 화면을 연다.
+    const creating = i===1;
     return `
-    <div class="view-head"><h1>홈크루</h1><p>크루를 새로 만들거나 우리동네 크루에 가입해보세요</p></div>
-    <div class="subtabs">
-      ${CREW_ENTRY_TABS.map((t,idx)=>`<div class="tab ${i===idx?'active':''}" onclick="setSub('crew',${idx})">${t}</div>`).join('')}
+    <div class="view-head flex-between">
+      <div>
+        <h1>홈크루</h1>
+        <p>${creating ? '새 크루를 만들어보세요' : '우리동네 크루에 가입해보세요'}</p>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="setSub('crew',${creating?0:1})">${creating?'← 가입하기로 돌아가기':'크루 생성'}</button>
     </div>
-    ${i===0?renderCrewCreate():renderCrewJoin()}`;
+    ${creating?renderCrewCreate():renderCrewJoin()}`;
   }
   const tabs=getCrewPageTabs();
   const activeTab=tabs[i]||tabs[0];
   return `
-  <div class="view-head"><h1>${state.crew.name}</h1><p>크루 메인 → 크루공지 → 오늘의 단체 미션 → 크루원 정보</p></div>
+  <div class="view-head"><h1>${state.crew.name} ${state.crew.concept?`<span class="pill pill-accent" style="vertical-align:middle;">#${state.crew.concept}</span>`:''}</h1><p>크루 메인 → 크루채팅 → 크루공지 → 오늘의 단체 미션 → 크루원 정보</p></div>
   <div class="subtabs">
     ${tabs.map((t,idx)=>`<div class="tab ${i===idx?'active':''}" onclick="setSub('crew',${idx})">${t}</div>`).join('')}
   </div>
   ${activeTab==='크루 메인'?renderCrewOverview()
+    :activeTab==='크루채팅'?renderCrewChat()
     :activeTab==='크루공지'?renderCrewNotice()
     :activeTab==='오늘의 단체 미션'?renderCrewAssign()
     :activeTab==='크루원 정보'?renderCrewMembers()
@@ -2513,11 +2806,18 @@ function renderCrewCreate(){
     </div>
     <div class="field"><label for="cr-name">크루 이름</label><input id="cr-name" placeholder="예: 역삼동 스쿼트단"></div>
     <div class="field"><label for="cr-desc">크루 소개</label><textarea id="cr-desc" rows="3" placeholder="어떤 크루인지 소개해주세요"></textarea></div>
+    <div class="field">
+      <label>크루 컨셉 (하나 선택, 필수)</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${CREW_CONCEPTS.map(c=>`<button type="button" class="btn btn-sm ${state.crew.concept===c?'btn-primary':'btn-secondary'}" onclick="setCrewConcept('${c}')">#${c}</button>`).join('')}
+      </div>
+    </div>
     <button class="btn btn-primary btn-block" onclick="createCrew()">100P로 크루 생성</button>
   </div>`;
 }
 function createCrew(){
   if(state.user.points<100){toast('포인트가 부족합니다'); return;}
+  if(!state.crew.concept){toast('크루 컨셉을 하나 선택해주세요'); return;}
   const name=document.getElementById('cr-name').value.trim() || '역삼동 스쿼트단';
   const desc=document.getElementById('cr-desc').value.trim() || '함께 성장하는 홈트 크루입니다.';
   // (#8) 중복된 크루명 방지 — 실제로는 DB에 SQL SELECT로 존재 여부를 물어야 한다.
@@ -2554,6 +2854,7 @@ function renderCrewJoin(){
     if(fCity && c.regionCity!==fCity) return false;
     if(fGu && c.regionGu!==fGu) return false;
     if(fDong && c.regionDong!==fDong) return false;
+    if(s.joinConcept && c.concept!==s.joinConcept) return false;
     return true;
   });
   const totalPages=Math.max(1, Math.ceil(list.length/CREW_JOIN_PAGE_SIZE));
@@ -2579,17 +2880,22 @@ function renderCrewJoin(){
       ${dongs.map(d=>`<option ${d===fDong?'selected':''}>${d}</option>`).join('')}
     </select>
   </div>
+  <div class="field" style="margin-top:8px;">
+    <label>크루 컨셉 <span class="hint" style="margin:0;">(선택, 필수 아님)</span></label>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+      <button type="button" class="btn btn-sm ${!s.joinConcept?'btn-primary':'btn-secondary'}" onclick="setCrewJoinConcept('')">전체</button>
+      ${CREW_CONCEPTS.map(c=>`<button type="button" class="btn btn-sm ${s.joinConcept===c?'btn-primary':'btn-secondary'}" onclick="setCrewJoinConcept('${c}')">#${c}</button>`).join('')}
+    </div>
+  </div>
   <div class="grid grid-3">
     ${pageItems.length ? pageItems.map(c=>`
       <div class="card">
         <div class="flex-between"><h3 style="margin:0;">${c.name}</h3><span class="pill pill-gold">Lv.${c.level}</span></div>
+        <span class="pill pill-accent" style="margin-top:6px;">#${c.concept}</span>
         <p class="desc" style="margin-top:8px;">${c.desc}</p>
-        <p class="hint" style="margin:0 0 10px;">${c.regionCity} ${c.regionGu} ${c.regionDong}</p>
-        <div class="stat-row" style="margin-top:0;">
-          <div class="stat-box"><div class="num mono">${c.score.toLocaleString()}</div><div class="lbl">누적 점수</div></div>
-          <div class="stat-box"><div class="num mono">${c.leader}</div><div class="lbl">크루장</div></div>
-        </div>
-        <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="joinCrew('${c.name}')">가입하기</button>
+        <p class="hint" style="margin:0 0 4px;">${c.regionCity} ${c.regionGu} ${c.regionDong}</p>
+        <p class="hint" style="margin:0 0 10px;">크루장 · ${c.leader}</p>
+        <button class="btn btn-primary btn-block" style="margin-top:0;" onclick="${state.crewPreview ? "goto('signup')" : `joinCrew('${c.name}')`}">가입요청하기</button>
       </div>`).join('') : '<div class="empty-note" style="grid-column:1/-1;">조건에 맞는 크루가 없어요.</div>'}
   </div>
   ${totalPages>1?`
@@ -2606,6 +2912,7 @@ function setCrewJoinSearch(v){
 function setCrewJoinCity(v){ state.crew.joinCity=v||null; state.crew.joinGu=null; state.crew.joinDong=null; state.crew.joinPage=1; render(); }
 function setCrewJoinGu(v){ state.crew.joinGu=v||null; state.crew.joinDong=null; state.crew.joinPage=1; render(); }
 function setCrewJoinDong(v){ state.crew.joinDong=v||null; state.crew.joinPage=1; render(); }
+function setCrewJoinConcept(v){ state.crew.joinConcept=v||null; state.crew.joinPage=1; render(); }
 function setCrewJoinPage(p){ state.crew.joinPage=p; render(); }
 function joinCrew(name){
   const c=JOINABLE_CREWS.find(c=>c.name===name);
@@ -2613,6 +2920,7 @@ function joinCrew(name){
   state.crew.created=true;
   state.crew.name=c.name;
   state.crew.desc=c.desc;
+  state.crew.concept=c.concept;
   state.crew.region=`${c.regionCity} ${c.regionGu} ${c.regionDong}`;
   state.crew.level=c.level;
   state.crew.exp=Math.round(c.score*0.3);
@@ -2660,6 +2968,13 @@ function renderCrewOverview(){
   const targets=getCrewMissionTargets();
   const mine=targets.find(m=>m.n==='나');
   const myPct=mine?Math.min(100, Math.round(getCrewMemberProgress('나',mine.target)/mine.target*100)):0;
+  const expInLevel = (state.crew.exp||0) % CREW_EXP_PER_LEVEL;
+  const party=state.crewParty;
+  const partyStatus = !party.invites
+    ? '아직 대전 파티가 없어요.'
+    : party.ready
+      ? '✅ 파티 완료! 대전을 시작할 수 있어요.'
+      : `파티 신청 중 · ${party.invites.filter(x=>x.status==='accepted').length}/${party.invites.length}명 수락`;
   return `
   <div class="grid grid-2" style="align-items:start;">
     <div class="card">
@@ -2669,6 +2984,8 @@ function renderCrewOverview(){
         <div class="stat-box"><div class="num mono">${(state.crew.exp||0).toLocaleString()}</div><div class="lbl">누적 경험치</div></div>
         <div class="stat-box"><div class="num mono">#${dongRank.rank}</div><div class="lbl">${dongRank.dong} 순위</div></div>
       </div>
+      <p class="hint" style="margin:10px 0 4px;">레벨업까지 <b class="mono" style="color:var(--ink);">${expInLevel.toLocaleString()} / ${CREW_EXP_PER_LEVEL.toLocaleString()}</b></p>
+      <div class="progress" style="height:8px;margin:0;"><span style="width:${Math.round(expInLevel/CREW_EXP_PER_LEVEL*100)}%"></span></div>
     </div>
     <div class="card">
       <p class="section-label">크루 미션 누적점수</p>
@@ -2682,21 +2999,432 @@ function renderCrewOverview(){
         </div>`).join('')}
     </div>
   </div>
-  <div class="grid grid-2" style="align-items:start;margin-top:14px;">
-    <div class="card">
-      <p class="section-label">팀미션 진행률</p>
-      <div class="progress" style="height:14px;margin:10px 0;"><span style="width:${state.crew.teamProgress}%"></span></div>
-      <p class="desc">전체 목표 대비 ${state.crew.teamProgress}% 달성</p>
-    </div>
-    <div class="card">
-      <p class="section-label">내게 배분된 미션</p>
-      <div class="flex-between"><h3 style="margin:0;">${mine?(mine.assignedEx||gm.ex):gm.ex}</h3><span class="pill pill-accent">${gm.period==='daily'?'일일':'주간'}</span></div>
-      <p class="desc" style="margin:8px 0;">목표 ${mine?mine.target:'-'}회</p>
-      <div class="progress" style="margin:6px 0;"><span style="width:${myPct}%"></span></div>
-      <p class="hint" style="margin:0;">진행률 ${myPct}% · 자세한 배분 현황은 '오늘의 단체 미션' 탭에서 확인하세요.</p>
+  <div class="card" style="margin-top:14px;">
+    <p class="section-label">내게 배분된 미션</p>
+    <div class="flex-between"><h3 style="margin:0;">${mine?(mine.assignedEx||gm.ex):gm.ex}</h3><span class="pill pill-accent">${gm.period==='daily'?'일일':'주간'}</span></div>
+    <p class="desc" style="margin:8px 0;">목표 ${mine?mine.target:'-'}회</p>
+    <div class="progress" style="margin:6px 0;"><span style="width:${myPct}%"></span></div>
+    <p class="hint" style="margin:0;">진행률 ${myPct}% · 자세한 배분 현황은 '오늘의 단체 미션' 탭에서 확인하세요.</p>
+  </div>
+  <div class="card" style="margin-top:14px;max-width:520px;">
+    <div class="flex-between">
+      <div>
+        <p class="section-label" style="margin:0 0 4px;">5vs5 크루대전</p>
+        <p class="desc" style="margin:0 0 4px;">비슷한 레벨의 크루와 실시간으로 스쿼트 점수 채우기 대결을 해보세요.</p>
+        <p class="hint" style="margin:0;">${partyStatus} ${party.invites?`<button class="btn btn-ghost btn-sm" style="padding:2px 8px;" onclick="openPartyStatus()">파티 현황 보기</button>`:''}</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex:none;">
+        <button class="btn btn-secondary btn-sm" onclick="openPartyInvite()">크루대전파티맺기</button>
+        <button class="btn btn-primary btn-sm" ${party.ready?'':'disabled style="opacity:.45;cursor:not-allowed;"'} onclick="startCrewBattle()">대전 시작</button>
+      </div>
     </div>
   </div>`;
 }
+
+/* ---------- 크루채팅 ----------
+   실제 서비스라면 WebSocket으로 다른 크루원의 진짜 메시지를 실시간으로 받아야 하지만,
+   이 프로토타입은 혼자 쓰는 목업이라 "내가 보내면 잠시 뒤 크루원 중 한 명이 랜덤 문구로
+   답장하는" 형태로 흉내낸다. 매 메시지마다 render()를 다시 부르면 스크롤 위치·입력창이
+   날아가므로, updateBattleUI()와 같은 방식으로 채팅 로그 DOM에만 말풍선을 append한다. */
+const CREW_CHAT_AUTO_REPLIES=['오늘도 화이팅!','저도 방금 시작했어요','다들 페이스 좋으시네요 👍','조금 이따 같이 인증해요','오늘 미션 거의 다 채웠어요!'];
+function renderCrewChat(){
+  const msgs=state.crew.chat.messages;
+  return `
+  <div class="chat-wrap" style="max-width:560px;">
+    <div class="chat-log" id="crew-chat-log">
+      ${msgs.map(m=>`
+        <div class="bubble ${m.mine?'me':'them'}">
+          ${m.mine?'':`<div class="who">${m.who}</div>`}${m.text}
+        </div>`).join('')}
+    </div>
+    <div class="chat-input">
+      <input id="crew-chat-input" placeholder="크루원에게 메시지 보내기" onkeydown="if(event.key==='Enter'){ event.preventDefault(); sendCrewChat(); }">
+      <button class="btn btn-primary btn-sm" onclick="sendCrewChat()">전송</button>
+    </div>
+  </div>`;
+}
+function scrollCrewChatToBottom(){
+  const log=document.getElementById('crew-chat-log');
+  if(log) log.scrollTop=log.scrollHeight;
+}
+function appendChatBubble(m){
+  const log=document.getElementById('crew-chat-log');
+  if(!log) return;
+  const div=document.createElement('div');
+  div.className='bubble '+(m.mine?'me':'them');
+  div.innerHTML=(m.mine?'':`<div class="who">${m.who}</div>`)+m.text;
+  log.appendChild(div);
+  scrollCrewChatToBottom();
+}
+function sendCrewChat(){
+  const el=document.getElementById('crew-chat-input');
+  if(!el) return;
+  const text=el.value.trim();
+  if(!text) return;
+  const msg={who:'나', mine:true, text, time:''};
+  state.crew.chat.messages.push(msg);
+  appendChatBubble(msg);
+  el.value='';
+  const others=state.crew.members.filter(x=>x.n!=='나');
+  if(others.length){
+    setTimeout(()=>{
+      // 그 사이에 다른 탭으로 이동했으면 답장을 건너뛴다(엉뚱한 화면 DOM을 건드리지 않기 위해).
+      if(!(state.screen==='app' && state.menu==='crew' && getCrewPageTabs()[state.subtabs.crew]==='크루채팅')) return;
+      const who=others[Math.floor(Math.random()*others.length)].n;
+      const reply=CREW_CHAT_AUTO_REPLIES[Math.floor(Math.random()*CREW_CHAT_AUTO_REPLIES.length)];
+      const rm={who, mine:false, text:reply, time:''};
+      state.crew.chat.messages.push(rm);
+      appendChatBubble(rm);
+    }, 900+Math.random()*1300);
+  }
+}
+
+/* ---------- 5vs5 크루대전 파티맺기 ----------
+   크루장·크루원 모두 대전을 시작하려면 먼저 "파티"를 맺어야 한다. 데려갈 크루원을
+   체크박스로 골라 신청하면(선택은 필수 아님 — 아무도 안 고르면 바로 파티 완료 처리)
+   각 크루원에게 초대가 가고, 10초 안에 수락해야 파티에 합류한다. 실제 서비스라면
+   상대방이 진짜 알림을 받고 직접 수락 버튼을 눌러야 하지만, 이 프로토타입은 혼자 쓰는
+   목업이라 2~8초 사이 랜덤 시점에 자동으로 수락한 것처럼 흉내낸다. 초대 전원이
+   수락/시간초과로 결론나면 "대전 시작" 버튼이 눌리게 활성화된다. */
+function openPartyInvite(){
+  if(state.crewBattle) return;
+  state.crewParty.open=true;
+  state.crewParty.selected=[];
+  render();
+}
+function closePartyInvite(){ state.crewParty.open=false; render(); }
+function togglePartyPick(name){
+  const sel=state.crewParty.selected;
+  const idx=sel.indexOf(name);
+  if(idx>=0) sel.splice(idx,1); else sel.push(name);
+  render();
+}
+function sendPartyInvites(){
+  const picked=[...state.crewParty.selected];
+  state.crewParty.open=false;
+  if(!picked.length){
+    state.crewParty.invites=[];
+    state.crewParty.ready=true;
+    toast('파티원 없이 바로 대전을 시작할 수 있어요');
+    render();
+    return;
+  }
+  state.crewParty.invites=picked.map(n=>({n, status:'pending', timeLeft:10}));
+  state.crewParty.ready=false;
+  state.crewParty.statusOpen=true;
+  toast('파티 신청을 보냈어요 · 10초 안에 수락하면 파티에 합류해요');
+  state.crewParty.invites.forEach(inv=>{
+    setTimeout(()=>acceptPartyInvite(inv.n), 2000+Math.random()*6000);
+  });
+  startPartyTicker();
+  render();
+}
+function acceptPartyInvite(name){
+  const p=state.crewParty;
+  if(!p.invites) return;
+  const inv=p.invites.find(x=>x.n===name);
+  if(!inv || inv.status!=='pending') return;
+  inv.status='accepted';
+  toast(`🔔 ${name}님이 파티 신청을 수락했어요`);
+  updatePartyStatusModal();
+  checkPartyReady();
+}
+// 실시간 카운트다운·수락 상태는 render()를 다시 타지 않고 상태창 DOM만 직접 패치한다
+// (크루채팅과 마찬가지로, 매초 전체를 다시 그리면 다른 화면에서 입력 중이던 값이 날아간다).
+function updatePartyStatusModal(){
+  const p=state.crewParty;
+  if(!p.invites) return;
+  p.invites.forEach((inv,i)=>{
+    const el=document.querySelector(`#party-inv-${i} .party-inv-status`);
+    if(el) el.textContent = inv.status==='accepted'?'✅ 수락':inv.status==='expired'?'⏱ 시간초과':`대기중 (${inv.timeLeft}초)`;
+  });
+  const summary=document.getElementById('party-status-summary');
+  if(summary) summary.textContent=`${p.invites.filter(x=>x.status==='accepted').length}/${p.invites.length}명 수락`;
+  const startBtn=document.getElementById('party-status-start-btn');
+  if(startBtn) startBtn.style.display = p.ready ? 'inline-flex' : 'none';
+}
+function startPartyTicker(){
+  clearInterval(state.crewParty.tickId);
+  state.crewParty.tickId=setInterval(()=>{
+    const p=state.crewParty;
+    if(!p.invites){ clearInterval(p.tickId); return; }
+    let expired=false;
+    p.invites.forEach(inv=>{
+      if(inv.status==='pending'){
+        inv.timeLeft=Math.max(0, inv.timeLeft-1);
+        if(inv.timeLeft===0){ inv.status='expired'; expired=true; }
+      }
+    });
+    updatePartyStatusModal();
+    if(expired) checkPartyReady();
+  }, 1000);
+}
+function checkPartyReady(){
+  const p=state.crewParty;
+  if(!p.invites || !p.invites.every(x=>x.status!=='pending')) return;
+  if(p.ready) return;
+  p.ready=true;
+  clearInterval(p.tickId);
+  toast('파티가 완성됐어요! 이제 대전을 시작할 수 있어요');
+  if(state.screen==='app' && state.menu==='crew') render();
+  else updatePartyStatusModal();
+}
+function openPartyStatus(){ state.crewParty.statusOpen=true; render(); }
+function closePartyStatus(){ state.crewParty.statusOpen=false; render(); }
+function renderPartyInviteModal(){
+  const others=state.crew.members.filter(m=>m.n!=='나');
+  const sel=state.crewParty.selected;
+  return `
+  <div class="confirm-backdrop" onclick="if(event.target===this) closePartyInvite()">
+    <div class="confirm-box" style="max-width:340px;">
+      <h3 style="margin:0 0 4px;">대전 파티원 선택</h3>
+      <p class="hint" style="margin:0 0 12px;">함께 데려갈 크루원을 골라 파티를 신청하세요. 아무도 선택하지 않아도 바로 대전을 시작할 수 있어요.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto;">
+        ${others.length? others.map(m=>`
+          <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;">
+            <input type="checkbox" ${sel.includes(m.n)?'checked':''} onchange="togglePartyPick('${m.n}')">
+            <span style="flex:1;">${m.n}</span><span class="pill ${m.role==='팀장'?'pill-gold':'pill-muted'}">${m.role}</span>
+          </label>`).join('') : '<p class="hint" style="margin:0;">초대할 다른 크루원이 없어요.</p>'}
+      </div>
+      <div class="confirm-actions" style="margin-top:14px;">
+        <button class="btn btn-ghost btn-sm" onclick="closePartyInvite()">취소</button>
+        <button class="btn btn-primary btn-sm" onclick="sendPartyInvites()">파티 신청 보내기</button>
+      </div>
+    </div>
+  </div>`;
+}
+function renderPartyStatusModal(){
+  const p=state.crewParty;
+  return `
+  <div class="confirm-backdrop" onclick="if(event.target===this) closePartyStatus()">
+    <div class="confirm-box" style="max-width:340px;">
+      <h3 style="margin:0 0 4px;">대전 파티 현황</h3>
+      <p class="hint" id="party-status-summary" style="margin:0 0 12px;">${p.invites?`${p.invites.filter(x=>x.status==='accepted').length}/${p.invites.length}명 수락`:'파티원 없이 진행'}</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${(p.invites||[]).map((inv,i)=>`
+          <div id="party-inv-${i}" class="flex-between" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;">
+            <span>${inv.n}</span>
+            <span class="party-inv-status hint" style="margin:0;">${inv.status==='accepted'?'✅ 수락':inv.status==='expired'?'⏱ 시간초과':`대기중 (${inv.timeLeft}초)`}</span>
+          </div>`).join('')}
+      </div>
+      <div class="confirm-actions" style="margin-top:14px;">
+        <button class="btn btn-ghost btn-sm" onclick="closePartyStatus()">닫기</button>
+        <button id="party-status-start-btn" class="btn btn-primary btn-sm" style="display:${p.ready?'inline-flex':'none'};" onclick="closePartyStatus(); startCrewBattle();">대전 시작하기</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ========================================================================
+   5vs5 크루대전
+   ------------------------------------------------------------------------
+   비슷한 레벨의 상대 크루와 "먼저 스쿼트 N개 채우기" 실시간 대결. 내 개수는 실제
+   웹캠·MediaPipe 판정(exRegisterRep)에서 그대로 받아오고, 나머지 4명의 크루원과
+   상대팀은 프로토타입이라 일정 주기로 자동 증가시켜 흉내낸다(실제로는 각자의 서버
+   집계가 필요한 지점). 실시간 갱신은 render()를 다시 타지 않고 updateBattleUI()가
+   DOM을 직접 패치한다 — 이유는 render() 훅 주석과 exRegisterRep() 참고.
+   ======================================================================== */
+const BATTLE_FILLER_NAMES=['헬린이','스쿼트왕','런닝러버','플랭크신','다이어터'];
+// 정확도 등급별 점수 — 크루대전은 반복 횟수가 아니라 이 점수 합산으로 승패를 가린다.
+// GOOD은 따로 언급되지 않아 GREAT과 동일하게 취급한다(둘 다 "유효한 반복"이라는 의미로).
+const BATTLE_GRADE_POINTS={PERFECT:2, GREAT:1, GOOD:1, MISS:0};
+// 팀원·상대팀은 실제 판정이 없으니, 매 틱마다 이 분포에서 등급을 하나 뽑아 점수를 흉내낸다.
+const BATTLE_TICK_GRADES=['PERFECT','PERFECT','GREAT','GREAT','GREAT','GOOD','GOOD','MISS'];
+function randomBattleGrade(){ return BATTLE_TICK_GRADES[Math.floor(Math.random()*BATTLE_TICK_GRADES.length)]; }
+function startCrewBattle(){
+  if(!state.crewParty.ready){
+    toast('먼저 크루대전파티를 맺어야 대전을 시작할 수 있어요');
+    openPartyInvite();
+    return;
+  }
+  const myLevel=state.crew.level||1;
+  const candidates=JOINABLE_CREWS.filter(c=>c.name!==state.crew.name && Math.abs(c.level-myLevel)<=2);
+  const pool=candidates.length?candidates:JOINABLE_CREWS.filter(c=>c.name!==state.crew.name);
+  const opponent=pool[Math.floor(Math.random()*pool.length)] || JOINABLE_CREWS[0];
+
+  // 파티에 합류(수락)한 크루원을 우선으로 데려가고, 남는 자리는 나머지 크루원 → 필러로 채운다.
+  const partyMates=(state.crewParty.invites||[]).filter(x=>x.status==='accepted').map(x=>x.n);
+  const restMates=state.crew.members.filter(m=>m.n!=='나').map(m=>m.n).filter(n=>!partyMates.includes(n));
+  const realMates=[...partyMates, ...restMates];
+  clearInterval(state.crewParty.tickId);
+  state.crewParty={open:false, statusOpen:false, selected:[], invites:null, ready:false, tickId:null};
+  const teammates=[];
+  for(let i=0;i<4;i++){
+    teammates.push({n:realMates[i]||BATTLE_FILLER_NAMES[i%BATTLE_FILLER_NAMES.length], score:0, dur:(1.6+Math.random()*0.9).toFixed(2)});
+  }
+
+  state.crewBattle={
+    target: randInt(80,150), // 점수 목표 (PERFECT=2 / GREAT·GOOD=1 / MISS=0점 합산)
+    opponent:{name:opponent.name, level:opponent.level},
+    myScore:0, oppScore:0,
+    teammates,
+    tickId:null,
+    result:null, // null | 'win' | 'lose'
+  };
+  state.exercise={step:0, picked:'squat', camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0, liveReps:[], replayOpen:false};
+  state.menu='crewBattle';
+  // 상대팀·팀원은 캘리브레이션 여부와 상관없이 바로 진행을 시작한다(이미 실시간으로 붙은
+  // 대전이라는 느낌 + 캘리브레이션이 없어 모달이 뜨더라도 뒤에서 계속 점수가 올라가야 함).
+  startBattleTicker();
+
+  if(!state.user.calibration){
+    toast('크루대전을 시작하려면 체형 캘리브레이션이 먼저 필요해요');
+    openCalibrationModal();
+    return;
+  }
+  render();
+}
+function startBattleTicker(){
+  clearInterval(state.crewBattle.tickId);
+  state.crewBattle.tickId=setInterval(()=>{
+    const b=state.crewBattle;
+    if(!b || b.result) return;
+    const idx=Math.floor(Math.random()*b.teammates.length);
+    const pts1=BATTLE_GRADE_POINTS[randomBattleGrade()];
+    b.teammates[idx].score+=pts1;
+    updateBattleUI('mate-'+idx, pts1);
+    if(Math.random()<0.9){
+      const pts2=BATTLE_GRADE_POINTS[randomBattleGrade()];
+      b.oppScore+=pts2;
+      updateBattleUI('opp', pts2);
+    }
+    checkBattleEnd();
+  }, 1400);
+}
+// 실시간 구간 전용 DOM 패치 — render()를 부르지 않는 이유는 exRegisterRep()의 주석 참고.
+function updateBattleUI(bumpedKey, delta){
+  const b=state.crewBattle;
+  if(!b) return;
+  const teamTotal=b.myScore+b.teammates.reduce((s,t)=>s+t.score,0);
+  const setText=(id,txt)=>{ const el=document.getElementById(id); if(el) el.textContent=txt; };
+  setText('battle-team-total', teamTotal.toLocaleString());
+  setText('battle-opp-total', b.oppScore.toLocaleString());
+  const bar=document.getElementById('battle-progress'); if(bar) bar.style.width=Math.min(100,teamTotal/b.target*100)+'%';
+  setText('battle-my-score', b.myScore);
+  b.teammates.forEach((t,i)=> setText('battle-mate-score-'+i, t.score));
+  if(bumpedKey) popBattleFx(bumpedKey, delta);
+}
+// MISS(0점)일 땐 "+0"이 뜨는 게 어색하니 실제로 점수가 오를 때만 팝업을 띄운다.
+function popBattleFx(key, delta){
+  if(!delta) return;
+  const host=document.getElementById('battle-pop-'+key);
+  if(!host) return;
+  const el=document.createElement('span');
+  el.className='battle-pop';
+  el.textContent='+'+delta;
+  host.appendChild(el);
+  setTimeout(()=>el.remove(), 900);
+}
+function checkBattleEnd(){
+  const b=state.crewBattle;
+  if(!b || b.result) return;
+  const teamTotal=b.myScore+b.teammates.reduce((s,t)=>s+t.score,0);
+  if(teamTotal>=b.target){ b.result='win'; finishBattle(); }
+  else if(b.oppScore>=b.target){ b.result='lose'; finishBattle(); }
+}
+// 대전이 실제로 끝나는 시점(카메라를 먼저 정리한 뒤)에만 render()를 부른다 — 이때는 더 이상
+// 살아있는 포즈 인식 루프가 없으므로 화면을 통째로 다시 그려도 안전하다.
+function finishBattle(){
+  clearInterval(state.crewBattle.tickId);
+  if(state.exercise.camStream){ state.exercise.camStream.getTracks().forEach(t=>t.stop()); state.exercise.camStream=null; }
+  clearInterval(state.exercise.timerId);
+  if(state.crewBattle.result==='win'){
+    state.user.points += state.crewBattle.target;
+    toast(`🎉 크루대전 승리! 크루 포인트 +${state.crewBattle.target}P 획득`);
+  } else {
+    toast('아쉽게 패배했어요');
+  }
+  render();
+}
+function exitCrewBattle(){
+  if(state.crewBattle) clearInterval(state.crewBattle.tickId);
+  if(state.exercise.camStream){ state.exercise.camStream.getTracks().forEach(t=>t.stop()); }
+  clearInterval(state.exercise.timerId);
+  state.crewBattle=null;
+  state.exercise={step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0, liveReps:[], replayOpen:false};
+  state.menu='crew';
+  state.subtabs.crew=0;
+  render();
+}
+function drawBattleTeammates(){
+  if(!state.crewBattle) return;
+  state.crewBattle.teammates.forEach((t,i)=>{
+    const c=document.getElementById('battle-char-'+i);
+    if(c) drawPixelCharacter(c, {}, i%2===0?'male':'female');
+  });
+}
+function renderCrewBattle(){
+  const b=state.crewBattle;
+  if(!b) return '<div class="empty-note">대전 정보를 불러올 수 없습니다.</div>';
+  const teamTotal=b.myScore+b.teammates.reduce((s,t)=>s+t.score,0);
+  return `
+  <div class="view-head flex-between">
+    <h1 style="margin:0;">5vs5 크루대전</h1>
+    <button class="btn btn-ghost btn-sm" onclick="exitCrewBattle()">나가기</button>
+  </div>
+
+  <div class="card" style="text-align:center;margin-bottom:16px;">
+    <h2 style="margin:0 0 4px;font-size:22px;">${state.crew.name} <span style="color:var(--ink-faint);font-weight:400;font-size:16px;">vs</span> ${b.opponent.name} <span class="pill pill-muted">Lv.${b.opponent.level}</span></h2>
+    <p style="margin:0 0 18px;font-size:16px;font-weight:700;color:var(--gold);">스쿼트 ${b.target}점 먼저 채우기</p>
+    <div style="display:flex;align-items:center;justify-content:center;gap:28px;flex-wrap:wrap;">
+      <div>
+        <div id="battle-team-total" class="mono" style="font-size:44px;font-weight:700;color:var(--accent);">${teamTotal}</div>
+        <div class="hint">${state.crew.name} (우리팀)</div>
+      </div>
+      <div style="font-size:20px;font-weight:700;color:var(--ink-faint);">VS</div>
+      <div>
+        <div id="battle-opp-total" class="mono" style="font-size:44px;font-weight:700;color:var(--coral);">${b.oppScore}</div>
+        <div class="hint" style="position:relative;display:inline-block;">${b.opponent.name} <span id="battle-pop-opp" style="position:relative;display:inline-block;"></span></div>
+      </div>
+    </div>
+    <div class="progress" style="margin-top:14px;height:10px;"><span id="battle-progress" style="width:${Math.min(100,teamTotal/b.target*100)}%"></span></div>
+    <p class="hint" style="margin-top:6px;">목표 ${b.target}점을 먼저 채우는 팀이 승리해요 (PERFECT +2점 · GREAT/GOOD +1점 · MISS +0점)</p>
+  </div>
+
+  ${b.result ? `
+  <div class="card" style="text-align:center;max-width:420px;margin:0 auto;">
+    <h2 style="margin:0 0 6px;">${b.result==='win'?'🎉 우리 팀 승리!':'아쉽게 패배했어요'}</h2>
+    <p class="desc">최종 ${teamTotal}점 : ${b.oppScore}점</p>
+    ${b.result==='win' ? `<p class="mono" style="font-weight:700;color:var(--gold);margin:0 0 14px;">크루 포인트 획득 +${b.target}P</p>` : ''}
+    <button class="btn btn-primary" onclick="exitCrewBattle()">크루로 돌아가기</button>
+  </div>` : `
+  <div class="grid cal-grid">
+    <div>
+      <div class="cam-stage" id="cam-stage" style="max-height:70vh;">
+        <div class="cam-placeholder" id="cam-placeholder">카메라를 확인하는 중...<br>브라우저의 카메라 권한을 허용해주세요.</div>
+        <video id="cam-video" autoplay playsinline muted style="display:none;"></video>
+        <canvas class="cam-overlay-canvas" id="cam-canvas"></canvas>
+        <div class="cam-badge"><span class="rec-dot"></span><span id="cam-status">대기중</span></div>
+        <div class="cam-timer mono" id="cam-timer">00:00</div>
+        <div id="cam-grade-flash" class="cam-grade-flash"></div>
+        <div id="cam-ready-overlay" class="cam-ready-overlay">
+          <div class="count" id="cam-ready-count"></div>
+          <div class="msg" id="cam-ready-msg">화면 속 스켈레톤에 맞춰 자리를 잡아주세요</div>
+        </div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:10px;align-items:center;">
+        <button class="btn btn-primary" id="cam-toggle" onclick="toggleRecording()">촬영 시작</button>
+        <span class="hint" style="margin:0;position:relative;">내 기록 <b id="battle-my-score" class="mono">${b.myScore}</b>점 <span id="battle-pop-me" style="position:relative;display:inline-block;"></span></span>
+      </div>
+    </div>
+    <div class="card">
+      <p class="section-label">우리 팀 (실시간 자동 진행)</p>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
+        ${b.teammates.map((t,i)=>`
+          <div style="text-align:center;">
+            <div class="battle-char-wrap" style="animation-duration:${t.dur}s;">
+              <canvas id="battle-char-${i}" width="90" height="110" style="width:70px;height:86px;image-rendering:pixelated;"></canvas>
+            </div>
+            <p style="margin:4px 0 0;font-size:12px;font-weight:700;">${t.n}</p>
+            <p class="mono" style="margin:0;font-size:13px;color:var(--ink-dim);position:relative;display:inline-block;">
+              <span id="battle-mate-score-${i}">${t.score}</span>점 <span id="battle-pop-mate-${i}" style="position:relative;display:inline-block;"></span>
+            </p>
+          </div>`).join('')}
+      </div>
+    </div>
+  </div>`}`;
+}
+
 /* ---------- 크루공지: 팀장만 작성 가능 ---------- */
 function renderCrewNotice(){
   const isLeader=getMyCrewRole()==='팀장';
@@ -3363,15 +4091,21 @@ render();
      - 코드 안에 "// [백엔드 연동 필요 구간]"이라고 표시된 곳들이 전부 여기에 해당합니다.
        (회원가입/로그인/소셜로그인, 캘리브레이션 저장, 운동기록 저장, 미션 보상 지급,
         상점 구매, 크루 생성/가입/공지/가입승인/강퇴, 랭킹 조회, 고객센터, 계정설정 등)
-     - 실시간(WebSocket) 서버는 필요 없습니다 — 크루 채팅 기능은 삭제되었고 나머지 기능은
-       모두 REST(요청-응답)로 충분합니다.
+     - 실시간(WebSocket) 서버가 새로 필요합니다 — 크루채팅(renderCrewChat/sendCrewChat)과
+       크루대전 파티 초대·수락(openPartyInvite~checkPartyReady)이 여기 해당합니다. 지금은
+       둘 다 프론트에서 setTimeout으로 "크루원이 응답한 것처럼" 흉내만 낸 것이라, 실제로는
+       STOMP-WebSocket(또는 SSE) + 세션별 구독 채널(크루 ID 단위)로 바꿔야 여러 사용자가
+       진짜 실시간으로 메시지·초대 응답을 주고받을 수 있습니다.
+     - 크루대전 본 게임(팀원 점수 합산·상대팀 점수)도 지금은 클라이언트가 혼자 양쪽 점수를
+       다 굴리는 가짜 대전입니다. 실제 5vs5로 만들려면 대전방(room) 단위로 각자의 실시간
+       판정 결과를 서버가 취합해 모든 참가자에게 브로드캐스트하는 구조가 필요합니다.
 
    [데이터베이스 — 새로 구현해야 하는 부분]
      - 제안 기술스택: MySQL 8 + Spring Data JPA(또는 MyBatis)
      - "DB 연결 > SQL ..." 로 표시된 부분이 실제 테이블 CRUD가 필요한 지점입니다.
      - 최소한으로 필요한 테이블 예시: 계정, 캘리브레이션 프로필, 운동기록, 미션, 미션진행도,
-       상점아이템, 보유아이템, 크루, 크루원, 크루공지, 크루가입요청, 게시글, 좋아요/신고,
-       고객센터티켓
+       상점아이템, 보유아이템, 크루, 크루원, 크루공지, 크루가입요청, 크루채팅메시지,
+       크루대전파티초대, 게시글, 좋아요/신고, 고객센터티켓
 
    위 스택 이름(Java/Spring Boot/MySQL 등)은 팀 표준에 맞게 자유롭게 바꿔서 읽으면 됩니다 —
    이 주석의 목적은 "정확한 제품명 고정"이 아니라 프론트/백엔드/DB 경계 자체를 표시하는 것입니다.
