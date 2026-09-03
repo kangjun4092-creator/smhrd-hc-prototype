@@ -74,15 +74,17 @@ const state = {
     claimed: {}, // {missionId: true} — 보상 중복 수령 방지
   },
   shopItems: [
-    {name:'다시찍기 티켓', price:80, owned:false, consumable:true, effect:'재촬영 1회 추가', effectDesc:'세션당 무료 재촬영 2회를 모두 쓴 뒤, 추가로 다시 촬영할 때 1장씩 소모됩니다. 결과를 확인하며 반복 재촬영으로 정확도를 올리는 것을 막기 위한 아이템이에요.'},
-    {name:'네온 트레이닝복', price:300, owned:false, equipped:false, slot:'outfit', effect:'판정 관대도 +3%', effectDesc:'경계선 각도의 자세를 GOOD 이상으로 인정할 확률이 올라갑니다.'},
-    {name:'금빛 뱃지 프레임', price:450, owned:false, equipped:false, slot:'badge', effect:'미션 포인트 +10%', effectDesc:'모든 미션 달성 보상 포인트에 10% 추가 지급됩니다.'},
-    {name:'챔피언 왕관', price:900, owned:false, equipped:false, slot:'crown', effect:'랭킹 점수 +5%', effectDesc:'지역·종목 랭킹에 반영되는 점수가 5% 가산됩니다.'},
-    {name:'프로필 배경 - 새벽 러닝', price:250, owned:true, equipped:true, slot:'background', effect:'출석 보너스 +5P/일', effectDesc:'연속 출석일마다 기본 출석 포인트에 5P가 추가됩니다.'},
-    {name:'캐릭터 - 로봇 코치', price:600, owned:false, equipped:false, slot:'skin', effect:'준비 카운트다운 -1초', effectDesc:'촬영 시작 전 정렬 확인 후 나오는 카운트다운이 1초 짧아집니다.'},
-    {name:'닉네임 컬러 이펙트', price:180, owned:true, equipped:true, slot:'nickname', effect:'능력치 없음 · 외형 전용', effectDesc:'랭킹에서 닉네임 색상만 강조되며 점수에는 영향이 없습니다.'},
-    {name:'닉네임 변경권', price:150, owned:false, consumable:true, effect:'닉네임 변경 1회', effectDesc:'설정에서 닉네임을 한 번 변경할 수 있습니다. 무분별한 닉네임 변경으로 랭킹 혼선이 생기는 것을 막기 위한 아이템이에요.'},
+    {name:'다시찍기 티켓', price:80, owned:false, consumable:true, category:'기타', effect:'재촬영 1회 추가', effectDesc:'세션당 무료 재촬영 2회를 모두 쓴 뒤, 추가로 다시 촬영할 때 1장씩 소모됩니다. 결과를 확인하며 반복 재촬영으로 정확도를 올리는 것을 막기 위한 아이템이에요.'},
+    {name:'네온 트레이닝복', price:300, owned:false, equipped:false, slot:'outfit', category:'의상', effect:'판정 관대도 +3%', effectDesc:'경계선 각도의 자세를 GOOD 이상으로 인정할 확률이 올라갑니다.'},
+    {name:'금빛 뱃지 프레임', price:450, owned:false, equipped:false, slot:'badge', category:'의상', effect:'미션 포인트 +10%', effectDesc:'모든 미션 달성 보상 포인트에 10% 추가 지급됩니다.'},
+    {name:'챔피언 왕관', price:900, owned:false, equipped:false, slot:'crown', category:'의상', effect:'랭킹 점수 +5%', effectDesc:'지역·종목 랭킹에 반영되는 점수가 5% 가산됩니다.'},
+    {name:'프로필 배경 - 새벽 러닝', price:250, owned:true, equipped:true, slot:'background', category:'배경', effect:'출석 보너스 +5P/일', effectDesc:'연속 출석일마다 기본 출석 포인트에 5P가 추가됩니다.'},
+    {name:'캐릭터 - 로봇 코치', price:600, owned:false, equipped:false, slot:'skin', category:'의상', effect:'준비 카운트다운 -1초', effectDesc:'촬영 시작 전 정렬 확인 후 나오는 카운트다운이 1초 짧아집니다.'},
+    {name:'닉네임 컬러 이펙트', price:180, owned:true, equipped:true, slot:'nickname', category:'기타', effect:'능력치 없음 · 외형 전용', effectDesc:'랭킹에서 닉네임 색상만 강조되며 점수에는 영향이 없습니다.'},
+    {name:'닉네임 변경권', price:150, owned:false, consumable:true, category:'기타', effect:'닉네임 변경 1회', effectDesc:'설정에서 닉네임을 한 번 변경할 수 있습니다. 무분별한 닉네임 변경으로 랭킹 혼선이 생기는 것을 막기 위한 아이템이에요.'},
   ],
+  shopFilter: '전체',
+  itemPreview: {open:false, idx:null},
   crew: {
     created:false, name:'', desc:'', region:'',
     members:[],
@@ -106,8 +108,6 @@ const state = {
   ],
   settings: {
     account:{nickname:'', regionCity:'서울시', regionGu:'강남구', regionDong:'역삼동'},
-    notif:true, sound:true, camRes:'720p',
-    privacy:{profile:'전체공개', history:'크루공개'},
   },
   support: {
     composerOpen:false,
@@ -188,6 +188,7 @@ function render(){
   if(state.confirm) root.innerHTML += renderConfirm();
   if(state.findIdModal.open) root.innerHTML += renderFindIdModal();
   if(state.findPwModal.open) root.innerHTML += renderFindPwModal();
+  if(state.itemPreview.open) root.innerHTML += renderItemPreviewModal();
   // 캘리브레이션 모달은 회원가입 화면뿐 아니라, 운동 탭에서 "캘리브레이션 필수" 조건에 걸려
   // 열릴 수도 있으므로 화면(screen)과 무관하게 calModalOpen 플래그만 본다.
   if(state.signup.calModalOpen) root.innerHTML += renderCalibrationModal();
@@ -204,6 +205,9 @@ function render(){
   }
   if(state.screen==='app' && state.menu==='profile' && state.subtabs.profile===0){
     setTimeout(drawAvatarCanvas,0);
+  }
+  if(state.itemPreview.open){
+    setTimeout(drawItemPreviewCanvas,0);
   }
   if(state.screen==='app'){
     setTimeout(drawTopbarAvatar,0);
@@ -2097,7 +2101,7 @@ function renderMission(){
   <div class="view-head"><h1>미션</h1><p>일간/주간/월간 미션 선택 → 스쿼트로 달성하고 포인트를 모아보세요</p></div>
   ${renderMissionPick()}`;
 }
-const PROFILE_TABS=['프로필·캐릭터 꾸미기','미션 달성 현황','운동 히스토리','계정·프로필 관리','캘리브레이션 재설정','카메라·알림 설정','개인정보·공개범위','로그아웃·회원탈퇴'];
+const PROFILE_TABS=['프로필·캐릭터 꾸미기','미션 달성 현황','운동 히스토리','계정·프로필 관리'];
 function renderProfile(){
   const i=state.subtabs.profile;
   return `
@@ -2108,11 +2112,7 @@ function renderProfile(){
   ${i===0?renderMissionAvatar():
     i===1?renderMissionProgress():
     i===2?renderHistory():
-    i===3?renderSetAccount():
-    i===4?renderSetCalib():
-    i===5?renderSetCamera():
-    i===6?renderSetPrivacy():
-    renderSetLogout()}`;
+    renderSetAccount()}`;
 }
 function renderShop(){
   return `
@@ -2241,24 +2241,14 @@ function renderMissionAvatar(){
       </div>
       <div style="text-align:left;margin-top:18px;">
         <p class="section-label">누적 성과</p>
-        <div class="stat-row">
-          <div class="stat-box"><div class="num mono">${stats.total.toLocaleString()}</div><div class="lbl">누적 점수</div></div>
-          <div class="stat-box"><div class="num mono">#${stats.myRank}</div><div class="lbl">동네 랭킹</div></div>
-          <div class="stat-box"><div class="num mono">${stats.expToNext.toLocaleString()}</div><div class="lbl">레벨업까지 남은 점수</div></div>
-        </div>
-        <div class="progress" style="margin-top:12px;"><span style="width:${state.user.exp}%"></span></div>
+        <p class="desc mono" style="margin:0;">누적 점수 <b>${stats.total.toLocaleString()}</b> · 동네 랭킹 <b>#${stats.myRank}</b> · 레벨업까지 <b>${stats.expToNext.toLocaleString()}</b></p>
+        <div class="progress" style="margin-top:10px;"><span style="width:${state.user.exp}%"></span></div>
         <p class="hint" style="margin-top:4px;">Lv.${state.user.level} 진행도 ${state.user.exp}%</p>
-        <p class="section-label" style="margin-top:16px;">등급 비율 (전체 세션 기준)</p>
-        <div class="stat-row">
-          <div class="stat-box"><div class="num mono" style="color:var(--accent)">${stats.perfectPct}%</div><div class="lbl">PERFECT</div></div>
-          <div class="stat-box"><div class="num mono" style="color:var(--gold)">${stats.greatPct}%</div><div class="lbl">GREAT</div></div>
-          <div class="stat-box"><div class="num mono" style="color:var(--danger)">${stats.missPct}%</div><div class="lbl">MISS</div></div>
-        </div>
-        <p class="section-label" style="margin-top:16px;">운동 종류별 누적 횟수</p>
-        ${stats.exCounts.length ? stats.exCounts.map(([ex,cnt])=>`
-          <div class="rep-row" style="justify-content:space-between;"><span>${ex}</span><span class="mono">${cnt}회</span></div>
-        `).join('') : '<div class="empty-note">아직 기록이 없습니다.</div>'}
-        <p class="section-label" style="margin-top:16px;">장착 아이템 보정 효과</p>
+        <p class="section-label" style="margin-top:14px;">등급 비율 (전체 세션 기준)</p>
+        <p class="desc mono" style="margin:0;">PERFECT <b style="color:var(--accent)">${stats.perfectPct}%</b> · GREAT <b style="color:var(--gold)">${stats.greatPct}%</b> · MISS <b style="color:var(--danger)">${stats.missPct}%</b></p>
+        <p class="section-label" style="margin-top:14px;">운동 종류별 누적 횟수</p>
+        <p class="desc mono" style="margin:0;">${stats.exCounts.length ? stats.exCounts.map(([ex,cnt])=>`${ex} ${cnt}회`).join(' · ') : '아직 기록이 없습니다.'}</p>
+        <p class="section-label" style="margin-top:14px;">장착 아이템 보정 효과</p>
         ${stats.activeEffects.length ? stats.activeEffects.map(e=>`<span class="pill pill-accent" style="margin:0 6px 6px 0;display:inline-block;">${e}</span>`).join('') : '<p class="hint">착용 중인 능력치 아이템이 없습니다.</p>'}
       </div>
     </div>
@@ -2267,11 +2257,7 @@ function renderMissionAvatar(){
       <div class="grid" style="grid-template-columns:repeat(2,1fr);">
         ${cosmetics.filter(it=>it.owned).map(it=>renderCosmeticCard(it)).join('') || '<p class="empty-note" style="grid-column:1/-1;">아직 보유한 꾸미기 아이템이 없어요.</p>'}
       </div>
-      <p class="section-label" style="margin-top:18px;">미보유 아이템</p>
-      <div class="grid" style="grid-template-columns:repeat(2,1fr);">
-        ${cosmetics.filter(it=>!it.owned).map(it=>renderCosmeticCard(it)).join('') || '<p class="empty-note" style="grid-column:1/-1;">모든 아이템을 보유하고 있어요!</p>'}
-      </div>
-      <p class="hint" style="margin-top:14px;">보유 아이템을 착용/해제하면 캐릭터에 바로 반영됩니다.</p>
+      <p class="hint" style="margin-top:14px;">보유 아이템을 착용/해제하면 캐릭터에 바로 반영됩니다. 새 아이템은 포인트 상점에서 구매할 수 있어요.</p>
     </div>
   </div>`;
 }
@@ -2386,11 +2372,19 @@ function itemIconDataURL(name){
 // (FR-SH-001) 아래 buyItem()에서 실제 결제/포인트 차감이 필요합니다.
 //   아이템 구매(buyItem) > Java 상점 API > DB 연결 > SQL UPDATE(포인트 잔액) + INSERT(보유 아이템 테이블)
 //   — 포인트 차감과 아이템 지급은 하나의 트랜잭션으로 묶어야 중간 실패 시 포인트만 깎이는 사고를 막을 수 있습니다.
+const SHOP_CATEGORIES=['전체','의상','배경','기타'];
+// '의상'/'배경' 아이템만 캐릭터 외형에 실제로 반영되는 슬롯이라 '착용해보기' 미리보기를 지원한다
+// (닉네임 컬러 이펙트 같은 '기타' 아이템은 캐릭터 그림에 영향이 없어 미리볼 게 없다).
 function renderMissionShop(){
+  const f=state.shopFilter||'전체';
+  const items=state.shopItems.map((it,idx)=>({it,idx})).filter(({it})=>f==='전체'||it.category===f);
   return `
   <p class="hint" style="margin-bottom:14px;">아이템마다 적용되는 능력치가 다릅니다. 구매 전 효과를 확인하세요.</p>
+  <div class="subtabs">
+    ${SHOP_CATEGORIES.map(c=>`<div class="tab ${f===c?'active':''}" onclick="setShopFilter('${c}')">${c}</div>`).join('')}
+  </div>
   <div class="grid grid-3">
-    ${state.shopItems.map((it,idx)=>`
+    ${items.map(({it,idx})=>`
       <div class="card">
         <div class="feed-media" style="height:88px;">${it.name}</div>
         <div class="flex-between" style="margin-top:10px;">
@@ -2399,12 +2393,38 @@ function renderMissionShop(){
         <span class="pill ${it.effect.startsWith('능력치 없음')?'pill-muted':'pill-accent'}" style="margin-top:8px;">효과 · ${it.effect}</span>
         ${it.consumable?`<p class="desc" style="margin-top:4px;color:var(--accent);">보유 수량: ${it.name==='닉네임 변경권'?(state.user.nicknameTickets||0):state.user.retakeTickets}장</p>`:''}
         <p class="desc" style="margin-top:8px;">${it.effectDesc}</p>
-        <div class="flex-between" style="margin-top:6px;">
+        <div class="flex-between" style="margin-top:6px;gap:8px;">
           <span class="shop-price">P ${it.price}</span>
-          <button class="btn btn-sm ${(it.owned && !it.consumable)?'btn-ghost':'btn-primary'}" ${(it.owned && !it.consumable)?'disabled style="opacity:.5;"':''} onclick="buyItem(${idx})">${(it.owned && !it.consumable)?'보유중':'구매하기'}</button>
+          <div style="display:flex;gap:6px;">
+            ${(it.category==='의상'||it.category==='배경')?`<button class="btn btn-sm btn-secondary" onclick="openItemPreview(${idx})">착용해보기</button>`:''}
+            <button class="btn btn-sm ${(it.owned && !it.consumable)?'btn-ghost':'btn-primary'}" ${(it.owned && !it.consumable)?'disabled style="opacity:.5;"':''} onclick="buyItem(${idx})">${(it.owned && !it.consumable)?'보유중':'구매하기'}</button>
+          </div>
         </div>
       </div>`).join('')}
   </div>`;
+}
+function setShopFilter(c){ state.shopFilter=c; render(); }
+function openItemPreview(idx){ state.itemPreview={open:true, idx}; render(); }
+function closeItemPreview(){ state.itemPreview={open:false, idx:null}; render(); }
+function renderItemPreviewModal(){
+  const it=state.shopItems[state.itemPreview.idx];
+  return `
+  <div class="confirm-backdrop" onclick="if(event.target===this) closeItemPreview()">
+    <div class="confirm-box" style="text-align:center;">
+      <h3>${it.name} 착용 예시</h3>
+      <canvas id="item-preview-canvas" style="width:144px;height:176px;margin:10px auto;display:block;border-radius:10px;image-rendering:pixelated;"></canvas>
+      <p class="desc">${it.effectDesc}</p>
+      <div class="confirm-actions" style="justify-content:center;">
+        <button class="btn btn-secondary" onclick="closeItemPreview()">닫기</button>
+      </div>
+    </div>
+  </div>`;
+}
+function drawItemPreviewCanvas(){
+  const canvas=document.getElementById('item-preview-canvas');
+  const it=state.shopItems[state.itemPreview.idx];
+  if(!canvas || !it) return;
+  drawPixelCharacter(canvas, {...getEquipState(), [it.slot]:true}, state.user.gender);
 }
 function buyItem(idx){
   const it=state.shopItems[idx];
@@ -3132,19 +3152,16 @@ function renderHistory(){
             const pct=k=>Math.round((gc[k]||0)/gcTotal*100);
             const bonus=Math.round(h.score*bonusPct/100);
             const finalScore=h.score+bonus;
+            const basePts=Math.round(h.score*0.4);
+            const ptsBonus=Math.round(basePts*bonusPct/100);
+            const finalPts=basePts+ptsBonus;
             return `
             <div style="border:1px solid var(--line);border-radius:10px;padding:12px;">
-              <div class="flex-between">
-                <b>${h.ex}</b>
-                ${gradePill(h.grade)}
-              </div>
+              <b>${h.ex}</b>
               <p class="desc" style="margin:6px 0;">유효 횟수 ${h.reps}회 · 전체 정확도 ${h.acc}%</p>
-              <div class="stat-row" style="margin:0;">
-                <div class="stat-box"><div class="num mono" style="color:var(--accent)">${pct('PERFECT')}%</div><div class="lbl">PERFECT</div></div>
-                <div class="stat-box"><div class="num mono" style="color:var(--gold)">${pct('GREAT')}%</div><div class="lbl">GREAT</div></div>
-                <div class="stat-box"><div class="num mono">${pct('GOOD')}%</div><div class="lbl">GOOD</div></div>
-              </div>
+              <p class="desc mono" style="margin:0;">PERFECT <b style="color:var(--accent)">${pct('PERFECT')}%</b> · GREAT <b style="color:var(--gold)">${pct('GREAT')}%</b> · GOOD <b>${pct('GOOD')}%</b></p>
               <p class="desc mono" style="margin-top:8px;">획득 점수 : ${h.score}${bonusPct>0?` + 아이템효과 ${bonusPct}% = ${finalScore}`:''}</p>
+              <p class="desc mono" style="margin-top:2px;">획득 포인트 : ${basePts}${bonusPct>0?` + 아이템효과 ${bonusPct}% = ${finalPts}`:''}</p>
             </div>`;
           }).join('')}
         </div>
@@ -3154,25 +3171,14 @@ function renderHistory(){
 /* ========================================================================
    고객센터 · 불편사항접수
    ======================================================================== */
-// (FR-CS-001) 티켓 접수/조회, 신고 처리(삭제·기각)는 모두 관리자용 API가 함께 필요한 구간입니다.
+// (FR-CS-001) 티켓 접수/조회는 관리자용 API가 함께 필요한 구간입니다.
 //   불편사항 접수(submitTicket) > Java 고객센터 API > DB 연결 > SQL INSERT(티켓 테이블)
-//   신고 처리(삭제/기각 버튼) > Java 관리자 API(운영팀 권한 확인) > DB 연결 > SQL UPDATE/DELETE(게시글, 신고 테이블)
 //   운영팀 답변 등록도 같은 API에서 SQL UPDATE(티켓 테이블 reply, status 컬럼)로 처리하면 됩니다.
 function renderSupport(){
   const s=state.support;
   const list = s.filter==='all' ? s.tickets : s.tickets.filter(t=>t.status===s.filter);
   return `
   <div class="view-head"><h1>고객센터</h1><p>불편사항접수 게시판 — Error 신고 및 추후 추가사항 의견을 접수하고 처리 현황을 확인합니다.</p></div>
-  <div class="card" style="margin-bottom:20px;">
-    <p class="section-label">신고 관리</p>
-    <div class="table-wrap"><table>
-      <thead><tr><th>게시물</th><th>사유</th><th>처리</th></tr></thead>
-      <tbody>
-        <tr><td>플랭크 3분 인증</td><td>부적절한 이미지</td><td><button class="btn btn-sm btn-danger" onclick="toast('게시물이 삭제되었습니다')">삭제</button></td></tr>
-        <tr><td>버피 20회 인증</td><td>스팸성 홍보</td><td><button class="btn btn-sm btn-ghost" onclick="toast('신고가 기각되었습니다')">기각</button></td></tr>
-      </tbody>
-    </table></div>
-  </div>
   <div class="flex-between" style="margin-bottom:14px;">
     <div class="filter-bar" style="margin:0;">
       ${['all','접수','처리중','답변완료'].map(f=>`
@@ -3260,7 +3266,9 @@ function renderSetAccount(){
       </div>
     </div>
     <button class="btn btn-primary" onclick="saveAccount()">저장</button>
-  </div>`;
+  </div>
+  <div style="margin-top:20px;">${renderSetCalib()}</div>
+  <div style="margin-top:20px;">${renderSetLogout()}</div>`;
 }
 function setAccountCity(v){ state.settings.account.regionCity=v; state.settings.account.regionGu=null; state.settings.account.regionDong=null; render(); }
 function setAccountGu(v){ state.settings.account.regionGu=v; state.settings.account.regionDong=null; render(); }
@@ -3289,28 +3297,6 @@ function renderSetCalib(){
     <p class="section-label">카메라 캘리브레이션</p>
     <p class="desc">촬영 각도·거리·신체 비율을 다시 측정하여 분석 정확도를 갱신합니다.</p>
     <button class="btn btn-secondary btn-block" onclick="toast('체형 보정을 다시 진행했습니다')">캘리브레이션 다시 진행</button>
-  </div>`;
-}
-function renderSetCamera(){
-  return `
-  <div class="card" style="max-width:520px;">
-    <div class="toggle-row"><div><div class="t-label">운동 알림</div><div class="t-desc">미션·팀 활동 알림 수신</div></div>
-      <div class="switch ${state.settings.notif?'on':''}" onclick="this.classList.toggle('on')"><span class="knob"></span></div></div>
-    <div class="toggle-row"><div><div class="t-label">촬영 효과음</div><div class="t-desc">촬영 시작·종료 알림음</div></div>
-      <div class="switch ${state.settings.sound?'on':''}" onclick="this.classList.toggle('on')"><span class="knob"></span></div></div>
-    <div class="toggle-row"><div><div class="t-label">카메라 해상도</div><div class="t-desc">촬영 품질 설정</div></div>
-      <select><option ${state.settings.camRes==='720p'?'selected':''}>720p</option><option ${state.settings.camRes==='1080p'?'selected':''}>1080p</option></select></div>
-  </div>`;
-}
-function renderSetPrivacy(){
-  return `
-  <div class="card" style="max-width:520px;">
-    <div class="toggle-row"><div><div class="t-label">프로필 공개 범위</div><div class="t-desc">랭킹에서 프로필 노출 대상</div></div>
-      <select><option>전체공개</option><option>크루공개</option><option>비공개</option></select></div>
-    <div class="toggle-row"><div><div class="t-label">운동 기록 공개 범위</div><div class="t-desc">운동 히스토리 노출 대상</div></div>
-      <select><option>전체공개</option><option selected>크루공개</option><option>비공개</option></select></div>
-    <div class="toggle-row"><div><div class="t-label">촬영 영상 공개</div><div class="t-desc">리플레이 영상 자동 공개 여부</div></div>
-      <div class="switch" onclick="this.classList.toggle('on')"><span class="knob"></span></div></div>
   </div>`;
 }
 function renderSetLogout(){

@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../style.css">
+<style>
+body{padding:40px 46px 60px;}
+.mc-title{font-size:26px;margin:0 0 4px;}
+.mc-sub{color:var(--ink-dim);font-size:13px;margin:0 0 20px;}
+.mc-top{position:relative;}
+.mc-legend{position:absolute;top:0;right:0;border:2px solid var(--outline);border-radius:12px;overflow:hidden;font-size:11px;background:var(--surface);box-shadow:3px 4px 0 var(--outline);}
+.mc-legend .row{display:flex;border-bottom:1.5px solid var(--line);}
+.mc-legend .row:last-child{border-bottom:none;}
+.mc-legend .sw{width:96px;flex:none;display:flex;align-items:center;justify-content:center;padding:6px;font-weight:700;font-family:var(--font-display);}
+.mc-legend .lbl{padding:6px 12px;display:flex;align-items:center;color:var(--ink-dim);}
+.mc-legend .sw.proj{background:var(--gold);color:#241A00;}
+.mc-legend .sw.main{background:var(--accent);color:#fff;}
+.mc-legend .sw.sub{background:var(--surface);border:2px solid var(--outline);border-radius:6px;margin:5px;color:var(--ink);}
+.mc-legend .sw.leaf{background:var(--surface-2);border:1.5px dashed var(--ink-dim);border-radius:6px;margin:5px;color:var(--ink-dim);font-size:9.5px;}
+
+.mc-proj{display:flex;align-items:center;gap:9px;width:fit-content;margin:0 auto 30px;padding:10px 20px 10px 12px;
+  background:var(--surface);border:2.5px solid var(--outline);border-radius:16px;box-shadow:4px 5px 0 var(--outline);
+  position:relative;z-index:1;}
+.mc-proj .mark{width:36px;height:36px;border-radius:10px;background:var(--gold);border:2px solid var(--outline);flex:none;
+  display:flex;align-items:center;justify-content:center;color:#241A00;font-family:var(--font-display);font-size:17px;}
+.mc-proj .name{font-family:var(--font-display);font-size:16px;line-height:1.25;}
+.mc-proj .name small{display:block;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.06em;margin-top:1px;}
+
+.mc-wrap{position:relative;margin-top:36px;}
+.mc-wire{position:absolute;left:0;top:0;pointer-events:none;z-index:0;}
+.mc-cols{display:flex;gap:14px;position:relative;z-index:1;overflow-x:auto;padding-bottom:6px;}
+.mc-col{display:flex;flex-direction:column;gap:8px;width:168px;flex:none;}
+.col-head{background:var(--gold);color:#241A00;border:2px solid var(--outline);border-radius:12px;padding:10px 6px;
+  font-family:var(--font-display);font-size:13.5px;text-align:center;box-shadow:3px 4px 0 var(--outline);}
+.item{background:var(--surface);border:2px solid var(--outline);border-radius:10px;padding:8px 8px;box-shadow:2px 3px 0 var(--outline);
+  font-size:11.8px;text-align:center;line-height:1.35;}
+.item .tag{display:block;margin-top:3px;font-size:9px;color:var(--coral);font-weight:700;font-family:var(--font-mono);}
+.leafwrap{border:1.5px dashed var(--ink-faint);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:5px;margin-top:2px;}
+.leaf{background:var(--surface-2);border:1.5px dashed var(--ink-dim);border-radius:6px;font-size:10.5px;text-align:center;padding:5px 5px;color:var(--ink-dim);}
+.note{font-size:9.5px;color:var(--ink-faint);text-align:center;line-height:1.4;}
+</style>
+</head>
+<body>
+<div class="mc-top">
+  <div class="mc-title disp">메뉴 구성</div>
+  <div class="mc-sub">우리동네 홈트챌린지 · 화면설계서 메뉴 구성표 (실제 프로토타입 디자인 시스템 기준)</div>
+  <div class="mc-legend">
+    <div class="row"><div class="sw proj">프로젝트명</div><div class="lbl">서비스 전체 이름</div></div>
+    <div class="row"><div class="sw main">메인메뉴이름</div><div class="lbl">사이드바 대분류 (8개)</div></div>
+    <div class="row"><div class="sw sub">서브메뉴이름</div><div class="lbl">실제 존재하는 화면</div></div>
+    <div class="row"><div class="sw leaf">서브메뉴 내 메뉴이름</div><div class="lbl">한 화면 안의 탭/상태</div></div>
+  </div>
+</div>
+
+<div class="mc-wrap" id="wrap">
+  <svg class="mc-wire" id="wire-svg"></svg>
+  <div class="mc-proj" id="proj">
+    <div class="mark">홈</div>
+    <div class="name">우리동네<br>홈트챌린지<small>HOME TRAINING</small></div>
+  </div>
+  <div class="mc-cols">
+
+    <div class="mc-col">
+      <div class="col-head">메인화면</div>
+      <div class="item">서비스 소개 4카드
+        <div class="leafwrap">
+          <div class="leaf">AI 자세 판정</div>
+          <div class="leaf">미션 &amp; 포인트</div>
+          <div class="leaf">홈크루 &amp; 랭킹</div>
+          <div class="leaf">운동 히스토리</div>
+        </div>
+      </div>
+      <div class="item">이용 흐름 3단계</div>
+    </div>
+
+    <div class="mc-col">
+      <div class="col-head">운동</div>
+      <div class="item">종목 선택</div>
+      <div class="item">튜토리얼</div>
+      <div class="item">웹캠 촬영</div>
+      <div class="item">리플레이 분석</div>
+      <div class="item">결과 저장</div>
+    </div>
+
+    <div class="mc-col">
+      <div class="col-head">미션</div>
+      <div class="item">미션 선택
+        <div class="leafwrap">
+          <div class="leaf">일간</div>
+          <div class="leaf">주간</div>
+          <div class="leaf">월간</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mc-col">
+      <div class="col-head">마이페이지</div>
+      <div class="item">프로필·캐릭터 꾸미기</div>
+      <div class="item">미션 달성 현황</div>
+      <div class="item">운동 히스토리</div>
+      <div class="item">계정·프로필 관리</div>
+      <div class="item">캘리브레이션 재설정</div>
+      <div class="item">카메라·알림 설정</div>
+      <div class="item">개인정보·공개범위</div>
+      <div class="item">로그아웃·회원탈퇴</div>
+    </div>
+
+    <div class="mc-col">
+      <div class="col-head">포인트 상점</div>
+      <div class="item">아이템 목록 · 구매</div>
+      <div class="note">(카드 버튼: 구매하기/보유중<br>상태 전환 — 별도 화면 아님)</div>
+    </div>
+
+    <div class="mc-col">
+      <div class="col-head">홈크루</div>
+      <div class="item">크루 생성<span class="tag">크루 없을 때</span></div>
+      <div class="item">우리동네 크루 가입하기<span class="tag">크루 없을 때</span></div>
+      <div class="item">크루 메인<span class="tag">크루 있을 때</span></div>
+      <div class="item">크루공지</div>
+      <div class="item">오늘의 단체 미션</div>
+      <div class="item">크루원 정보</div>
+      <div class="item">크루원관리<span class="tag">팀장 전용</span></div>
+    </div>
+
+    <div class="mc-col">
+      <div class="col-head">랭킹</div>
+      <div class="item">지역별 랭킹</div>
+      <div class="item">운동 종목별 랭킹</div>
+      <div class="item">크루 랭킹</div>
+    </div>
+
+    <div class="mc-col">
+      <div class="col-head">고객센터</div>
+      <div class="item">신고 관리</div>
+      <div class="item">불편사항 접수 게시판
+        <div class="leafwrap">
+          <div class="leaf">전체</div>
+          <div class="leaf">접수</div>
+          <div class="leaf">처리중</div>
+          <div class="leaf">답변완료</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mc-col">
+      <div class="col-head">로그인 · 회원가입</div>
+      <div class="item">로그인</div>
+      <div class="item">회원가입</div>
+      <div class="item">웹캠 캘리브레이션<span class="tag">회원가입·마이페이지 공용</span></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+window.addEventListener('load', function(){
+  const wrap = document.getElementById('wrap');
+  const proj = document.getElementById('proj');
+  const heads = Array.from(document.querySelectorAll('.col-head'));
+  const svg = document.getElementById('wire-svg');
+  const wrapRect = wrap.getBoundingClientRect();
+  function rel(el){ const r=el.getBoundingClientRect(); return {x:r.left-wrapRect.left, y:r.top-wrapRect.top, w:r.width, h:r.height}; }
+  const p = rel(proj);
+  const startX = p.x + p.w/2, startY = p.y + p.h;
+  const headPts = heads.map(h=>{ const r=rel(h); return {x:r.x+r.w/2, y:r.y}; });
+  const spineY = startY + 30;
+  const minX = Math.min(...headPts.map(pt=>pt.x)), maxX = Math.max(...headPts.map(pt=>pt.x));
+  let d = `M${startX},${startY} L${startX},${spineY} M${minX},${spineY} L${maxX},${spineY}`;
+  headPts.forEach(hp=>{ d += ` M${hp.x},${spineY} L${hp.x},${hp.y}`; });
+  const totalW = Math.max(wrap.scrollWidth, document.body.scrollWidth);
+  const totalH = wrap.scrollHeight;
+  svg.setAttribute('width', totalW);
+  svg.setAttribute('height', totalH);
+  svg.setAttribute('viewBox', `0 0 ${totalW} ${totalH}`);
+  svg.innerHTML = `<path d="${d}" stroke="#1A1A1A" stroke-width="2.2" fill="none"/>`;
+  document.title = 'READY';
+});
+</script>
+</body>
+</html>
