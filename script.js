@@ -50,15 +50,19 @@ const EXISTING_USERS = [
 ];
 const state = {
   screen: 'intro', // intro | signup | login | app
-  trial: false, // 로그인 전 "미션 체험" 모드 — true면 screen과 무관하게 renderTrial()이 화면을 그린다
-  crewPreview: false, // 로그인 전 "홈크루 둘러보기" 모드 — true면 renderCrewPreview()가 화면을 그린다
+  // 로그인 전 랜딩 카드를 누르면 회원가입 없이도 screen='app'으로 들어가 로그인했을 때와 똑같은
+  // 전체 카테고리(사이드바)를 그대로 둘러볼 수 있다 — 이 플래그는 "계정에 실제로 뭔가 남기는
+  // 액션"만 로그인으로 유도하기 위한 표시일 뿐, 화면 라우팅 자체는 바꾸지 않는다(startGuestExercise/
+  // startGuestCrew, renderMain/renderCrewJoin/renderExStepSave의 guestMode 분기 참고).
+  guestMode: false,
   signup: {
     id:'', pw:'', pw2:'', nickname:'', email:'',
     regionCity:'서울시', regionGu:'강남구', regionDong:'역삼동', gender:'male', calibrated:false,
     calModalOpen:false, calStage:'idle', calProfile:null, calError:'',
   },
-  user: {nickname:'', avatar:0, gender:'male', points:1240, exp:62, level:7, region:'서울시 강남구 역삼동', retakeTickets:0, nicknameTickets:0, bio:''},
-  menu: 'exercise',
+  user: {nickname:'', avatar:0, gender:'male', points:1240, exp:62, level:7, region:'서울시 강남구 역삼동', retakeTickets:0, nicknameTickets:0, bio:'',
+    streak:10, streakRewardClaimed:false, extraSets:0, setsUsedToday:0},
+  menu: 'main',
   subtabs: {mission:0, profile:0, crew:0, ranking:0},
   exercise: {step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0, liveReps:[], replayOpen:false},
   crewBattle: null, // 5vs5 크루대전 진행 중 상태 — startCrewBattle() 참고
@@ -71,15 +75,19 @@ const state = {
     counters: {reps:0, perfect:0, sessions:0, missFreeSession:0, accSession:0},
     claimed: {}, // {missionId: true} — 보상 중복 수령 방지
   },
+  // levelReq: 이 레벨에 도달해야 상점에서 구매할 수 있는 아이템 — 지금은 메인 화면의 "다음
+  // 레벨업 혜택" 미리보기(getItemsUnlockedAtLevel)에서만 쓰고, 상점 구매 자체를 막지는 않는다
+  // (기존 구매 로직까지 건드리면 범위가 커지므로, 우선 안내용으로만 노출).
   shopItems: [
-    {name:'다시찍기 티켓', price:80, owned:false, consumable:true, category:'기타', effect:'재촬영 1회 추가', effectDesc:'세션당 무료 재촬영 2회를 모두 쓴 뒤, 추가로 다시 촬영할 때 1장씩 소모됩니다. 결과를 확인하며 반복 재촬영으로 정확도를 올리는 것을 막기 위한 아이템이에요.'},
-    {name:'네온 트레이닝복', price:300, owned:false, equipped:false, slot:'outfit', category:'의상', effect:'판정 관대도 +3%', effectDesc:'경계선 각도의 자세를 GOOD 이상으로 인정할 확률이 올라갑니다.'},
-    {name:'금빛 뱃지 프레임', price:450, owned:false, equipped:false, slot:'badge', category:'의상', effect:'미션 포인트 +10%', effectDesc:'모든 미션 달성 보상 포인트에 10% 추가 지급됩니다.'},
-    {name:'챔피언 왕관', price:900, owned:false, equipped:false, slot:'crown', category:'의상', effect:'랭킹 점수 +5%', effectDesc:'지역·종목 랭킹에 반영되는 점수가 5% 가산됩니다.'},
-    {name:'프로필 배경 - 새벽 러닝', price:250, owned:true, equipped:true, slot:'background', category:'배경', effect:'출석 보너스 +5P/일', effectDesc:'연속 출석일마다 기본 출석 포인트에 5P가 추가됩니다.'},
-    {name:'캐릭터 - 로봇 코치', price:600, owned:false, equipped:false, slot:'skin', category:'의상', effect:'준비 카운트다운 -1초', effectDesc:'촬영 시작 전 정렬 확인 후 나오는 카운트다운이 1초 짧아집니다.'},
-    {name:'닉네임 컬러 이펙트', price:180, owned:true, equipped:true, slot:'nickname', category:'기타', effect:'능력치 없음 · 외형 전용', effectDesc:'랭킹에서 닉네임 색상만 강조되며 점수에는 영향이 없습니다.'},
-    {name:'닉네임 변경권', price:150, owned:false, consumable:true, category:'기타', effect:'닉네임 변경 1회', effectDesc:'설정에서 닉네임을 한 번 변경할 수 있습니다. 무분별한 닉네임 변경으로 랭킹 혼선이 생기는 것을 막기 위한 아이템이에요.'},
+    {name:'다시찍기 티켓', price:80, owned:false, consumable:true, category:'기타', levelReq:1, effect:'재촬영 1회 추가', effectDesc:'세션당 무료 재촬영 2회를 모두 쓴 뒤, 추가로 다시 촬영할 때 1장씩 소모됩니다. 결과를 확인하며 반복 재촬영으로 정확도를 올리는 것을 막기 위한 아이템이에요.'},
+    {name:'네온 트레이닝복', price:300, owned:false, equipped:false, slot:'outfit', category:'의상', levelReq:5, effect:'판정 관대도 +3%', effectDesc:'경계선 각도의 자세를 GOOD 이상으로 인정할 확률이 올라갑니다.'},
+    {name:'금빛 뱃지 프레임', price:450, owned:false, equipped:false, slot:'badge', category:'의상', levelReq:6, effect:'미션 포인트 +10%', effectDesc:'모든 미션 달성 보상 포인트에 10% 추가 지급됩니다.'},
+    {name:'챔피언 왕관', price:900, owned:false, equipped:false, slot:'crown', category:'의상', levelReq:10, effect:'랭킹 점수 +5%', effectDesc:'지역·종목 랭킹에 반영되는 점수가 5% 가산됩니다.'},
+    {name:'프로필 배경 - 새벽 러닝', price:250, owned:true, equipped:true, slot:'background', category:'배경', levelReq:3, effect:'출석 보너스 +5P/일', effectDesc:'연속 출석일마다 기본 출석 포인트에 5P가 추가됩니다.'},
+    {name:'캐릭터 - 로봇 코치', price:600, owned:false, equipped:false, slot:'skin', category:'의상', levelReq:8, effect:'준비 카운트다운 -1초', effectDesc:'촬영 시작 전 정렬 확인 후 나오는 카운트다운이 1초 짧아집니다.'},
+    {name:'닉네임 컬러 이펙트', price:180, owned:true, equipped:true, slot:'nickname', category:'기타', levelReq:2, effect:'능력치 없음 · 외형 전용', effectDesc:'랭킹에서 닉네임 색상만 강조되며 점수에는 영향이 없습니다.'},
+    {name:'닉네임 변경권', price:150, owned:false, consumable:true, category:'기타', levelReq:1, effect:'닉네임 변경 1회', effectDesc:'설정에서 닉네임을 한 번 변경할 수 있습니다. 무분별한 닉네임 변경으로 랭킹 혼선이 생기는 것을 막기 위한 아이템이에요.'},
+    {name:'세트 추가권', price:200, owned:false, consumable:true, category:'기타', levelReq:1, effect:'일일 운동세트 +3', effectDesc:'하루에 가능한 운동세트 한도가 3세트 늘어납니다. 레벨이 오르면(5레벨마다) 기본 세트 한도도 자동으로 늘어나요.'},
   ],
   shopFilter: '전체',
   itemPreview: {open:false, idx:null},
@@ -184,12 +192,10 @@ function gradePill(g){
    ======================================================================== */
 function render(){
   const root=document.getElementById('app');
-  if(state.trial) root.innerHTML=renderTrial();
-  else if(state.crewPreview) root.innerHTML=renderCrewPreview();
-  else if(state.screen==='intro') root.innerHTML=renderIntro();
+  if(state.screen==='intro') root.innerHTML=renderIntro();
   else if(state.screen==='signup') root.innerHTML=renderSignup();
   else if(state.screen==='login') root.innerHTML=renderLogin();
-  else root.innerHTML=renderApp();
+  else root.innerHTML=renderApp(); // 'app' 화면은 실제 로그인 사용자와 게스트(guestMode)를 구분하지 않고 동일하게 그린다
 
   if(state.confirm) root.innerHTML += renderConfirm();
   if(state.findIdModal.open) root.innerHTML += renderFindIdModal();
@@ -210,7 +216,7 @@ function render(){
   // 다시 잡을 필요가 없다 — 결과가 있는 채로 render()가 다시 불릴 때마다(팝업 열기/닫기 등)
   // 카메라가 매번 재시작돼버리는 걸 막는다. 다시 촬영하려면 retakeExercise()가 result를
   // null로 비우고 나서 이 조건을 다시 통과하게 된다.
-  if((state.screen==='app' || state.trial) && state.menu==='exercise' && state.exercise.step===2 && !state.exercise.result){
+  if(state.screen==='app' && state.menu==='exercise' && state.exercise.step===2 && !state.exercise.result){
     setTimeout(setupCamera,0);
   }
   // 크루대전: 대결이 끝나기 전까지는(카메라 화면이 떠 있는 동안) 매 렙·매 틱마다 여기(render)를
@@ -222,7 +228,10 @@ function render(){
     setTimeout(setupCamera,0);
     setTimeout(drawBattleTeammates,0);
   }
-  if((state.screen==='app' || state.trial) && state.menu==='exercise' && state.exercise.replayOpen){
+  if(state.screen==='app' && state.menu==='crewBattle' && state.crewBattle && state.crewBattle.result){
+    setTimeout(drawBattleResultAvatars,0);
+  }
+  if(state.screen==='app' && state.menu==='exercise' && state.exercise.replayOpen){
     setTimeout(setupReplayComparison,0);
   }
   if(state.screen==='app' && state.menu==='profile' && state.subtabs.profile===0){
@@ -243,30 +252,14 @@ function render(){
 /* ---------- 소개(랜딩) 페이지 ---------- */
 // 로그인 전 첫 진입 화면. 비회원은 로그인/회원가입 창을 바로 보는 대신 여기서 서비스를
 // 먼저 둘러본 뒤, 상단 버튼으로 회원가입 또는 로그인으로 이동한다.
-// 같은 소개 콘텐츠(renderIntroFeatures/renderIntroSteps)는 로그인 후 좌측 상단 배너를
-// 눌렀을 때 이동하는 앱 안 "메인" 카테고리(renderMain)에서도 재사용된다.
-const INTRO_FEATURES = [
-  {icon:'🎯', title:'AI 자세 판정', desc:'웹캠만으로 스쿼트 같은 운동 자세를 실시간으로 분석하고 정확도를 채점해요.'},
-  {icon:'🏅', title:'미션 & 포인트', desc:'일간·주간·월간 미션을 달성하고 포인트를 모아 캐릭터를 꾸며보세요.'},
-  {icon:'🏘️', title:'홈크루 & 랭킹', desc:'우리 동네 이웃과 크루를 만들고, 지역별 랭킹으로 함께 동기부여 받아요.'},
-  {icon:'📋', title:'운동 히스토리', desc:'마이페이지에서 날짜별 운동 기록과 점수·정확도를 한눈에 관리해요.'},
-];
+// INTRO_STEPS/renderIntroSteps는 로그인 전 랜딩 페이지의 "이용 흐름" 섹션에서 쓴다. 로그인 후
+// "메인" 카테고리(renderMain)는 더 이상 이 소개 콘텐츠를 재사용하지 않고, 내 기록 중심의
+// 대시보드를 따로 그린다(renderMain 참고).
 const INTRO_STEPS = [
   '회원가입하고 웹캠으로 내 체형을 간단히 보정해요',
   '종목을 골라 웹캠 앞에서 운동하면 자세를 실시간으로 판정해줘요',
   '미션을 달성하고 포인트를 모아 캐릭터를 꾸미고 랭킹에 도전해요',
 ];
-function renderIntroFeatures(){
-  return `
-  <div class="grid grid-3">
-    ${INTRO_FEATURES.map(f=>`
-      <div class="card" style="text-align:center;">
-        <div class="ex-badge" style="margin:0 auto 10px;">${f.icon}</div>
-        <h3 style="margin:0 0 6px;font-size:15px;">${f.title}</h3>
-        <p class="desc" style="margin:0;">${f.desc}</p>
-      </div>`).join('')}
-  </div>`;
-}
 function renderIntroSteps(){
   return `
   <ol class="steplist" style="max-width:520px;margin:0 auto;">
@@ -282,17 +275,19 @@ function renderHistoryPreview(){
     <p class="hint" style="margin-top:12px;">회원가입하면 내가 운동할 때마다 이렇게 날짜별로 점수·정확도가 자동으로 쌓여요.</p>
   </div>`;
 }
-// 랜딩 페이지 전용 카드 — 로그인 후 "메인" 카테고리가 쓰는 INTRO_FEATURES/renderIntroFeatures와는
-// 별개다(그쪽은 순수 소개용, 이쪽은 클릭하면 바로 동작하는 액션 카드라 문구·동작이 다름).
+// 랜딩 페이지 전용 카드 — 로그인 후 "메인" 카테고리(renderMain)는 더 이상 이 소개 카드를
+// 재사용하지 않고 내 기록 중심 대시보드를 따로 그린다.
 // action이 있는 카드만 클릭 가능하다 — 직접 함수 호출(예: 체험 시작)일 수도, 페이지 내 다른
 // 섹션으로 스크롤 이동일 수도 있어 문자열로 받는다.
 const LANDING_FEATURES = [
-  {icon:'🎯', title:'AI 자세 판정 및 운동', desc:'웹캠만으로 스쿼트 같은 운동 자세를 실시간으로 분석하고 정확도를 채점해요.', action:'startTrial()', cta:'지금 체험하기',
+  {icon:'🎯', title:'AI 자세 판정 및 운동', desc:'웹캠만으로 스쿼트 같은 운동 자세를 실시간으로 분석하고 정확도를 채점해요.', action:'startGuestExercise()', cta:'지금 체험하기',
    image:'assets/ai-demo-preview.png', imageAlt:'캘리브레이션 실루엣 위에 스켈레톤이 겹쳐 스쿼트 자세를 실시간으로 판정하는 화면 예시'},
-  {icon:'⚔️', title:'실시간 크루대전', desc:'우리 크루와 다른 동네 크루가 실시간으로 스쿼트 점수 대결을 펼쳐요.', action:'startCrewPreview()', cta:'우리 동네 크루확인하기',
+  {icon:'⚔️', title:'실시간 크루대전', desc:'우리 크루와 다른 동네 크루가 실시간으로 스쿼트 점수 대결을 펼쳐요.', action:'startGuestCrew()', cta:'우리 동네 크루확인하기',
    image:'assets/crew-battle-demo-preview.png', imageAlt:'앉은 자세 스쿼트 판정 웹캠 화면과 팀별 실시간 점수·팀원 캐릭터가 함께 표시되는 5vs5 크루대전 화면 예시'},
   {icon:'📋', title:'운동 히스토리 관리', desc:'날짜별 운동 기록과 점수·정확도를 한눈에 모아서 관리해요.', action:"scrollToSection('history-preview')", cta:'예시 보기 ↓',
    image:'assets/history-demo-preview.png', imageAlt:'날짜별 운동 점수·정확도가 정리된 운동 히스토리 화면 예시'},
+  {icon:'🏆', title:'우리 동네 랭킹 확인', desc:'역삼동 1위는 892점의 "써니핏"님! 지역별·종목별 랭킹에서 내 순위는 어디쯤일지 확인해보세요.', action:'startGuestRanking()', cta:'랭킹 보기',
+   image:'assets/ranking-demo-preview.png', imageAlt:'지역별 랭킹 화면의 1~3위 포디움과 순위표 예시'},
 ];
 function renderLandingFeatures(){
   return `
@@ -314,8 +309,8 @@ function scrollToSection(id){
 function renderLandingBottomNav(){
   const items=[
     {icon:'🏠', label:'홈', action:"window.scrollTo({top:0,behavior:'smooth'})"},
-    {icon:'🎯', label:'AI 자세판정', action:'startTrial()'},
-    {icon:'⚔️', label:'크루대전', action:'startCrewPreview()'},
+    {icon:'🎯', label:'AI 자세판정', action:'startGuestExercise()'},
+    {icon:'⚔️', label:'크루대전', action:'startGuestCrew()'},
     {icon:'📖', label:'이용안내', action:"scrollToSection('how-it-works')"},
   ];
   return `
@@ -362,99 +357,31 @@ function renderIntro(){
   ${renderLandingBottomNav()}`;
 }
 
-/* ---------- 로그인 전 "미션 체험" 모드 ----------
-   회원가입을 강요하지 않고, 미션 하나를 골라 캘리브레이션→웹캠 촬영→판정까지 실제로 체험해볼
-   수 있게 한다. 화면 라우팅은 state.screen과 별개인 state.trial 플래그로 하고(render() 참고),
-   기존 운동 위저드(renderExercise 등)를 그대로 재사용한다 — 다른 점은 "기록 저장" 단계에서
-   실제 저장 대신 회원가입을 유도한다는 것뿐(renderExStepSave 참고). */
-function startTrial(){
-  state.trial=true;
+/* ---------- 로그인 전 "게스트 모드" ----------
+   랜딩 페이지 소개 카드를 누르면 회원가입 없이도 screen='app'으로 들어가 로그인했을 때와 완전히
+   같은 화면(사이드바 전체 카테고리)을 그대로 둘러볼 수 있다. renderApp()은 실제 로그인 사용자와
+   게스트를 구분하지 않고 똑같이 그린다 — state.user/state.crew/state.history 등은 로그인 여부와
+   무관하게 항상 존재하는 데모값이라 그대로 재사용된다. 다만 계정에 실제로 뭔가를 남기는 액션
+   (운동 결과 저장, 크루 가입요청·생성, 메인 화면의 포인트받기·전체보기)만 state.guestMode를 보고
+   로그인 화면으로 유도한다. */
+function startGuestExercise(){
+  state.guestMode=true;
+  state.screen='app';
   state.menu='exercise';
   state.exercise={step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0, liveReps:[], replayOpen:false};
   render();
 }
-function exitTrial(){
-  state.trial=false;
-  state.exercise={step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0, liveReps:[], replayOpen:false};
+function startGuestCrew(){
+  state.guestMode=true;
+  state.screen='app';
+  state.menu='crew';
   render();
 }
-function pickTrialMission(id){
-  const m=state.missions.list.daily.find(x=>x.id===id);
-  if(!m) return;
-  state.exercise.picked='squat'; // 지금은 모든 미션이 스쿼트 기준이라 종목이 자동으로 정해진다
-  goToTutorial(); // 캘리브레이션이 없으면 모달부터 자동으로 띄운다
-}
-function renderTrialMissionPick(){
-  const missions=state.missions.list.daily;
-  return `
-  <div class="view-head"><h1>미션 체험하기</h1><p>회원가입 없이 미션 하나를 골라 웹캠 판정까지 그대로 체험해볼 수 있어요. 기록을 저장하려면 마지막에 회원가입만 하면 돼요.</p></div>
-  <div class="grid grid-2">
-    ${missions.map(m=>`
-      <div class="card">
-        <div class="flex-between"><span class="pill pill-muted">${MISSION_PERIOD_LABEL[m.period]}</span><span class="pill pill-gold">+${m.reward}P</span></div>
-        <h3 style="margin-top:8px;">${m.label}</h3>
-        <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="pickTrialMission('${m.id}')">이 미션 체험하기</button>
-      </div>`).join('')}
-  </div>`;
-}
-function renderTrial(){
-  return `
-  <div class="app-shell">
-    <div class="main" style="width:100%;">
-      <div class="topbar">
-        <div>
-          <div class="topbar-title">미션 체험</div>
-          <div class="topbar-sub">로그인 없이 체험 중이에요 · 기록은 저장되지 않아요</div>
-        </div>
-        <div class="user-chip">
-          <button class="btn btn-primary btn-sm" onclick="goto('signup')">회원가입</button>
-          <button class="btn btn-ghost btn-sm" onclick="exitTrial()">나가기</button>
-        </div>
-      </div>
-      <div class="view">
-        ${state.exercise.picked ? renderExercise() : renderTrialMissionPick()}
-      </div>
-    </div>
-  </div>`;
-}
-
-/* ---------- 로그인 전 "홈크루 둘러보기" 모드 ----------
-   실제 크루 가입요청 목록(renderCrewJoin)을 로그인 없이 그대로 보여준다 — 검색·지역/컨셉
-   필터까지 전부 동작한다. state.crew는 로그인 여부와 무관하게 항상 존재하는 top-level
-   상태라 renderCrewJoin()을 그대로 재사용할 수 있다. 다만 "가입요청하기" 버튼이나 "크루
-   생성"처럼 실제 계정에 뭔가를 남기는 액션만은 state.crewPreview를 보고 회원가입으로
-   유도한다(renderCrewJoin의 가입요청 버튼 분기 참고). */
-function startCrewPreview(){
-  state.crewPreview=true;
+function startGuestRanking(){
+  state.guestMode=true;
+  state.screen='app';
+  state.menu='ranking';
   render();
-}
-function exitCrewPreview(){
-  state.crewPreview=false;
-  render();
-}
-function renderCrewPreview(){
-  return `
-  <div class="app-shell">
-    <div class="main" style="width:100%;">
-      <div class="topbar">
-        <div>
-          <div class="topbar-title">홈크루 둘러보기</div>
-          <div class="topbar-sub">로그인 없이 둘러보는 중이에요 · 가입하려면 회원가입이 필요해요</div>
-        </div>
-        <div class="user-chip">
-          <button class="btn btn-primary btn-sm" onclick="goto('signup')">회원가입</button>
-          <button class="btn btn-ghost btn-sm" onclick="exitCrewPreview()">나가기</button>
-        </div>
-      </div>
-      <div class="view">
-        <div class="view-head flex-between">
-          <div><h1>홈크루</h1><p>우리동네 크루에 가입해보세요</p></div>
-          <button class="btn btn-secondary btn-sm" onclick="goto('signup')">크루 생성</button>
-        </div>
-        ${renderCrewJoin()}
-      </div>
-    </div>
-  </div>`;
 }
 
 /* ---------- 회원가입 ---------- */
@@ -662,9 +589,9 @@ function calApply(){
   state.signup.calibrated = true;
   state.signup.calModalOpen = false;
   toast('체형 보정이 저장되었습니다');
-  // 이미 로그인된 상태(운동 탭에서 필수 캘리브레이션으로 진입한 경우)이거나 로그인 전
-  // "미션 체험" 모드라면 여기서 바로 보정값을 반영해서, 곧장 튜토리얼로 넘어가게 한다.
-  if(state.screen==='app' || state.trial){
+  // 이미 앱 화면(screen==='app')에 들어와 있는 상태 — 실제 로그인 사용자든 게스트든 — 라면
+  // 여기서 바로 보정값을 반영해서, 곧장 튜토리얼로 넘어가게 한다.
+  if(state.screen==='app'){
     state.user.calibration = state.signup.calProfile;
     if(state.menu==='exercise' && state.exercise.step===0 && state.exercise.picked){
       goExStep(1);
@@ -1231,6 +1158,7 @@ function renderLogin(){
 //   로그인 폼 제출(여기) > Java 서버 로그인 API(비밀번호 검증, 세션/JWT 발급) > DB 연결 > SQL SELECT(계정 조회)
 function doLogin(){
   if(!state.user.nickname){state.user.nickname='홈트초보';}
+  state.guestMode=false;
   state.screen='app';
   state.menu='main';
   render();
@@ -1241,6 +1169,7 @@ function doLogin(){
 function doSocialLogin(provider){
   if(!state.user.nickname){state.user.nickname='홈트초보';}
   toast(`${provider} 계정으로 로그인했습니다`);
+  state.guestMode=false;
   state.screen='app';
   state.menu='main';
   render();
@@ -1306,6 +1235,7 @@ function renderFindPwModal(){
 
 /* ---------- 앱 셸 ---------- */
 const MENUS = [
+  {id:'main', label:'메인', icon:'🏠'},
   {id:'exercise', label:'운동', icon:'🏋️'},
   {id:'profile', label:'마이페이지', icon:'👤'},
   {id:'shop', label:'포인트 상점', icon:'🛍️'},
@@ -1329,14 +1259,14 @@ function renderApp(){
     <div class="main">
       <div class="topbar">
         <div>
-          <div class="topbar-title">${state.user.region}</div>
+          <div class="topbar-title">${state.guestMode ? `<span style="cursor:pointer;text-decoration:underline;" onclick="goto('login')">동네설정하기</span>` : state.user.region}</div>
         </div>
         <div class="user-chip">
-          <div class="points-pill">P <span class="mono">${state.user.points.toLocaleString()}</span></div>
-          <span class="topbar-nick">${state.user.nickname||'홈트초보'}</span>
+          <div class="points-pill">P <span class="mono">${state.guestMode ? 0 : state.user.points.toLocaleString()}</span></div>
+          <span class="topbar-nick">${state.guestMode ? '비회원' : (state.user.nickname||'홈트초보')}</span>
           <div class="topbar-avatar" onclick="setMenu('profile')" title="마이페이지">
             <canvas id="topbar-avatar-canvas"></canvas>
-            <span class="mono">Lv.${state.user.level}</span>
+            <span class="mono">Lv.${state.guestMode ? 0 : state.user.level}</span>
           </div>
         </div>
       </div>
@@ -1356,23 +1286,170 @@ function renderApp(){
 function setMenu(id){state.menu=id; render();}
 // 좌측 상단 로고(배너) 클릭 시: 서비스 소개 콘텐츠를 담은 "메인" 카테고리로 이동한다.
 function goHome(){ state.menu='main'; render(); }
-function renderMain(){
-  return `
-  <div class="view-head"><p>우리동네 홈트챌린지가 어떤 서비스인지 한눈에 확인하세요.</p></div>
-  <div class="card" style="text-align:center;margin-bottom:24px;">
-    <h2 style="margin:0 0 8px;">집에서, 우리 동네 사람들과 함께 운동해요</h2>
-    <p class="desc" style="max-width:56ch;margin:0 auto 16px;">웹캠으로 자세를 실시간 판정하고, 미션과 랭킹으로 이웃과 함께 성장하는 홈트레이닝 서비스예요.</p>
-    <button class="btn btn-primary" onclick="setMenu('exercise')">운동 시작하기</button>
-  </div>
-  <p class="section-label">이런 걸 할 수 있어요</p>
-  ${renderIntroFeatures()}
-  <p class="section-label" style="margin-top:32px;">이용 흐름</p>
-  ${renderIntroSteps()}`;
+// 로그인 후 첫 화면(메인 카테고리) — 서비스 소개 대신 "나"에 관한 요약 대시보드를 보여준다.
+// 순위·등급비율의 상승/하락 화살표는 실제로는 서버가 어제 대비 오늘 값을 이력으로 갖고
+// 있어야 하지만, 이 프로토타입은 이력을 따로 저장하지 않으므로 (닉네임+오늘 날짜)를 시드로
+// 한 값을 "어제 값"처럼 흉내낸다 — 그래서 하루 동안은 새로고침해도 화살표가 바뀌지 않는다.
+function mainTrendSeed(key){
+  const d=new Date();
+  return hashStr((state.user.nickname||'guest')+key+d.getFullYear()+d.getMonth()+d.getDate());
 }
-// 체험 모드 중 회원가입/로그인으로 넘어갈 수도 있으므로(renderTrial, renderExStepSave 참고),
-// 화면을 명시적으로 바꿀 때는 항상 체험 모드를 함께 꺼서 render()가 다시 renderTrial()로
-// 되돌아가지 않게 한다.
-function goto(screen){state.trial=false; state.crewPreview=false; state.screen=screen; render();}
+function getMainRankDelta(stats){
+  const seed=mainTrendSeed('rank');
+  const prevRank=Math.max(1, stats.myRank + ((seed%5)-2));
+  return prevRank-stats.myRank; // 양수면 순위 숫자가 작아짐 = 상승
+}
+function getMainGradeDelta(stats){
+  const mk=(key,cur)=>{
+    const seed=mainTrendSeed(key);
+    const prev=Math.max(0, Math.min(100, cur + ((seed%7)-3)));
+    return cur-prev;
+  };
+  return { perfect: mk('perfect', stats.perfectPct), great: mk('great', stats.greatPct), miss: mk('miss', stats.missPct) };
+}
+function renderMainTrend(delta){
+  if(!delta) return '<span class="hint mono" style="margin:0;">-</span>';
+  return delta>0
+    ? `<span class="mono" style="color:var(--sky);font-weight:700;">▲${Math.abs(delta)}</span>`
+    : `<span class="mono" style="color:var(--danger);font-weight:700;">▼${Math.abs(delta)}</span>`;
+}
+// 다음 레벨에서 새로 구매 가능해지는 아이템 — shopItems의 levelReq 참고.
+function getItemsUnlockedAtLevel(level){
+  return state.shopItems.filter(it=>it.levelReq===level);
+}
+// [백엔드 연동 필요 구간] 연속출석 보상 — 실제로는 서버가 매일 로그인 여부를 집계해 streak를
+// 올려줘야 하지만, 이 프로토타입은 로그인 이력이 없어 state.user.streak를 고정 데모값으로 둔다.
+function claimStreakReward(){
+  if(state.user.streak<10 || state.user.streakRewardClaimed) return;
+  askConfirm(
+    '연속출석 보상',
+    `연속출석 ${state.user.streak}일째! 포인트 +300을 받으시겠어요?`,
+    ()=>{
+      closeConfirm();
+      state.user.points += 300;
+      state.user.streakRewardClaimed = true;
+      toast('연속출석 보상으로 +300P를 받았어요!');
+      render();
+    },
+    '포인트 받기'
+  );
+}
+// 게스트 모드에서 "테스트 로그인한 회원과 화면이 똑같아 보인다"는 피드백에 따라, 개인 기록이
+// 담긴 영역(메인 대시보드·프로필)은 실제 값을 그대로 보여주는 대신 흐리게 처리하고 로그인
+// 유도 오버레이를 덮는다. 로그인 사용자는 innerHtml을 그대로 반환해 아무 영향이 없다.
+function renderGuestBlur(innerHtml, message){
+  if(!state.guestMode) return innerHtml;
+  return `
+  <div style="position:relative;">
+    <div style="filter:blur(6px);opacity:.5;pointer-events:none;user-select:none;" aria-hidden="true">${innerHtml}</div>
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:24px;">
+      <div style="font-size:32px;">🔒</div>
+      <p style="font-weight:700;font-size:15px;color:var(--ink);margin:0;max-width:32ch;">${message}</p>
+      <button class="btn btn-primary" onclick="goto('login')">로그인하고 확인하기</button>
+    </div>
+  </div>`;
+}
+function renderMain(){
+  const isGuest = state.guestMode;
+  // 게스트가 메인 화면에 왔을 때 보여줄 고정 예시값 — 실제 계정 데이터(state.user/state.history)를
+  // 그대로 보여주면 이미 로그인한 것처럼 보여서 혼란을 준다는 피드백에 따라, 진짜 내 기록이 아닌
+  // "가입하면 이렇게 보여요" 예시로 명확히 구분되는 값을 쓴다. (함수 안에서 만드는 이유는
+  // EXP_PER_LEVEL이 이 파일에서 나중에 선언되기 때문 — 최상위 const로 두면 로드 시점에 아직
+  // 없는 값을 참조해 에러가 난다.)
+  const GUEST_MAIN_SAMPLE = {
+    recent: [
+      {ex:'스쿼트', date:'예시', reps:24, acc:88, score:320},
+      {ex:'런지', date:'예시', reps:15, acc:81, score:210},
+    ],
+    rank:'-', total:0, expToNext:EXP_PER_LEVEL, exp:0,
+    perfectPct:0, greatPct:0, missPct:0,
+  };
+  const stats = isGuest ? null : getProfileStats();
+  const rankDelta = isGuest ? 0 : getMainRankDelta(stats);
+  const gradeDelta = isGuest ? {perfect:0,great:0,miss:0} : getMainGradeDelta(stats);
+  const recent = isGuest ? GUEST_MAIN_SAMPLE.recent : state.history.slice(0,3);
+  const nextLv = isGuest ? 1 : (state.user.level||1)+1;
+  const unlockedNext = getItemsUnlockedAtLevel(nextLv);
+  const setBonusAtNext=nextLv%5===0;
+
+  const canClaimStreak = state.user.streak>=10 && !state.user.streakRewardClaimed;
+  const streakActive = state.guestMode || canClaimStreak;
+  const welcomeName = state.guestMode ? '게스트' : (state.user.nickname||'홈트초보');
+  const streakHint = state.guestMode
+    ? '로그인하면 연속출석 보상을 받을 수 있어요'
+    : (state.user.streakRewardClaimed ? '✅ 이번 보상을 받았어요' : '10일 연속출석부터 포인트를 받을 수 있어요');
+  const header = `
+  <div class="view-head flex-between">
+    <div><h1>${welcomeName}님 환영합니다.</h1><p>오늘도 우리 동네 이웃들과 함께 운동해봐요.</p></div>
+    <div style="text-align:right;flex:none;">
+      <p class="hint" style="margin:0 0 6px;">연속출석 <b style="color:var(--ink);font-size:15px;">${state.user.streak}</b>일째</p>
+      <button class="btn btn-sm ${streakActive?'btn-primary':'btn-ghost'}" ${streakActive?'':'disabled style="opacity:.5;cursor:not-allowed;"'} onclick="${state.guestMode ? "goto('login')" : 'claimStreakReward()'}">포인트받기</button>
+      <p class="hint" style="margin:4px 0 0;font-size:11px;">${streakHint}</p>
+    </div>
+  </div>`;
+
+  const rankLabel = isGuest ? GUEST_MAIN_SAMPLE.rank : `#${stats.myRank}`;
+  const totalScore = isGuest ? GUEST_MAIN_SAMPLE.total : stats.total;
+  const expToNext = isGuest ? GUEST_MAIN_SAMPLE.expToNext : stats.expToNext;
+  const expPct = isGuest ? GUEST_MAIN_SAMPLE.exp : state.user.exp;
+  const perfectPct = isGuest ? GUEST_MAIN_SAMPLE.perfectPct : stats.perfectPct;
+  const greatPct = isGuest ? GUEST_MAIN_SAMPLE.greatPct : stats.greatPct;
+  const missPct = isGuest ? GUEST_MAIN_SAMPLE.missPct : stats.missPct;
+  const regionLabel = isGuest ? '동네를 설정하면 순위가 표시돼요' : state.user.region;
+
+  const stats_block = `
+  <div class="card" style="margin-bottom:16px;">
+    <div class="flex-between">
+      <p class="section-label" style="margin:0;">최근 운동 히스토리${isGuest?' <span class="hint" style="margin:0;">(예시)</span>':''}</p>
+      <button class="btn btn-ghost btn-sm" onclick="${state.guestMode ? "goto('login')" : "setMenu('profile');setSub('profile',2);"}">전체 보기 →</button>
+    </div>
+    ${recent.length ? `<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">${recent.map(h=>`
+      <div class="flex-between" style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;">
+        <div><b>${h.ex}</b><p class="hint" style="margin:2px 0 0;">${h.date} · 유효 ${h.reps}회 · 정확도 ${h.acc}%</p></div>
+        <span class="mono" style="color:var(--gold);font-weight:700;">+${h.score}</span>
+      </div>`).join('')}</div>` : '<p class="empty-note" style="margin-top:10px;">아직 운동 기록이 없어요. 운동을 시작해보세요!</p>'}
+  </div>
+
+  <div class="grid grid-2" style="align-items:start;margin-bottom:16px;">
+    <div class="card">
+      <p class="section-label">동네 랭킹</p>
+      <div style="display:flex;align-items:baseline;gap:8px;">
+        <span class="mono" style="font-size:30px;font-weight:700;">${rankLabel}</span>
+        ${isGuest ? '' : renderMainTrend(rankDelta)}
+      </div>
+      <p class="hint" style="margin:4px 0 0;">${regionLabel}</p>
+    </div>
+    <div class="card">
+      <p class="section-label">누적 성과</p>
+      <p class="desc mono" style="margin:0;">누적 점수 <b>${totalScore.toLocaleString()}</b></p>
+      <p class="desc mono" style="margin:2px 0 0;">레벨업까지 <b style="color:var(--gold);">${expToNext.toLocaleString()}</b>P 남았어요!</p>
+      <div class="progress" style="margin-top:8px;"><span style="width:${expPct}%"></span></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px;">
+    <p class="section-label">누적 등급 비율 (전체 세션 기준)</p>
+    <div style="display:flex;gap:22px;flex-wrap:wrap;margin-top:4px;">
+      <span>PERFECT <b style="color:var(--accent)">${perfectPct}%</b> ${isGuest ? '' : renderMainTrend(gradeDelta.perfect)}</span>
+      <span>GREAT <b style="color:var(--gold)">${greatPct}%</b> ${isGuest ? '' : renderMainTrend(gradeDelta.great)}</span>
+      <span>MISS <b style="color:var(--danger)">${missPct}%</b> ${isGuest ? '' : renderMainTrend(gradeDelta.miss)}</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="section-label">다음 레벨업 (Lv.${nextLv}) 혜택</p>
+    <p class="desc" style="margin:0 0 6px;">${setBonusAtNext ? `운동세트 +1 (하루 가능한 운동세트가 ${EXERCISE_DAILY_SETS_BASE + Math.floor(nextLv/5)}세트로 늘어나요)` : '경험치·포인트를 계속 모아 다음 혜택을 기다려보세요.'}</p>
+    ${unlockedNext.length ? `
+    <p class="hint" style="margin:0 0 4px;">Lv.${nextLv}에서 새로 구매 가능해지는 아이템</p>
+    <p class="desc mono" style="margin:0;">${unlockedNext.map(it=>it.name).join(' · ')}</p>` : ''}
+  </div>`;
+
+  return header + stats_block;
+}
+// 게스트 모드 중 회원가입/로그인으로 넘어갈 수도 있으므로(renderExStepSave, renderCrewJoin,
+// renderMain 등의 guestMode 분기 참고), 화면을 명시적으로 바꿀 때는 항상 게스트 모드를 함께
+// 꺼서 로그인 이후에 계속 게스트 취급되지 않게 한다.
+function goto(screen){state.guestMode=false; state.screen=screen; render();}
 
 /* ========================================================================
    1. 운동 (EXERCISE WIZARD)
@@ -1398,7 +1475,12 @@ const SQUAT_REFERENCE = {
   standingKneeAngle: 172, bottomKneeAngle: 88,
   perfectTol: 6, greatTol: 12, goodTol: 20,
 };
-const EXERCISE_REP_TARGET = 10; // 실시간 판정이 지원되는 운동(스쿼트)의 세션당 반복 횟수 제한
+const EXERCISE_REP_TARGET = 10; // 실시간 판정이 지원되는 운동(스쿼트)의 세션(세트)당 반복 횟수
+// 하루에 완료할 수 있는 운동세트(세션) 한도 — 기본 3세트, 5레벨마다 기본 한도 +1, 포인트 상점
+// "세트 추가권" 1개 구매마다 +3세트. state.user.setsUsedToday는 saveExerciseResult()에서
+// 세션을 저장할 때마다 늘어난다(재촬영은 이미 FREE_RETAKES/티켓으로 따로 제한되므로 여기 세지 않음).
+const EXERCISE_DAILY_SETS_BASE = 3;
+function getDailySetLimit(){ return EXERCISE_DAILY_SETS_BASE + Math.floor((state.user.level||1)/5) + (state.user.extraSets||0); }
 const CAM_FINAL_COUNTDOWN_SECONDS = 5; // 정렬이 완료된 뒤 실제 촬영 시작까지의 음성 카운트다운
 const CAM_ALIGN_HOLD_MS = 700; // 정렬 조건이 이 시간 이상 계속 유지돼야 카운트다운 시작(흔들림 방지)
 const CAM_GUIDE_SPEAK_INTERVAL_MS = 2500; // 같은 안내 음성이 너무 자주 반복되지 않도록 하는 간격
@@ -1427,7 +1509,16 @@ function renderExercise(){
 }
 
 function renderExStepPick(){
+  const limit=getDailySetLimit();
+  const used=state.user.setsUsedToday||0;
+  const remain=Math.max(0, limit-used);
+  const noSetsLeft = !state.guestMode && remain<=0;
   return `
+  <div class="card" style="max-width:420px;margin-bottom:16px;">
+    <p class="section-label" style="margin:0 0 4px;">오늘 가능한 운동세트</p>
+    <p class="desc mono" style="margin:0;">${used} / ${limit}세트 사용 · ${remain>0?`<b style="color:var(--accent);">${remain}세트 남음</b>`:'<b style="color:var(--danger);">모두 사용함</b>'}</p>
+    ${noSetsLeft ? `<p class="hint" style="margin-top:6px;">포인트 상점에서 '세트 추가권'을 구매하면 오늘 바로 더 운동할 수 있어요.</p>` : `<p class="hint" style="margin-top:6px;">레벨업(5레벨마다 +1) 또는 '세트 추가권' 구매로 한도를 늘릴 수 있어요.</p>`}
+  </div>
   <div class="grid grid-3">
     ${EXS.map(e=>`
       <div class="card exercise-card ${state.exercise.picked===e.id?'selected':''}" onclick="pickExercise('${e.id}')">
@@ -1441,10 +1532,16 @@ function renderExStepPick(){
     ${renderTutorialMissionList()}
   </div>
   <div style="margin-top:20px;">
-    <button class="btn btn-primary" ${state.exercise.picked?'':'disabled'} style="${state.exercise.picked?'':'opacity:.4;cursor:not-allowed;'}" onclick="goToTutorial()">운동 시작하기</button>
+    <button class="btn btn-primary" ${(state.exercise.picked && !noSetsLeft)?'':'disabled'} style="${(state.exercise.picked && !noSetsLeft)?'':'opacity:.4;cursor:not-allowed;'}" onclick="goToTutorial()">운동 시작하기</button>
   </div>`;
 }
 function pickExercise(id){state.exercise.picked=id; render();}
+// 게스트 모드에서 "나중에 할게요"를 누르면 게스트 상태는 유지한 채(다른 카테고리도 계속
+// 둘러볼 수 있게) 운동 위저드만 종목 선택 화면으로 되돌린다.
+function resetExerciseWizard(){
+  state.exercise={step:0, picked:null, camPhase:'idle', camStream:null, timerId:null, seconds:0, result:null, retakesUsed:0, liveReps:[], replayOpen:false};
+  render();
+}
 function goExStep(n){state.exercise.step=n; render();}
 // 회원가입 시점에는 캘리브레이션이 선택사항이었지만(그냥 둘러보는 사람도 있어서), 실제로
 // 운동을 시작하려는 시점(튜토리얼 진입)부터는 필수로 막는다 — 자세 분석 정확도를 위해 체형
@@ -1453,6 +1550,11 @@ function goToTutorial(){
   if(!state.user.calibration){
     toast('운동을 시작하려면 체형 캘리브레이션이 먼저 필요해요');
     openCalibrationModal();
+    return;
+  }
+  // 게스트 모드는 회원 레벨·일일 세트 개념이 없는 맛보기라 한도를 적용하지 않는다.
+  if(!state.guestMode && (state.user.setsUsedToday||0)>=getDailySetLimit()){
+    toast(`오늘 가능한 운동세트를 모두 사용했어요 (${getDailySetLimit()}세트). 포인트 상점에서 세트 추가권을 구매하거나 내일 다시 시도해주세요.`);
     return;
   }
   goExStep(1);
@@ -1886,6 +1988,7 @@ function exRegisterRep(bottomAngle, torsoDrop){
   if(state.crewBattle){
     const pts=BATTLE_GRADE_POINTS[result.grade] ?? 0;
     state.crewBattle.myScore+=pts;
+    state.crewBattle.gradeCounts[result.grade]=(state.crewBattle.gradeCounts[result.grade]||0)+1;
     updateBattleUI('me', pts);
     checkBattleEnd();
     return;
@@ -2363,10 +2466,10 @@ function renderExStepSave(){
       <div class="stat-box"><div class="num mono" style="color:var(--gold)">+${Math.round(r.score*0.4)}</div><div class="lbl">포인트</div></div>
       <div class="stat-box"><div class="num mono">${r.acc}%</div><div class="lbl">정확도</div></div>
     </div>
-    ${state.trial ? `
-    <p class="hint" style="margin-bottom:10px;">체험판에서는 기록이 저장되지 않아요. 회원가입하면 방금 결과부터 정식으로 기록·포인트 적립이 시작돼요.</p>
-    <button class="btn btn-primary btn-block" onclick="goto('signup')">회원가입하고 기록 저장하기</button>
-    <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="exitTrial()">나중에 할게요</button>
+    ${state.guestMode ? `
+    <p class="hint" style="margin-bottom:10px;">게스트 모드에서는 기록이 저장되지 않아요. 로그인하면 방금 결과부터 정식으로 기록·포인트 적립이 시작돼요.</p>
+    <button class="btn btn-primary btn-block" onclick="goto('login')">로그인하고 기록 저장하기</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="resetExerciseWizard()">나중에 할게요</button>
     ` : `<button class="btn btn-primary btn-block" onclick="saveExerciseResult()">기록 저장</button>`}
   </div>`;
 }
@@ -2376,6 +2479,7 @@ function saveExerciseResult(){
   const r=state.exercise.result;
   const pts=Math.round(r.score*0.4);
   state.user.points += pts;
+  state.user.setsUsedToday=(state.user.setsUsedToday||0)+1; // 오늘 가능한 운동세트 한도에서 1세트 소모
   const gc={PERFECT:0,GREAT:0,GOOD:0,MISS:0};
   r.reps.forEach(rp=>gc[rp.grade]++);
   state.history.unshift({date:'오늘', ex:r.ex, reps:r.valid, acc:r.acc, score:r.score, grade:r.acc>90?'PERFECT':r.acc>78?'GREAT':r.acc>60?'GOOD':'MISS', gc});
@@ -2406,15 +2510,16 @@ function saveExerciseResult(){
 const PROFILE_TABS=['프로필·캐릭터 꾸미기','미션 달성 현황','운동 히스토리','계정·프로필 관리'];
 function renderProfile(){
   const i=state.subtabs.profile;
+  const body = i===0?renderMissionAvatar():
+    i===1?renderMissionProgress():
+    i===2?renderHistory():
+    renderSetAccount();
   return `
   <div class="view-head"><h1>마이페이지</h1><p>캐릭터 꾸미기·미션·운동 기록부터 계정·설정 관리까지 한 곳에서 확인하세요.</p></div>
   <div class="subtabs">
     ${PROFILE_TABS.map((t,idx)=>`<div class="tab ${i===idx?'active':''}" onclick="setSub('profile',${idx})">${t}</div>`).join('')}
   </div>
-  ${i===0?renderMissionAvatar():
-    i===1?renderMissionProgress():
-    i===2?renderHistory():
-    renderSetAccount()}`;
+  ${renderGuestBlur(body, '로그인하면 내 캐릭터·미션·운동 기록·계정 정보를 확인할 수 있어요')}`;
 }
 function renderShop(){
   return `
@@ -2572,7 +2677,8 @@ function drawAvatarCanvas(){
 function drawTopbarAvatar(){
   const canvas=document.getElementById('topbar-avatar-canvas');
   if(!canvas) return;
-  drawPixelCharacter(canvas, getEquipState(), state.user.gender);
+  // 게스트는 실제로 보유·장착한 아이템이 없는 계정이라, 장착 이펙트 없는 기본 아바타를 그린다.
+  drawPixelCharacter(canvas, state.guestMode ? {} : getEquipState(), state.guestMode ? 'male' : state.user.gender);
 }
 // gender: 'male' | 'female' — 회원가입 캘리브레이션에서 고른 값(state.user.gender)을 그대로 받아
 // 머리 모양만 구분한다. 로봇 스킨 아이템을 장착하면 성별과 무관하게 로봇 얼굴이 우선한다.
@@ -2678,8 +2784,8 @@ function renderMissionShop(){
         <div class="flex-between" style="margin-top:6px;gap:8px;">
           <span class="shop-price">P ${it.price}</span>
           <div style="display:flex;gap:6px;">
-            ${(it.category==='의상'||it.category==='배경')?`<button class="btn btn-sm btn-secondary" onclick="openItemPreview(${idx})">착용해보기</button>`:''}
-            <button class="btn btn-sm ${(it.owned && !it.consumable)?'btn-ghost':'btn-primary'}" ${(it.owned && !it.consumable)?'disabled style="opacity:.5;"':''} onclick="buyItem(${idx})">${(it.owned && !it.consumable)?'보유중':'구매하기'}</button>
+            ${(it.category==='의상'||it.category==='배경')?`<button class="btn btn-sm btn-secondary" onclick="${state.guestMode ? "goto('login')" : `openItemPreview(${idx})`}">착용해보기</button>`:''}
+            <button class="btn btn-sm ${(it.owned && !it.consumable)?'btn-ghost':'btn-primary'}" ${(it.owned && !it.consumable)?'disabled style="opacity:.5;"':''} onclick="${state.guestMode ? "goto('login')" : `buyItem(${idx})`}">${(it.owned && !it.consumable)?'보유중':'구매하기'}</button>
           </div>
         </div>
       </div>`).join('')}
@@ -2717,6 +2823,9 @@ function buyItem(idx){
     if(it.name==='닉네임 변경권'){
       state.user.nicknameTickets = (state.user.nicknameTickets||0) + 1;
       toast(`${it.name} 구매 완료 (보유 ${state.user.nicknameTickets}장)`);
+    } else if(it.name==='세트 추가권'){
+      state.user.extraSets = (state.user.extraSets||0) + 3;
+      toast(`${it.name} 구매 완료 (오늘 가능한 운동세트 +3)`);
     } else {
       state.user.retakeTickets = (state.user.retakeTickets||0) + 1;
       toast(`${it.name} 구매 완료 (보유 ${state.user.retakeTickets}장)`);
@@ -2778,7 +2887,7 @@ function renderCrew(){
         <h1>홈크루</h1>
         <p>${creating ? '새 크루를 만들어보세요' : '우리동네 크루에 가입해보세요'}</p>
       </div>
-      <button class="btn btn-secondary btn-sm" onclick="setSub('crew',${creating?0:1})">${creating?'← 가입하기로 돌아가기':'크루 생성'}</button>
+      <button class="btn btn-secondary btn-sm" onclick="${(!creating && state.guestMode) ? "goto('login')" : `setSub('crew',${creating?0:1})`}">${creating?'← 가입하기로 돌아가기':'크루 생성'}</button>
     </div>
     ${creating?renderCrewCreate():renderCrewJoin()}`;
   }
@@ -2895,7 +3004,7 @@ function renderCrewJoin(){
         <p class="desc" style="margin-top:8px;">${c.desc}</p>
         <p class="hint" style="margin:0 0 4px;">${c.regionCity} ${c.regionGu} ${c.regionDong}</p>
         <p class="hint" style="margin:0 0 10px;">크루장 · ${c.leader}</p>
-        <button class="btn btn-primary btn-block" style="margin-top:0;" onclick="${state.crewPreview ? "goto('signup')" : `joinCrew('${c.name}')`}">가입요청하기</button>
+        <button class="btn btn-primary btn-block" style="margin-top:0;" onclick="${state.guestMode ? "goto('login')" : `joinCrew('${c.name}')`}">가입요청하기</button>
       </div>`).join('') : '<div class="empty-note" style="grid-column:1/-1;">조건에 맞는 크루가 없어요.</div>'}
   </div>
   ${totalPages>1?`
@@ -3250,14 +3359,22 @@ function startCrewBattle(){
   state.crewParty={open:false, statusOpen:false, selected:[], invites:null, ready:false, tickId:null};
   const teammates=[];
   for(let i=0;i<4;i++){
-    teammates.push({n:realMates[i]||BATTLE_FILLER_NAMES[i%BATTLE_FILLER_NAMES.length], score:0, dur:(1.6+Math.random()*0.9).toFixed(2)});
+    teammates.push({n:realMates[i]||BATTLE_FILLER_NAMES[i%BATTLE_FILLER_NAMES.length], score:0, dur:(1.6+Math.random()*0.9).toFixed(2), gender:i%2===0?'male':'female'});
+  }
+  // 상대팀도 5명(리더 1 + 필러 4) 개인별 점수를 따로 굴려야 결과 팝업에서 "누가 MVP인지"를
+  // 보여줄 수 있다 — 예전엔 oppScore 합계만 있었다.
+  const oppNamePool=[opponent.leader, ...BATTLE_FILLER_NAMES];
+  const oppTeammates=[];
+  for(let i=0;i<5;i++){
+    oppTeammates.push({n:oppNamePool[i]||`상대팀원${i+1}`, score:0, gender:i%2===0?'female':'male'});
   }
 
   state.crewBattle={
     target: randInt(80,150), // 점수 목표 (PERFECT=2 / GREAT·GOOD=1 / MISS=0점 합산)
     opponent:{name:opponent.name, level:opponent.level},
     myScore:0, oppScore:0,
-    teammates,
+    teammates, oppTeammates,
+    gradeCounts:{PERFECT:0, GREAT:0, GOOD:0, MISS:0}, // 결과 팝업의 "전체 판정 비율"용 — 나+팀원+상대팀 전체 합산
     tickId:null,
     result:null, // null | 'win' | 'lose'
   };
@@ -3280,12 +3397,18 @@ function startBattleTicker(){
     const b=state.crewBattle;
     if(!b || b.result) return;
     const idx=Math.floor(Math.random()*b.teammates.length);
-    const pts1=BATTLE_GRADE_POINTS[randomBattleGrade()];
+    const g1=randomBattleGrade();
+    const pts1=BATTLE_GRADE_POINTS[g1];
     b.teammates[idx].score+=pts1;
+    b.gradeCounts[g1]=(b.gradeCounts[g1]||0)+1;
     updateBattleUI('mate-'+idx, pts1);
     if(Math.random()<0.9){
-      const pts2=BATTLE_GRADE_POINTS[randomBattleGrade()];
+      const oidx=Math.floor(Math.random()*b.oppTeammates.length);
+      const g2=randomBattleGrade();
+      const pts2=BATTLE_GRADE_POINTS[g2];
+      b.oppTeammates[oidx].score+=pts2;
       b.oppScore+=pts2;
+      b.gradeCounts[g2]=(b.gradeCounts[g2]||0)+1;
       updateBattleUI('opp', pts2);
     }
     checkBattleEnd();
@@ -3350,8 +3473,39 @@ function drawBattleTeammates(){
   if(!state.crewBattle) return;
   state.crewBattle.teammates.forEach((t,i)=>{
     const c=document.getElementById('battle-char-'+i);
-    if(c) drawPixelCharacter(c, {}, i%2===0?'male':'female');
+    if(c) drawPixelCharacter(c, {}, t.gender||(i%2===0?'male':'female'));
   });
+}
+// 결과 팝업의 "참여인원" 명단 — 나+팀원, 상대팀을 각각 점수 많은 순으로 정렬한다. render()가
+// 이 배열로 마크업을 만들고, 바로 뒤이은 drawBattleResultAvatars()가 같은 정렬 결과로 캔버스를
+// 채우므로(둘 다 같은 함수를 호출) 순서가 항상 일치한다.
+function battleMyRoster(b){
+  return [{n:'나', score:b.myScore, gender:state.user.gender||'male'}, ...b.teammates]
+    .sort((a,c)=>c.score-a.score);
+}
+function battleOppRoster(b){
+  return [...b.oppTeammates].sort((a,c)=>c.score-a.score);
+}
+function drawBattleResultAvatars(){
+  const b=state.crewBattle;
+  if(!b || !b.result) return;
+  battleMyRoster(b).forEach((p,i)=>{ const c=document.getElementById('battle-result-me-'+i); if(c) drawPixelCharacter(c, {}, p.gender); });
+  battleOppRoster(b).forEach((p,i)=>{ const c=document.getElementById('battle-result-opp-'+i); if(c) drawPixelCharacter(c, {}, p.gender); });
+}
+// MVP(1등)는 폰트를 헤딩용 서체(Jua)로 바꾸고 배지를 붙여서 나머지와 구분한다.
+function renderBattleRoster(list, idPrefix){
+  return `
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    ${list.map((p,i)=>`
+      <div class="flex-between" style="padding:8px 10px;border:1.5px solid ${i===0?'var(--gold)':'var(--line)'};border-radius:10px;${i===0?'background:var(--surface-2);':''}">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+          <canvas id="${idPrefix}-${i}" width="90" height="110" style="width:32px;height:39px;flex:none;image-rendering:pixelated;border-radius:4px;"></canvas>
+          <span style="${i===0?'font-family:var(--font-display);font-size:15px;':'font-size:13px;'}white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.n}</span>
+          ${i===0?'<span class="pill pill-gold" style="flex:none;">MVP</span>':''}
+        </div>
+        <span class="mono" style="font-size:13px;color:var(--ink-dim);flex:none;">${p.score}점</span>
+      </div>`).join('')}
+  </div>`;
 }
 function renderCrewBattle(){
   const b=state.crewBattle;
@@ -3382,11 +3536,29 @@ function renderCrewBattle(){
   </div>
 
   ${b.result ? `
-  <div class="card" style="text-align:center;max-width:420px;margin:0 auto;">
-    <h2 style="margin:0 0 6px;">${b.result==='win'?'🎉 우리 팀 승리!':'아쉽게 패배했어요'}</h2>
-    <p class="desc">최종 ${teamTotal}점 : ${b.oppScore}점</p>
-    ${b.result==='win' ? `<p class="mono" style="font-weight:700;color:var(--gold);margin:0 0 14px;">크루 포인트 획득 +${b.target}P</p>` : ''}
-    <button class="btn btn-primary" onclick="exitCrewBattle()">크루로 돌아가기</button>
+  <div class="card" style="max-width:640px;margin:0 auto;">
+    <h2 style="margin:0 0 6px;text-align:center;">${b.result==='win'?'🎉 우리 팀 승리!':'아쉽게 패배했어요'}</h2>
+    <p class="desc" style="text-align:center;margin:0 0 4px;">최종 ${teamTotal}점 : ${b.oppScore}점</p>
+    ${b.result==='win' ? `<p class="mono" style="font-weight:700;color:var(--gold);margin:0 0 14px;text-align:center;">크루 포인트 획득 +${b.target}P</p>` : '<div style="margin-bottom:6px;"></div>'}
+    ${(()=>{
+      const gc=b.gradeCounts||{PERFECT:0,GREAT:0,GOOD:0,MISS:0};
+      const gcTotal=Object.values(gc).reduce((s,v)=>s+v,0)||1;
+      const pct=n=>Math.round(n/gcTotal*100);
+      return `
+    <p class="section-label" style="margin:0 0 6px;">전체 판정 비율 (${gcTotal}회)</p>
+    <p class="desc mono" style="margin:0 0 18px;">PERFECT <b style="color:var(--accent)">${pct(gc.PERFECT)}%</b> · GREAT <b style="color:var(--gold)">${pct(gc.GREAT+gc.GOOD)}%</b> · MISS <b style="color:var(--danger)">${pct(gc.MISS)}%</b></p>`;
+    })()}
+    <div class="grid grid-2" style="align-items:start;">
+      <div>
+        <p class="section-label" style="margin:0 0 8px;">${state.crew.name} (우리팀)</p>
+        ${renderBattleRoster(battleMyRoster(b), 'battle-result-me')}
+      </div>
+      <div>
+        <p class="section-label" style="margin:0 0 8px;">${b.opponent.name} (상대팀)</p>
+        ${renderBattleRoster(battleOppRoster(b), 'battle-result-opp')}
+      </div>
+    </div>
+    <button class="btn btn-primary btn-block" style="margin-top:20px;" onclick="exitCrewBattle()">크루로 돌아가기</button>
   </div>` : `
   <div class="grid cal-grid">
     <div>
@@ -3912,7 +4084,7 @@ function renderSupport(){
       ${['all','접수','처리중','답변완료'].map(f=>`
         <button class="btn btn-sm ${s.filter===f?'btn-primary':'btn-secondary'}" onclick="setSupportFilter('${f}')">${f==='all'?'전체':f}</button>`).join('')}
     </div>
-    <button class="btn btn-primary btn-sm" onclick="toggleComposer()">${s.composerOpen?'접기':'불편사항 접수하기'}</button>
+    <button class="btn btn-primary btn-sm" onclick="${(state.guestMode && !s.composerOpen) ? "goto('login')" : 'toggleComposer()'}">${s.composerOpen?'접기':'불편사항 접수하기'}</button>
   </div>
 
   ${s.composerOpen ? `
