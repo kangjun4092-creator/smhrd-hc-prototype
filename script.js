@@ -228,9 +228,6 @@ function render(){
     setTimeout(setupCamera,0);
     setTimeout(drawBattleTeammates,0);
   }
-  if(state.screen==='app' && state.menu==='crewBattle' && state.crewBattle && state.crewBattle.result){
-    setTimeout(drawBattleResultAvatars,0);
-  }
   if(state.screen==='app' && state.menu==='exercise' && state.exercise.replayOpen){
     setTimeout(setupReplayComparison,0);
   }
@@ -252,20 +249,6 @@ function render(){
 /* ---------- 소개(랜딩) 페이지 ---------- */
 // 로그인 전 첫 진입 화면. 비회원은 로그인/회원가입 창을 바로 보는 대신 여기서 서비스를
 // 먼저 둘러본 뒤, 상단 버튼으로 회원가입 또는 로그인으로 이동한다.
-// INTRO_STEPS/renderIntroSteps는 로그인 전 랜딩 페이지의 "이용 흐름" 섹션에서 쓴다. 로그인 후
-// "메인" 카테고리(renderMain)는 더 이상 이 소개 콘텐츠를 재사용하지 않고, 내 기록 중심의
-// 대시보드를 따로 그린다(renderMain 참고).
-const INTRO_STEPS = [
-  '회원가입하고 웹캠으로 내 체형을 간단히 보정해요',
-  '종목을 골라 웹캠 앞에서 운동하면 자세를 실시간으로 판정해줘요',
-  '미션을 달성하고 포인트를 모아 캐릭터를 꾸미고 랭킹에 도전해요',
-];
-function renderIntroSteps(){
-  return `
-  <ol class="steplist" style="max-width:520px;margin:0 auto;">
-    ${INTRO_STEPS.map((s,idx)=>`<li><span class="num">${idx+1}</span>${s}</li>`).join('')}
-  </ol>`;
-}
 // 로그인 전 방문자에게 "운동하면 이렇게 기록이 쌓인다"를 미리 보여주는 예시 이미지 —
 // 실제 내 기록은 회원가입 후에나 생기므로, 임의의 샘플 히스토리 화면 이미지를 보여준다.
 function renderHistoryPreview(){
@@ -311,7 +294,6 @@ function renderLandingBottomNav(){
     {icon:'🏠', label:'홈', action:"window.scrollTo({top:0,behavior:'smooth'})"},
     {icon:'🎯', label:'AI 자세판정', action:'startGuestExercise()'},
     {icon:'⚔️', label:'크루대전', action:'startGuestCrew()'},
-    {icon:'📖', label:'이용안내', action:"scrollToSection('how-it-works')"},
   ];
   return `
   <nav class="landing-bottomnav">
@@ -346,11 +328,6 @@ function renderIntro(){
       <div id="history-preview" style="margin-top:52px;">
         <h2 class="landing-section-title">운동 히스토리 예시</h2>
         ${renderHistoryPreview()}
-      </div>
-
-      <div id="how-it-works" style="margin-top:52px;">
-        <h2 class="landing-section-title">이용 흐름</h2>
-        ${renderIntroSteps()}
       </div>
     </div>
   </div>
@@ -1988,7 +1965,7 @@ function exRegisterRep(bottomAngle, torsoDrop){
   if(state.crewBattle){
     const pts=BATTLE_GRADE_POINTS[result.grade] ?? 0;
     state.crewBattle.myScore+=pts;
-    state.crewBattle.gradeCounts[result.grade]=(state.crewBattle.gradeCounts[result.grade]||0)+1;
+    state.crewBattle.myGradeCounts[result.grade]=(state.crewBattle.myGradeCounts[result.grade]||0)+1;
     updateBattleUI('me', pts);
     checkBattleEnd();
     return;
@@ -2507,7 +2484,7 @@ function saveExerciseResult(){
 // 미션 카테고리는 폐지했다 — 운동 탭 종목선택 화면에 이미 진행 중인 미션이 리스트로 보이고
 // (renderTutorialMissionList), 보상 수령은 마이페이지 "미션 달성 현황" 탭(renderMissionProgress)
 // 에서 하므로 별도 메뉴가 중복이었다.
-const PROFILE_TABS=['프로필·캐릭터 꾸미기','미션 달성 현황','운동 히스토리','계정·프로필 관리'];
+const PROFILE_TABS=['프로필·캐릭터 꾸미기','미션 달성 현황','운동 히스토리','계정관리'];
 function renderProfile(){
   const i=state.subtabs.profile;
   const body = i===0?renderMissionAvatar():
@@ -2585,9 +2562,44 @@ function getProfileStats(){
     perfectPct: Math.round(gc.PERFECT/gcTotal*100),
     greatPct: Math.round(gc.GREAT/gcTotal*100),
     missPct: Math.round(gc.MISS/gcTotal*100),
+    gc, gcTotal: gc.PERFECT+gc.GREAT+gc.GOOD+gc.MISS, // 등급 비율 도넛차트(renderGradeDonut)용 원본 카운트
     exCounts: Object.entries(exCounts),
     activeEffects,
   };
+}
+// 퍼펙트/그레이트/굿/미스 비율을 도넛 차트 + 범례 표로 그린다(stroke-dasharray 트릭이라
+// 외부 차트 라이브러리 없이 순수 SVG로 그려진다). segments의 value 합이 0이면(기록 없음)
+// 빈 상태 문구만 보여준다.
+function renderGradeDonut(segments, centerLabel){
+  const total = segments.reduce((s,x)=>s+x.value,0);
+  if(!total) return '<p class="empty-note">아직 운동 기록이 없어요.</p>';
+  const size=140, strokeWidth=22, r=(size-strokeWidth)/2, C=2*Math.PI*r;
+  let acc=0;
+  const arcs = segments.filter(s=>s.value>0).map(s=>{
+    const frac=s.value/total;
+    const dash=frac*C, gap=C-dash;
+    const offset=-acc*C;
+    acc+=frac;
+    return `<circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${strokeWidth}"
+      stroke-dasharray="${dash} ${gap}" stroke-dashoffset="${offset}" transform="rotate(-90 ${size/2} ${size/2})"/>`;
+  }).join('');
+  return `
+  <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+    <div style="position:relative;width:${size}px;height:${size}px;">
+      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${arcs}</svg>
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <span class="hint" style="margin:0;">${centerLabel}</span>
+        <span class="mono" style="font-size:22px;font-weight:700;color:var(--ink);">${total}</span>
+      </div>
+    </div>
+    <div style="width:100%;display:flex;flex-direction:column;gap:6px;">
+      ${segments.map(s=>`
+        <div class="flex-between" style="font-size:12.5px;">
+          <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:${s.color};display:inline-block;flex:none;"></span>${s.label}</span>
+          <span class="mono" style="color:var(--ink-dim);">${s.value} · ${Math.round(s.value/total*100)}%</span>
+        </div>`).join('')}
+    </div>
+  </div>`;
 }
 // (FR-PF-001~003) renderMissionAvatar: 캐릭터·아이템 꾸미기 화면. 그리기 자체(drawPixelCharacter)는
 // 캔버스로 그리는 순수 프론트엔드 로직이고, "저장이 필요한 동작"만 아래 두 함수에서 이어집니다.
@@ -2632,7 +2644,14 @@ function renderMissionAvatar(){
         <div class="progress" style="margin-top:10px;"><span style="width:${state.user.exp}%"></span></div>
         <p class="hint" style="margin-top:4px;">Lv.${state.user.level} 진행도 ${state.user.exp}%</p>
         <p class="section-label" style="margin-top:14px;">등급 비율 (전체 세션 기준)</p>
-        <p class="desc mono" style="margin:0;">PERFECT <b style="color:var(--accent)">${stats.perfectPct}%</b> · GREAT <b style="color:var(--gold)">${stats.greatPct}%</b> · MISS <b style="color:var(--danger)">${stats.missPct}%</b></p>
+        <div style="margin-top:8px;">
+          ${renderGradeDonut([
+            {label:'PERFECT', value:stats.gc.PERFECT, color:gradeColor('PERFECT')},
+            {label:'GREAT', value:stats.gc.GREAT, color:gradeColor('GREAT')},
+            {label:'GOOD', value:stats.gc.GOOD, color:gradeColor('GOOD')},
+            {label:'MISS', value:stats.gc.MISS, color:gradeColor('MISS')},
+          ], '총 횟수')}
+        </div>
         <p class="section-label" style="margin-top:14px;">운동 종류별 누적 횟수</p>
         <p class="desc mono" style="margin:0;">${stats.exCounts.length ? stats.exCounts.map(([ex,cnt])=>`${ex} ${cnt}회`).join(' · ') : '아직 기록이 없습니다.'}</p>
         <p class="section-label" style="margin-top:14px;">장착 아이템 보정 효과</p>
@@ -3359,22 +3378,22 @@ function startCrewBattle(){
   state.crewParty={open:false, statusOpen:false, selected:[], invites:null, ready:false, tickId:null};
   const teammates=[];
   for(let i=0;i<4;i++){
-    teammates.push({n:realMates[i]||BATTLE_FILLER_NAMES[i%BATTLE_FILLER_NAMES.length], score:0, dur:(1.6+Math.random()*0.9).toFixed(2), gender:i%2===0?'male':'female'});
+    teammates.push({n:realMates[i]||BATTLE_FILLER_NAMES[i%BATTLE_FILLER_NAMES.length], score:0, dur:(1.6+Math.random()*0.9).toFixed(2), gender:i%2===0?'male':'female', gradeCounts:{PERFECT:0,GREAT:0,GOOD:0,MISS:0}});
   }
   // 상대팀도 5명(리더 1 + 필러 4) 개인별 점수를 따로 굴려야 결과 팝업에서 "누가 MVP인지"를
   // 보여줄 수 있다 — 예전엔 oppScore 합계만 있었다.
   const oppNamePool=[opponent.leader, ...BATTLE_FILLER_NAMES];
   const oppTeammates=[];
   for(let i=0;i<5;i++){
-    oppTeammates.push({n:oppNamePool[i]||`상대팀원${i+1}`, score:0, gender:i%2===0?'female':'male'});
+    oppTeammates.push({n:oppNamePool[i]||`상대팀원${i+1}`, score:0, gender:i%2===0?'female':'male', gradeCounts:{PERFECT:0,GREAT:0,GOOD:0,MISS:0}});
   }
 
   state.crewBattle={
-    target: randInt(80,150), // 점수 목표 (PERFECT=2 / GREAT·GOOD=1 / MISS=0점 합산)
+    target: randInt(40,60), // 점수 목표 (PERFECT=2 / GREAT·GOOD=1 / MISS=0점 합산) — 테스트 편의상 낮춰둠
     opponent:{name:opponent.name, level:opponent.level},
     myScore:0, oppScore:0,
+    myGradeCounts:{PERFECT:0, GREAT:0, GOOD:0, MISS:0}, // 결과 팝업에서 "나"의 개인 판정 비율용
     teammates, oppTeammates,
-    gradeCounts:{PERFECT:0, GREAT:0, GOOD:0, MISS:0}, // 결과 팝업의 "전체 판정 비율"용 — 나+팀원+상대팀 전체 합산
     tickId:null,
     result:null, // null | 'win' | 'lose'
   };
@@ -3400,7 +3419,7 @@ function startBattleTicker(){
     const g1=randomBattleGrade();
     const pts1=BATTLE_GRADE_POINTS[g1];
     b.teammates[idx].score+=pts1;
-    b.gradeCounts[g1]=(b.gradeCounts[g1]||0)+1;
+    b.teammates[idx].gradeCounts[g1]=(b.teammates[idx].gradeCounts[g1]||0)+1;
     updateBattleUI('mate-'+idx, pts1);
     if(Math.random()<0.9){
       const oidx=Math.floor(Math.random()*b.oppTeammates.length);
@@ -3408,7 +3427,7 @@ function startBattleTicker(){
       const pts2=BATTLE_GRADE_POINTS[g2];
       b.oppTeammates[oidx].score+=pts2;
       b.oppScore+=pts2;
-      b.gradeCounts[g2]=(b.gradeCounts[g2]||0)+1;
+      b.oppTeammates[oidx].gradeCounts[g2]=(b.oppTeammates[oidx].gradeCounts[g2]||0)+1;
       updateBattleUI('opp', pts2);
     }
     checkBattleEnd();
@@ -3476,35 +3495,33 @@ function drawBattleTeammates(){
     if(c) drawPixelCharacter(c, {}, t.gender||(i%2===0?'male':'female'));
   });
 }
-// 결과 팝업의 "참여인원" 명단 — 나+팀원, 상대팀을 각각 점수 많은 순으로 정렬한다. render()가
-// 이 배열로 마크업을 만들고, 바로 뒤이은 drawBattleResultAvatars()가 같은 정렬 결과로 캔버스를
-// 채우므로(둘 다 같은 함수를 호출) 순서가 항상 일치한다.
+// 결과 팝업의 "참여인원" 명단 — 나+팀원, 상대팀을 각각 점수 많은 순으로 정렬한다. teammates/
+// oppTeammates 원본 객체를 그대로 펼쳐 쓰므로 각자의 gradeCounts(개인 판정 카운트)도 함께 딸려온다.
 function battleMyRoster(b){
-  return [{n:'나', score:b.myScore, gender:state.user.gender||'male'}, ...b.teammates]
+  return [{n:'나', score:b.myScore, gender:state.user.gender||'male', gradeCounts:b.myGradeCounts}, ...b.teammates]
     .sort((a,c)=>c.score-a.score);
 }
 function battleOppRoster(b){
   return [...b.oppTeammates].sort((a,c)=>c.score-a.score);
 }
-function drawBattleResultAvatars(){
-  const b=state.crewBattle;
-  if(!b || !b.result) return;
-  battleMyRoster(b).forEach((p,i)=>{ const c=document.getElementById('battle-result-me-'+i); if(c) drawPixelCharacter(c, {}, p.gender); });
-  battleOppRoster(b).forEach((p,i)=>{ const c=document.getElementById('battle-result-opp-'+i); if(c) drawPixelCharacter(c, {}, p.gender); });
-}
-// MVP(1등)는 폰트를 헤딩용 서체(Jua)로 바꾸고 배지를 붙여서 나머지와 구분한다.
-function renderBattleRoster(list, idPrefix){
+// MVP(1등)는 폰트를 헤딩용 서체(Jua)로 바꾸고 배지를 붙여서 나머지와 구분한다. 캐릭터 그림
+// 대신 닉네임과 그 사람 본인의 판정 비율(PERFECT/GREAT/MISS)을 보여준다.
+function renderBattleRoster(list){
   return `
   <div style="display:flex;flex-direction:column;gap:8px;">
-    ${list.map((p,i)=>`
-      <div class="flex-between" style="padding:8px 10px;border:1.5px solid ${i===0?'var(--gold)':'var(--line)'};border-radius:10px;${i===0?'background:var(--surface-2);':''}">
-        <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-          <canvas id="${idPrefix}-${i}" width="90" height="110" style="width:32px;height:39px;flex:none;image-rendering:pixelated;border-radius:4px;"></canvas>
-          <span style="${i===0?'font-family:var(--font-display);font-size:15px;':'font-size:13px;'}white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.n}</span>
-          ${i===0?'<span class="pill pill-gold" style="flex:none;">MVP</span>':''}
+    ${list.map((p,i)=>{
+      const gc=p.gradeCounts||{PERFECT:0,GREAT:0,GOOD:0,MISS:0};
+      const gcTotal=gc.PERFECT+gc.GREAT+gc.GOOD+gc.MISS;
+      const pct=n=>gcTotal ? Math.round(n/gcTotal*100) : 0;
+      return `
+      <div style="padding:8px 10px;border:1.5px solid ${i===0?'var(--gold)':'var(--line)'};border-radius:10px;${i===0?'background:var(--surface-2);':''}">
+        <div class="flex-between">
+          <span style="${i===0?'font-family:var(--font-display);font-size:15px;':'font-size:13px;font-weight:700;'}white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.n}${i===0?' <span class="pill pill-gold" style="margin-left:2px;">MVP</span>':''}</span>
+          <span class="mono" style="font-size:13px;color:var(--ink-dim);flex:none;">${p.score}점</span>
         </div>
-        <span class="mono" style="font-size:13px;color:var(--ink-dim);flex:none;">${p.score}점</span>
-      </div>`).join('')}
+        <p class="hint mono" style="margin:4px 0 0;">PERFECT <b style="color:var(--accent)">${pct(gc.PERFECT)}%</b> · GREAT <b style="color:var(--gold)">${pct(gc.GREAT+gc.GOOD)}%</b> · MISS <b style="color:var(--danger)">${pct(gc.MISS)}%</b></p>
+      </div>`;
+    }).join('')}
   </div>`;
 }
 function renderCrewBattle(){
@@ -3539,23 +3556,15 @@ function renderCrewBattle(){
   <div class="card" style="max-width:640px;margin:0 auto;">
     <h2 style="margin:0 0 6px;text-align:center;">${b.result==='win'?'🎉 우리 팀 승리!':'아쉽게 패배했어요'}</h2>
     <p class="desc" style="text-align:center;margin:0 0 4px;">최종 ${teamTotal}점 : ${b.oppScore}점</p>
-    ${b.result==='win' ? `<p class="mono" style="font-weight:700;color:var(--gold);margin:0 0 14px;text-align:center;">크루 포인트 획득 +${b.target}P</p>` : '<div style="margin-bottom:6px;"></div>'}
-    ${(()=>{
-      const gc=b.gradeCounts||{PERFECT:0,GREAT:0,GOOD:0,MISS:0};
-      const gcTotal=Object.values(gc).reduce((s,v)=>s+v,0)||1;
-      const pct=n=>Math.round(n/gcTotal*100);
-      return `
-    <p class="section-label" style="margin:0 0 6px;">전체 판정 비율 (${gcTotal}회)</p>
-    <p class="desc mono" style="margin:0 0 18px;">PERFECT <b style="color:var(--accent)">${pct(gc.PERFECT)}%</b> · GREAT <b style="color:var(--gold)">${pct(gc.GREAT+gc.GOOD)}%</b> · MISS <b style="color:var(--danger)">${pct(gc.MISS)}%</b></p>`;
-    })()}
+    ${b.result==='win' ? `<p class="mono" style="font-weight:700;color:var(--gold);margin:0 0 14px;text-align:center;">크루 포인트 획득 +${b.target}P</p>` : '<div style="margin-bottom:14px;"></div>'}
     <div class="grid grid-2" style="align-items:start;">
       <div>
         <p class="section-label" style="margin:0 0 8px;">${state.crew.name} (우리팀)</p>
-        ${renderBattleRoster(battleMyRoster(b), 'battle-result-me')}
+        ${renderBattleRoster(battleMyRoster(b))}
       </div>
       <div>
         <p class="section-label" style="margin:0 0 8px;">${b.opponent.name} (상대팀)</p>
-        ${renderBattleRoster(battleOppRoster(b), 'battle-result-opp')}
+        ${renderBattleRoster(battleOppRoster(b))}
       </div>
     </div>
     <button class="btn btn-primary btn-block" style="margin-top:20px;" onclick="exitCrewBattle()">크루로 돌아가기</button>
